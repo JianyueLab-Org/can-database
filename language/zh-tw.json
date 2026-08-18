@@ -25,7 +25,8 @@
     "quickAccess": "快速访问",
     "portal": "教员与管理",
     "main": "主站",
-    "docs": "文档"
+    "docs": "文档",
+    "map": "地圖"
   },
   "title": "航行资料库",
   "denied": {
@@ -59,14 +60,41 @@
     "airac": "周期",
     "coords": "坐标",
     "runways": "跑道",
-    "stands": "机位",
+    "stands": "{n} 機位",
     "procedures": "程序",
     "sids": "离场",
     "stars": "进场",
     "back": "返回机场列表",
     "notFound": "没有这个机场的当前数据。",
     "noElev": "未提供",
-    "magneticNote": "跑道与机位航向是**磁**航向，写进 FSD 位置包前要用上面的磁差换算成真航向。"
+    "magneticNote": "跑道与机位航向是**磁**航向，写进 FSD 位置包前要用上面的磁差换算成真航向。",
+    "onMap": "在地圖上看",
+    "shownCount": "{n} / {total} 個機場"
+  },
+  "map": {
+    "title": "地圖",
+    "description": "全網 233 個機場依 FIR 著色；可疊加航路網，選取某個 FIR 後可疊加它的航路點。",
+    "empty": "還沒有生效的資料集，圖上沒有東西可畫。",
+    "allFirs": "全部",
+    "layerAirways": "航路網",
+    "layerFixes": "航路點",
+    "fixesNeedFir": "請先選一個 FIR —— 全網 15278 個航路點畫上去讀不出任何東西。",
+    "loadingAirways": "正在取航路網…",
+    "loadingFixes": "正在取航路點…",
+    "open": "開啟機場",
+    "mapLabel": "全網機場地圖",
+    "shownCount": "圖上 {n} 個機場",
+    "standsShort": "機位"
+  },
+  "airportMap": {
+    "title": "機場圖",
+    "layerStands": "機位 ({n})",
+    "procNone": "不畫程序",
+    "procSid": "離場 SID ({n})",
+    "procStar": "進場 STAR ({n})",
+    "suspect": "可疑",
+    "suspectCount": "{n} 個程序點離本場超過 400 km，很可能是代號解析解錯了",
+    "mapLabel": "{icao} 機場圖"
   },
   "fixes": {
     "title": "航路点",

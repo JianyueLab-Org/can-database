@@ -25,7 +25,8 @@
     "quickAccess": "快速访问",
     "portal": "教员与管理",
     "main": "主站",
-    "docs": "文档"
+    "docs": "文档",
+    "map": "地図"
   },
   "title": "航行资料库",
   "denied": {
@@ -59,14 +60,41 @@
     "airac": "周期",
     "coords": "坐标",
     "runways": "跑道",
-    "stands": "机位",
+    "stands": "{n} スポット",
     "procedures": "程序",
     "sids": "离场",
     "stars": "进场",
     "back": "返回机场列表",
     "notFound": "没有这个机场的当前数据。",
     "noElev": "未提供",
-    "magneticNote": "跑道与机位航向是**磁**航向，写进 FSD 位置包前要用上面的磁差换算成真航向。"
+    "magneticNote": "跑道与机位航向是**磁**航向，写进 FSD 位置包前要用上面的磁差换算成真航向。",
+    "onMap": "地図で見る",
+    "shownCount": "{n} / {total} 空港"
+  },
+  "map": {
+    "title": "地図",
+    "description": "全 233 空港を FIR ごとに色分け。航空路網を重ねられ、FIR を選ぶとその FIX も重ねられます。",
+    "empty": "有効なデータセットがないため、描画するものがありません。",
+    "allFirs": "すべて",
+    "layerAirways": "航空路",
+    "layerFixes": "FIX",
+    "fixesNeedFir": "まず FIR を選んでください —— 全 15278 点を一度に描くと読み取れません。",
+    "loadingAirways": "航空路を取得中…",
+    "loadingFixes": "FIX を取得中…",
+    "open": "空港を開く",
+    "mapLabel": "ネットワーク空港地図",
+    "shownCount": "{n} 空港を表示",
+    "standsShort": "スポット"
+  },
+  "airportMap": {
+    "title": "空港図",
+    "layerStands": "スポット ({n})",
+    "procNone": "経路を描かない",
+    "procSid": "出発 SID ({n})",
+    "procStar": "到着 STAR ({n})",
+    "suspect": "疑わしい",
+    "suspectCount": "{n} 点が空港から 400 km 以上離れています —— 識別子の解決ミスの可能性が高いです",
+    "mapLabel": "{icao} 空港図"
   },
   "fixes": {
     "title": "航路点",

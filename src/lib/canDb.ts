@@ -116,6 +116,17 @@ export interface Airport {
   source: string;
 }
 
+/**
+ * 机场索引的一行：一个机场加上它的机位数。
+ *
+ * **和 AirportDetail 分开是必须的**，不是整理癖：详情里 `stands` 是一个数组，这里是
+ * 一个计数，两者用同一个 JSON 名字。Go 那边把它们放进同一个结构体时，编码器会静默地
+ * 挑浅的那一个，于是详情页的机位列表变成一个数字 —— 那个 bug 就是这么来的。
+ */
+export interface AirportSummary extends Airport {
+  stands: number;
+}
+
 export interface Runway {
   id: string;
   opposite: string | null;
@@ -134,11 +145,38 @@ export interface Stand {
   span: number | null;
 }
 
+/**
+ * 程序上的一个航路点。
+ *
+ * **lat/lon 可以是 null，而且这不是边角情况**：2608 里 41144 个程序点有 311 个引用了
+ * 任何来源都不认识的代号。代号本身仍然属于那条飞行计划航路，所以它被保留、坐标留空 ——
+ * 画图的一方要自己跳过这些点，而不是指望它们不存在。
+ */
+export interface ProcedurePoint {
+  ident: string;
+  lat: number | null;
+  lon: number | null;
+}
+
 export interface Procedure {
   kind: "sid" | "star";
   name: string;
   runway: string | null;
+  /** 有序代号，印出来的程序清单读的是这一串。 */
   points: string[];
+  /** 同一串，带坐标。`path[i].ident === points[i]`，长度也一定相同。 */
+  path: ProcedurePoint[];
+}
+
+/**
+ * 全国航路网。
+ *
+ * `fixes` 是 ident → [lat, lon]，`segments` 是 [airway, from, to]。一次取整张图而不是
+ * 按 FIR 切：一条 ZGGG→ZBAA 的航路跨四个 FIR，在边界上切开的图只能规划到那一块的边缘。
+ */
+export interface AirwayGraph {
+  fixes: Record<string, [number, number]>;
+  segments: Array<[string, string, string]>;
 }
 
 export interface AirportDetail extends Airport {

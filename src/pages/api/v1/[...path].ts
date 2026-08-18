@@ -40,8 +40,14 @@ interface Allowed {
 const ALLOW_LIST: Record<string, Allowed> = {
   "aip/datasets": { methods: ["GET"], who: "Datasets.vue —— 周期与来源总览" },
   "aip/airports": { methods: ["GET"], who: "Airports.vue —— 机场清单" },
-  "aip/fixes": { methods: ["GET"], who: "Fixes.vue —— 按 FIR 浏览航路点" },
-  "aip/airways": { methods: ["GET"], who: "Airways.vue —— 全国航路网" },
+  "aip/fixes": {
+    methods: ["GET"],
+    who: "Fixes.vue —— 按 FIR 浏览航路点；NetworkMap.vue —— 选中 FIR 后的航路点图层",
+  },
+  "aip/airways": {
+    methods: ["GET"],
+    who: "NetworkMap.vue —— 航路网图层（点开才取，取一次留着）",
+  },
 };
 
 /**

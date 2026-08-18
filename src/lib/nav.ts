@@ -19,6 +19,7 @@ import { ACCESS_WRITE, webUrl } from "@/lib/config";
 const PAGES: Array<{ key: string; href: string; icon: string }> = [
   { key: "nav.overview", href: "/", icon: "home" },
   { key: "nav.airports", href: "/airports", icon: "mapPin" },
+  { key: "nav.map", href: "/map", icon: "map" },
   { key: "nav.fixes", href: "/fixes", icon: "signal" },
   { key: "nav.datasets", href: "/datasets", icon: "documentText" },
 ];

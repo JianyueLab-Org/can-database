@@ -25,7 +25,8 @@
     "quickAccess": "快速访问",
     "portal": "教员与管理",
     "main": "主站",
-    "docs": "文档"
+    "docs": "文档",
+    "map": "Map"
   },
   "title": "航行资料库",
   "denied": {
@@ -59,14 +60,41 @@
     "airac": "周期",
     "coords": "坐标",
     "runways": "跑道",
-    "stands": "机位",
+    "stands": "{n} stands",
     "procedures": "程序",
     "sids": "离场",
     "stars": "进场",
     "back": "返回机场列表",
     "notFound": "没有这个机场的当前数据。",
     "noElev": "未提供",
-    "magneticNote": "跑道与机位航向是**磁**航向，写进 FSD 位置包前要用上面的磁差换算成真航向。"
+    "magneticNote": "跑道与机位航向是**磁**航向，写进 FSD 位置包前要用上面的磁差换算成真航向。",
+    "onMap": "See on the map",
+    "shownCount": "{n} of {total} airports"
+  },
+  "map": {
+    "title": "Map",
+    "description": "All 233 airports coloured by FIR. Overlay the airway network, and a FIR's fixes once you pick one.",
+    "empty": "No active dataset, so there is nothing to draw.",
+    "allFirs": "All",
+    "layerAirways": "Airways",
+    "layerFixes": "Fixes",
+    "fixesNeedFir": "Pick a FIR first — all 15,278 fixes at once reads as noise.",
+    "loadingAirways": "Loading airways…",
+    "loadingFixes": "Loading fixes…",
+    "open": "Open airport",
+    "mapLabel": "Network airport map",
+    "shownCount": "{n} airports shown",
+    "standsShort": "stands"
+  },
+  "airportMap": {
+    "title": "Airport map",
+    "layerStands": "Stands ({n})",
+    "procNone": "No procedures",
+    "procSid": "SIDs ({n})",
+    "procStar": "STARs ({n})",
+    "suspect": "suspect",
+    "suspectCount": "{n} procedure points sit over 400 km from the field — most likely a misresolved identifier",
+    "mapLabel": "{icao} airport map"
   },
   "fixes": {
     "title": "航路点",

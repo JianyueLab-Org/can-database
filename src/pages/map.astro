@@ -1,0 +1,51 @@
+---
+import AppLayout from "@/layouts/AppLayout.astro";
+import NetworkMap from "@/components/NetworkMap.vue";
+import { getLocale, getMessages, useTranslations } from "@/lib/i18n";
+import { callDb } from "@/server/canDb";
+import type { AirportSummary } from "@/lib/canDb";
+
+/**
+ * 全网图。
+ *
+ * 机场清单在服务端取好当 prop 传进去，而不是让岛屿自己再跑一趟：这一页开门见山就是
+ * 一张画着 233 个点的图，先渲染一个空框再去取数据，等于把整个首屏押在一次往返上。
+ * 航路网和航路点是点开才取的，理由写在岛屿里。
+ *
+ * FIR 清单同样是 can-db 给的（`/aip/firs`），不是从机场里推的 —— 和 /fixes 一致。
+ */
+const locale = getLocale(Astro.cookies);
+const t = useTranslations(locale, "map");
+const messages = getMessages(locale, "map");
+
+const [airportsResult, firsResult] = await Promise.all([
+  callDb<AirportSummary[]>(Astro, "/api/v1/aip/airports"),
+  callDb<string[]>(Astro, "/api/v1/aip/firs"),
+]);
+const airports = airportsResult.ok ? (airportsResult.data ?? []) : [];
+const firs = firsResult.ok ? (firsResult.data ?? []) : [];
+---
+
+<AppLayout title={t("title")}>
+  <div class="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+    <header class="mb-6">
+      <h1 class="text-2xl font-bold tracking-tight text-ink sm:text-3xl">
+        {t("title")}
+      </h1>
+      <p class="mt-2 max-w-2xl text-muted">{t("description")}</p>
+    </header>
+
+    {
+      airports.length === 0 ? (
+        <div class="card p-10 text-center text-muted">{t("empty")}</div>
+      ) : (
+        <NetworkMap
+          messages={messages}
+          airports={airports}
+          firs={firs}
+          client:only="vue"
+        />
+      )
+    }
+  </div>
+</AppLayout>
