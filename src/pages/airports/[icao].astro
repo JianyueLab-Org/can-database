@@ -1,0 +1,161 @@
+---
+import AppLayout from "@/layouts/AppLayout.astro";
+import { getLocale, useTranslations } from "@/lib/i18n";
+import { callDb } from "@/server/canDb";
+import type { AirportDetail } from "@/lib/canDb";
+
+/**
+ * 一个机场的全部：跑道、机位、进离场程序。
+ *
+ * 服务端渲染。ZGGG 是这里最大的一份 —— 10 条跑道、520 个机位、168 个程序 —— 而它
+ * 仍然是一次查询：can-db 的 `procedures()` 用一个 lateral aggregate 把程序点一次
+ * 取回，而不是每个程序一次往返。
+ */
+const icao = (Astro.params.icao ?? "").toUpperCase();
+const locale = getLocale(Astro.cookies);
+const t = useTranslations(locale, "airports");
+
+const result = await callDb<AirportDetail>(
+  Astro,
+  `/api/v1/aip/airports/${encodeURIComponent(icao)}`,
+);
+const airport = result.ok ? result.data : null;
+
+const sids = airport?.procedures.filter((p) => p.kind === "sid") ?? [];
+const stars = airport?.procedures.filter((p) => p.kind === "star") ?? [];
+---
+
+<AppLayout title={icao}>
+  <div class="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
+    <a href="/airports" class="link text-sm">← {t("back")}</a>
+
+    {
+      !airport ? (
+        <div class="card mt-6 p-10 text-center">
+          <p class="text-muted">{t("notFound")}</p>
+        </div>
+      ) : (
+        <>
+          <header class="mb-6 mt-4">
+            <h1 class="font-mono text-3xl font-bold tracking-tight text-ink">
+              {airport.icao}
+            </h1>
+            <p class="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-sm text-muted">
+              <span>
+                {t("fir")}: {airport.fir ?? "—"}
+              </span>
+              <span class="tnum">
+                {t("coords")}: {airport.lat.toFixed(5)},{" "}
+                {airport.lon.toFixed(5)}
+              </span>
+              <span class="tnum">
+                {t("elev")}:{" "}
+                {airport.elev === null ? t("noElev") : `${airport.elev} ft`}
+              </span>
+              <span class="tnum">
+                {t("variation")}: {airport.variation ?? "—"}
+              </span>
+              <span class="tnum">
+                {t("airac")}: {airport.airac} ({airport.source})
+              </span>
+            </p>
+            {/* The magnetic/true distinction is the single most expensive thing
+                to get wrong downstream — it puts a parked aircraft skew to its
+                own stand box — so the page says it rather than assuming the
+                reader knows which one these columns are. */}
+            <p class="mt-3 max-w-2xl text-xs text-faint">{t("magneticNote")}</p>
+          </header>
+
+          <section class="mb-8">
+            <h2 class="mb-2 text-sm font-semibold uppercase tracking-wider text-muted">
+              {t("runways")} ({airport.runways.length})
+            </h2>
+            <div class="scroll-edge-y overflow-x-auto">
+              <table class="data-table w-full text-sm">
+                <thead>
+                  <tr>
+                    <th>{t("runways")}</th>
+                    <th>hdg</th>
+                    <th>threshold</th>
+                    <th>end</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {airport.runways.map((r) => (
+                    <tr>
+                      <td data-label={t("runways")} class="font-mono">
+                        {r.id}
+                        {r.opposite ? ` / ${r.opposite}` : ""}
+                      </td>
+                      <td data-label="hdg" class="tnum">
+                        {r.hdg ?? "—"}
+                      </td>
+                      <td data-label="threshold" class="tnum">
+                        {r.lat.toFixed(5)}, {r.lon.toFixed(5)}
+                      </td>
+                      <td data-label="end" class="tnum">
+                        {r.endLat.toFixed(5)}, {r.endLon.toFixed(5)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="mb-8">
+            <h2 class="mb-2 text-sm font-semibold uppercase tracking-wider text-muted">
+              {t("stands")} ({airport.stands.length})
+            </h2>
+            {/* Capped at 60 rendered rows. ZGGG has 520 stands and a wall of
+                them helps nobody read this page; the count above is the honest
+                number and the cap says so rather than silently truncating. */}
+            <div class="flex flex-wrap gap-1.5">
+              {airport.stands.slice(0, 60).map((s) => (
+                <span
+                  class="badge badge-neutral font-mono"
+                  title={`${s.lat.toFixed(5)}, ${s.lon.toFixed(5)}${s.span ? ` · ${s.span} m` : ""}`}
+                >
+                  {s.name}
+                </span>
+              ))}
+            </div>
+            {airport.stands.length > 60 && (
+              <p class="mt-2 text-xs text-faint">
+                … {airport.stands.length - 60} more
+              </p>
+            )}
+          </section>
+
+          <section class="grid gap-8 lg:grid-cols-2">
+            {[
+              { label: t("sids"), list: sids },
+              { label: t("stars"), list: stars },
+            ].map((group) => (
+              <div>
+                <h2 class="mb-2 text-sm font-semibold uppercase tracking-wider text-muted">
+                  {group.label} ({group.list.length})
+                </h2>
+                <ul class="space-y-1.5">
+                  {group.list.map((p) => (
+                    <li class="card p-3">
+                      <p class="flex items-baseline gap-2">
+                        <span class="font-mono text-sm font-semibold text-ink">
+                          {p.name}
+                        </span>
+                        <span class="text-xs text-faint">{p.runway}</span>
+                      </p>
+                      <p class="mt-1 break-words font-mono text-xs text-muted">
+                        {p.points.join(" ")}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </section>
+        </>
+      )
+    }
+  </div>
+</AppLayout>

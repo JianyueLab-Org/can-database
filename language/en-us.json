@@ -1,0 +1,112 @@
+{
+  "frame": {
+    "signOut": "Sign Out",
+    "search": {
+      "label": "Search pages",
+      "placeholder": "Jump to a page…",
+      "noResults": "No matching page",
+      "hint": "Search"
+    },
+    "skipToContent": "Skip to main content",
+    "workspace": {
+      "label": "Workspace",
+      "pilots": "Pilots",
+      "controllers": "ATC",
+      "exams": "Exams"
+    },
+    "closeSidebar": "Close navigation",
+    "openSidebar": "Open navigation"
+  },
+  "nav": {
+    "overview": "总览",
+    "airports": "机场",
+    "fixes": "航路点",
+    "datasets": "数据集",
+    "quickAccess": "快速访问",
+    "portal": "教员与管理",
+    "main": "主站",
+    "docs": "文档"
+  },
+  "title": "航行资料库",
+  "denied": {
+    "title": "还没有资料库权限",
+    "body": "航行资料库的访问权限由管理员（ADM）逐人授予，和管制评级是两回事 —— 有评级不等于有这里的权限。",
+    "how": "需要的话，请联系一位 ADM 为你开通；他们在教员与管理门户的花名册上操作。",
+    "signedInAs": "当前登录：{name}（{id}）"
+  },
+  "overview": {
+    "title": "总览",
+    "description": "当前生效的数据来自哪一期、哪一个来源。",
+    "live": "生效中",
+    "loading": "载入中",
+    "superseded": "已被取代",
+    "airacLive": "生效周期",
+    "sources": "来源",
+    "airports": "机场",
+    "noData": "还没有任何数据集。先跑一次 aip-import。",
+    "licensed": "有许可限制",
+    "open": "可再分发"
+  },
+  "airports": {
+    "title": "机场",
+    "description": "{count} 个机场，来自当前生效的周期。",
+    "search": "搜索 ICAO 或 FIR…",
+    "empty": "没有匹配的机场。",
+    "icao": "ICAO",
+    "fir": "FIR",
+    "elev": "场压",
+    "variation": "磁差",
+    "airac": "周期",
+    "coords": "坐标",
+    "runways": "跑道",
+    "stands": "机位",
+    "procedures": "程序",
+    "sids": "离场",
+    "stars": "进场",
+    "back": "返回机场列表",
+    "notFound": "没有这个机场的当前数据。",
+    "noElev": "未提供",
+    "magneticNote": "跑道与机位航向是**磁**航向，写进 FSD 位置包前要用上面的磁差换算成真航向。"
+  },
+  "fixes": {
+    "title": "航路点",
+    "description": "按 FIR 浏览。**一个代号只在一个 FIR 内唯一** —— 全网有 267 个代号指向不止一个点，所以这里必须先选 FIR。",
+    "pick": "选一个 FIR",
+    "count": "{count} 个航路点",
+    "empty": "这个 FIR 没有航路点。",
+    "ident": "代号",
+    "coords": "坐标"
+  },
+  "datasets": {
+    "title": "数据集",
+    "description": "每一次导入都是一个数据集：一个来源、一个 AIRAC 周期，带着它自己的许可状态。",
+    "source": "来源",
+    "airac": "周期",
+    "state": "状态",
+    "airports": "机场",
+    "redistributable": "可再分发",
+    "created": "导入于",
+    "activated": "生效于",
+    "note": "备注",
+    "empty": "还没有任何数据集。",
+    "yes": "是",
+    "no": "否",
+    "never": "—"
+  },
+  "common": {
+    "loading": "载入中…",
+    "error": "出错了"
+  },
+  "notFound": {
+    "code": "404",
+    "title": "This page is off the charts",
+    "description": "The page you asked for does not exist, or it may have moved since you last flew here.",
+    "home": "Back to home"
+  },
+  "workspace": {
+    "label": "Workspace",
+    "pilots": "Pilots",
+    "controllers": "ATC",
+    "exams": "Exams"
+  }
+}

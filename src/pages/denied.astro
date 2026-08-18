@@ -1,0 +1,47 @@
+---
+import AppLayout from "@/layouts/AppLayout.astro";
+import { getLocale, useTranslations } from "@/lib/i18n";
+
+/**
+ * 登录了，但 ADM 还没开权限。
+ *
+ * 这一页存在的理由写在 `src/middleware.ts` 里：把这个人弹回主站只会让他再点一次
+ * 链接。他不是走错了地方 —— 他多半是被告知这里有东西要看的 —— 他需要的是一句
+ * 「找谁开」。
+ *
+ * **不套侧栏。** 侧栏上的每一条他都点不进去，摆在那里只是四个 403。
+ */
+const locale = getLocale(Astro.cookies);
+const t = useTranslations(locale, "denied");
+const user = Astro.locals.user;
+---
+
+<AppLayout title={t("title")} shell={false}>
+  <main
+    id="main-content"
+    tabindex="-1"
+    class="flex min-h-dvh items-center justify-center bg-surface-sunken px-4 py-16"
+  >
+    <div class="card mx-auto max-w-lg p-8">
+      <h1 class="text-xl font-bold tracking-tight text-ink">{t("title")}</h1>
+      <p class="mt-4 text-muted">{t("body")}</p>
+      <p class="mt-3 text-muted">{t("how")}</p>
+      {
+        user && (
+          <p class="mt-6 border-t border-subtle pt-4 text-sm text-faint">
+            {t("signedInAs", { name: user.name, id: user.username })}
+          </p>
+        )
+      }
+      <div class="mt-6 flex flex-wrap gap-3">
+        <a
+          href="https://portal.ceruleanavi.net"
+          class="btn btn-secondary px-4 py-2">教员与管理</a
+        >
+        <a href="https://ceruleanavi.net/" class="btn btn-secondary px-4 py-2"
+          >主站</a
+        >
+      </div>
+    </div>
+  </main>
+</AppLayout>

@@ -1,0 +1,29 @@
+---
+import AppLayout from "@/layouts/AppLayout.astro";
+import Airports from "@/components/Airports.vue";
+import { getLocale, getMessages, useTranslations } from "@/lib/i18n";
+import { callDb } from "@/server/canDb";
+import type { Airport } from "@/lib/canDb";
+
+const locale = getLocale(Astro.cookies);
+const t = useTranslations(locale, "airports");
+const messages = getMessages(locale, "airports");
+
+const result = await callDb<Airport[]>(Astro, "/api/v1/aip/airports");
+const airports = result.ok ? (result.data ?? []) : [];
+---
+
+<AppLayout title={t("title")}>
+  <div class="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+    <header class="mb-6">
+      <h1 class="text-2xl font-bold tracking-tight text-ink sm:text-3xl">
+        {t("title")}
+      </h1>
+      <p class="mt-2 text-muted">
+        {t("description", { count: airports.length })}
+      </p>
+    </header>
+
+    <Airports messages={messages} airports={airports} client:load />
+  </div>
+</AppLayout>

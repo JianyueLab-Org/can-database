@@ -1,0 +1,82 @@
+---
+import AppLayout from "@/layouts/AppLayout.astro";
+import { getLocale, useTranslations } from "@/lib/i18n";
+import { callDb } from "@/server/canDb";
+import type { Dataset } from "@/lib/canDb";
+
+const locale = getLocale(Astro.cookies);
+const t = useTranslations(locale, "datasets");
+
+const result = await callDb<Dataset[]>(Astro, "/api/v1/aip/datasets");
+const datasets = result.ok ? (result.data ?? []) : [];
+
+const stateBadge: Record<string, string> = {
+  active: "badge badge-success",
+  loading: "badge badge-warning",
+  superseded: "badge badge-neutral",
+};
+const fmt = (iso: string | null) =>
+  iso ? new Date(iso).toISOString().slice(0, 16).replace("T", " ") : t("never");
+---
+
+<AppLayout title={t("title")}>
+  <div class="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+    <header class="mb-6">
+      <h1 class="text-2xl font-bold tracking-tight text-ink sm:text-3xl">
+        {t("title")}
+      </h1>
+      <p class="mt-2 max-w-2xl text-muted">{t("description")}</p>
+    </header>
+
+    {
+      datasets.length === 0 ? (
+        <div class="card p-10 text-center">
+          <p class="text-muted">{t("empty")}</p>
+        </div>
+      ) : (
+        <div class="scroll-edge-y overflow-x-auto">
+          <table class="data-table w-full text-sm">
+            <thead>
+              <tr>
+                <th>{t("airac")}</th>
+                <th>{t("source")}</th>
+                <th>{t("state")}</th>
+                <th>{t("redistributable")}</th>
+                <th>{t("airports")}</th>
+                <th>{t("activated")}</th>
+                <th>{t("note")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {datasets.map((d) => (
+                <tr>
+                  <td data-label={t("airac")} class="tnum font-mono">
+                    {d.airac}
+                  </td>
+                  <td data-label={t("source")}>{d.source}</td>
+                  <td data-label={t("state")}>
+                    <span class={stateBadge[d.state] ?? "badge badge-neutral"}>
+                      {d.state}
+                    </span>
+                  </td>
+                  <td data-label={t("redistributable")}>
+                    {d.redistributable ? t("yes") : t("no")}
+                  </td>
+                  <td data-label={t("airports")} class="tnum">
+                    {d.airports}
+                  </td>
+                  <td data-label={t("activated")} class="tnum">
+                    {fmt(d.activatedAt)}
+                  </td>
+                  <td data-label={t("note")} class="text-xs text-faint">
+                    {d.note}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )
+    }
+  </div>
+</AppLayout>

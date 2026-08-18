@@ -1,0 +1,133 @@
+# can-database on jyl-tyo — 航行资料控制台。
+#
+# 它是 can-db 的**唯一**前端，也是网络里第八个 Astro 站点。形状和 can-controller /
+# can-portal / can-efb 一样，不要在这里发明第九套。
+#
+# ## 它自己的命名空间，而 can-db 在 can-db
+#
+# 两半从前在同一个仓库、同一个命名空间里。拆开之后各自管各自的：一个仓库
+# `kubectl apply` 一份清单，两个仓库往同一个命名空间里 apply 会让「这个 Deployment
+# 归谁」变成一道没有答案的题 —— 谁最后跑谁说了算，而两边的 CI 谁也不知道对方跑过。
+#
+# 跨命名空间不需要任何配置：`app.can-db.svc.cluster.local` 是全限定名，从哪个命名
+# 空间都解析得到。集群里没有 NetworkPolicy，所以也没有要开的口子。
+#
+# ## 它不持有任何东西
+#
+# 没有数据库凭据，**也没有 Secret**（和 can-efb、can-controller 一样，比 can-dev
+# 更严）。会话是 can-api 签在父域 `.ceruleanavi.net` 上的那一枚 cookie，成员在主站
+# 登录过，浏览器本来就把它带到这里来；这个站做的全部事情是把它原样转发给 can-db，
+# 由那边去问 can-api「这是谁、有没有 aipAccess」。
+#
+# 所以这个清单里没有 `imagePullSecrets`：仓库是公开的，它的 GHCR 包也是公开的。
+# 这是和 can-db 的清单最直观的一处区别，而它同时也是「这一半什么都不装」的证据。
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: can-database
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app
+  namespace: can-database
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: can-database
+  template:
+    metadata:
+      labels:
+        app: can-database
+    spec:
+      containers:
+        - name: app
+          image: ghcr.io/jianyuelab-org/can-database:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 4321
+          env:
+            # can-db 的**集群内**地址，不是 api-db.ceruleanavi.net。
+            #
+            # can-db 从 2026-08-18 起确实有了公网主机名，但那条是给集群外的消费者
+            # 用的（can-atc 是控制员机器上的桌面程序，解析不了 ClusterIP）。这个站
+            # 和它在同一个集群里，走 Service 少一跳，而且不会因为 Cloudflare 隧道
+            # 抖一下就连自己的后端都读不到。
+            - name: CAN_DB_ORIGIN
+              value: http://app.can-db.svc.cluster.local
+            # 会话在 can-api 解。这个站自己不验 cookie，也不该验。
+            - name: CAN_API_ORIGIN
+              value: https://api.ceruleanavi.net
+            # 未登录时送去主站的登录页。
+            - name: CAN_WEB_ORIGIN
+              value: https://ceruleanavi.net
+            # 写操作的 Origin 比对它。必须显式配置：隧道后面从 Host 推出来的是
+            # http://，浏览器发的是 https://，推导值永远对不上。
+            - name: PUBLIC_ORIGIN
+              value: https://database.ceruleanavi.net
+          # /healthz 不碰 can-db，也不碰 can-api —— 一个上游抖一下就把这边整个 Pod
+          # 滚掉的探针，治不好它探测的那个毛病。
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 4321
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 4321
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            # 数字，不能是名字：kubelet 不解析名字，runAsNonRoot 会直接让容器起不
+            # 来。can-radar 在这上面丢过一个下午。
+            runAsUser: 1000
+            seccompProfile:
+              type: RuntimeDefault
+            capabilities:
+              drop: ["ALL"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: app
+  namespace: can-database
+spec:
+  selector:
+    app: can-database
+  ports:
+    - port: 80
+      targetPort: 4321
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: can-database
+  namespace: can-database
+spec:
+  # 集群里唯一的 ingress class。控制器自己登记主机名，TLS 在 Cloudflare 那侧终止 ——
+  # 所以没有 cert-manager 注解，也没有 tls: 块。
+  ingressClassName: cloudflare-tunnel
+  rules:
+    - host: database.ceruleanavi.net
+      http:
+        paths:
+          - backend:
+              service:
+                name: app
+                port:
+                  number: 80
+            path: /
+            pathType: Prefix

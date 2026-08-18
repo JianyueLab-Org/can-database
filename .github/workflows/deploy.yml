@@ -1,0 +1,39 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# 权限要在**调用方**声明：可复用工作流里的 permissions 是它需要什么，不是它能拿到
+# 什么。仓库默认的 GITHUB_TOKEN 只有 packages: read / deployments: none，缺了会在
+# 启动阶段被拒，而 startup_failure 是拿不到日志的。
+permissions:
+  contents: read
+  packages: write
+  deployments: write
+
+# ## 这个仓库为什么能用共享工作流，而 can-db 不能
+#
+# 共享的 deploy-k8s.yml 在 JianyueLab-Org 里，`KUBECONFIG_B64` 和 GHCR_PULL_TOKEN
+# 也是那个组织的 secret。两条限制叠在一起决定了谁能用它：
+#
+#  1. **JianyueLab-Org 是 GitHub Free 计划，组织 secret 到不了私有仓库。** 所以这
+#     个组织里凡是要部署的仓库都必须是公开的 —— can-dev / can-radar / can-exam /
+#     can-controller 全是这么来的，can-efb 卡住也正是因为它是私有的。
+#  2. 跨组织调不到共享工作流。
+#
+# 这个仓库两条都过：它在 JianyueLab-Org，而且是公开的。**它能公开是因为它什么都不
+# 装** —— 没有数据库凭据、没有 Secret、没有一行有许可的航行资料，也没有 can-db 那个
+# 描述私有 `Sector` 仓库布局的提取脚本。控制台渲染的每一个字节都是 can-db 现给的。
+#
+# can-db 走的是内联 kubectl（照着 can-api），因为它在 JianyueLab。
+jobs:
+  deploy:
+    uses: JianyueLab-Org/actions/.github/workflows/deploy-k8s.yml@main
+    with:
+      image: ghcr.io/jianyuelab-org/can-database
+      namespace: can-database
+      manifest: deploy/k8s.yaml
+      environment_url: https://database.ceruleanavi.net
+    secrets: inherit

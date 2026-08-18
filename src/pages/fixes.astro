@@ -1,0 +1,31 @@
+---
+import AppLayout from "@/layouts/AppLayout.astro";
+import Fixes from "@/components/Fixes.vue";
+import { getLocale, getMessages, useTranslations } from "@/lib/i18n";
+import { callDb } from "@/server/canDb";
+
+const locale = getLocale(Astro.cookies);
+const t = useTranslations(locale, "fixes");
+const messages = getMessages(locale, "fixes");
+
+// FIR 清单是 can-db 直接给的。
+//
+// 从前这里取整个机场索引再去重 —— 那份注释说「为一个控件单独开一条路由不值得」。
+// 在「所有逻辑放 can-db」之下那条理由不成立了：它本来就是拿机场当原材料在推导，现在
+// 只是改成问数据库要答案，顺带不用为了画一个下拉框传 233 条机场记录。
+const result = await callDb<string[]>(Astro, "/api/v1/aip/firs");
+const firs = result.ok ? (result.data ?? []) : [];
+---
+
+<AppLayout title={t("title")}>
+  <div class="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
+    <header class="mb-6">
+      <h1 class="text-2xl font-bold tracking-tight text-ink sm:text-3xl">
+        {t("title")}
+      </h1>
+      <p class="mt-2 max-w-2xl text-muted">{t("description")}</p>
+    </header>
+
+    <Fixes messages={messages} firs={firs} client:load />
+  </div>
+</AppLayout>

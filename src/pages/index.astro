@@ -1,0 +1,97 @@
+---
+import AppLayout from "@/layouts/AppLayout.astro";
+import { getLocale, useTranslations } from "@/lib/i18n";
+import { callDb } from "@/server/canDb";
+import type { Overview } from "@/lib/canDb";
+
+/**
+ * 总览：现在生效的是哪一期、哪一个来源。
+ *
+ * 服务端渲染而不是岛屿 —— 这一页没有任何交互，而一个先画骨架再自己去取的岛屿只是
+ * 多一个往返。
+ */
+const locale = getLocale(Astro.cookies);
+const t = useTranslations(locale, "overview");
+
+// 一条路由把这一页要的全部答出来。**这里不再推导任何东西** —— 「哪一期是活的」
+// 是一条关于这批数据的规则，归 can-db（见 internal/aip 的 Overview）。
+const result = await callDb<Overview>(Astro, "/api/v1/aip/overview");
+const overview = result.ok ? result.data : null;
+const datasets = overview?.datasets ?? 0;
+const active = overview?.active ?? [];
+const liveAirac = overview?.liveAirac ?? null;
+const totalAirports = overview?.airports ?? 0;
+const sources = overview?.sources ?? [];
+---
+
+<AppLayout title={t("title")}>
+  <div class="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
+    <header class="mb-8">
+      <h1 class="text-2xl font-bold tracking-tight text-ink sm:text-3xl">
+        {t("title")}
+      </h1>
+      <p class="mt-2 max-w-2xl text-muted">{t("description")}</p>
+    </header>
+
+    {
+      datasets === 0 ? (
+        <div class="card p-10 text-center">
+          <p class="text-muted">{t("noData")}</p>
+        </div>
+      ) : (
+        <>
+          <div class="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <div class="card p-4">
+              <p class="text-xs uppercase tracking-wider text-faint">
+                {t("airacLive")}
+              </p>
+              <p class="tnum mt-1 text-2xl font-bold text-ink">
+                {liveAirac ?? "—"}
+              </p>
+            </div>
+            <div class="card p-4">
+              <p class="text-xs uppercase tracking-wider text-faint">
+                {t("airports")}
+              </p>
+              <p class="tnum mt-1 text-2xl font-bold text-ink">
+                {totalAirports}
+              </p>
+            </div>
+            <div class="card p-4">
+              <p class="text-xs uppercase tracking-wider text-faint">
+                {t("sources")}
+              </p>
+              <p class="mt-1 text-2xl font-bold text-ink">
+                {sources.join(" · ") || "—"}
+              </p>
+            </div>
+          </div>
+
+          <ul class="space-y-3">
+            {active.map((d) => (
+              <li class="card flex flex-wrap items-center gap-x-6 gap-y-2 p-4">
+                <span class="tnum font-mono text-sm font-semibold text-can">
+                  {d.airac}
+                </span>
+                <span class="text-sm text-ink">{d.source}</span>
+                <span class="badge badge-success">{t("live")}</span>
+                <span
+                  class={
+                    d.redistributable
+                      ? "badge badge-info"
+                      : "badge badge-warning"
+                  }
+                >
+                  {d.redistributable ? t("open") : t("licensed")}
+                </span>
+                <span class="tnum ml-auto text-sm text-muted">
+                  {d.airports} {t("airports")}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )
+    }
+  </div>
+</AppLayout>

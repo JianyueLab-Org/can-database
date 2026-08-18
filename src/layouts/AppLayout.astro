@@ -1,0 +1,66 @@
+---
+import "@/styles/globals.css";
+import ThemeScript from "@jianyuelab-org/can-ui/components/ThemeScript.astro";
+import AppFrame from "@/components/AppFrame.vue";
+import { getLocale, getMessages, useTranslations } from "@/lib/i18n";
+import { buildNavigation, buildSecondary, buildWorkspaces } from "@/lib/nav";
+
+interface Props {
+  title?: string;
+  /** Chrome-less pages (the access-denied screen) pass false. */
+  shell?: boolean;
+}
+const { title, shell = true } = Astro.props;
+
+const locale = getLocale(Astro.cookies);
+const frameMessages = getMessages(locale, "frame");
+const t = useTranslations(locale);
+
+const user = Astro.locals.user;
+const navigation = buildNavigation(t, user?.aipAccess ?? 0);
+const secondary = buildSecondary(t);
+const workspaces = buildWorkspaces(t);
+const pathname = Astro.url.pathname;
+const pageTitle = title
+  ? `${title} · ${t("title")}`
+  : `${t("title")} · Cerulean Aviation Network`;
+---
+
+<!doctype html>
+<html lang={locale} class="antialiased">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png" />
+    <meta name="theme-color" content="#4c92c1" />
+    <!-- Licensed AIP material. Never let a crawler index it, and never let a
+         referrer carry an airport out to a third party. -->
+    <meta name="robots" content="noindex, nofollow" />
+    <title>{pageTitle}</title>
+    <ThemeScript />
+  </head>
+  <body>
+    {
+      shell ? (
+        <AppFrame
+          navigation={navigation}
+          secondary={secondary}
+          workspaces={workspaces}
+          activeWorkspace="controllers"
+          pathname={pathname}
+          messages={frameMessages}
+          userName={user?.name ?? ""}
+          userId={user?.username ?? ""}
+          locale={locale}
+          client:load
+        >
+          <slot />
+        </AppFrame>
+      ) : (
+        <slot />
+      )
+    }
+  </body>
+</html>
