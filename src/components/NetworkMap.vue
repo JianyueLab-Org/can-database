@@ -41,6 +41,8 @@ const props = defineProps<{
   messages: Record<string, unknown>;
   airports: AirportSummary[];
   firs: string[];
+  /** `/map?fir=…` 带来的初始筛选，已在服务端对着 firs 校验过。 */
+  initialFir?: string | null;
 }>();
 const t = createTranslator(props.messages);
 
@@ -53,7 +55,7 @@ const airwayLayer = shallowRef<L.LayerGroup | null>(null);
 const fixLayer = shallowRef<L.LayerGroup | null>(null);
 
 /** null = 全部 FIR。 */
-const activeFir = ref<string | null>(null);
+const activeFir = ref<string | null>(props.initialFir ?? null);
 const showAirways = ref(false);
 const showFixes = ref(false);
 const loading = ref<string | null>(null);

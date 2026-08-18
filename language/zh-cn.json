@@ -103,7 +103,12 @@
     "count": "{count} 个航路点",
     "empty": "这个 FIR 没有航路点。",
     "ident": "代号",
-    "coords": "坐标"
+    "coords": "坐标",
+    "search": "搜索代号…",
+    "onMap": "在地图上看这个 FIR",
+    "matched": "{n} / {total} 个航路点",
+    "noMatch": "没有匹配的代号。",
+    "truncated": "还有 {n} 个没有显示 —— 用搜索框收窄。"
   },
   "datasets": {
     "title": "数据集",

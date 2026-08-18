@@ -103,7 +103,12 @@
     "count": "{count} 个航路点",
     "empty": "这个 FIR 没有航路点。",
     "ident": "代号",
-    "coords": "坐标"
+    "coords": "坐标",
+    "search": "識別子を検索…",
+    "onMap": "この FIR を地図で見る",
+    "matched": "{n} / {total} FIX",
+    "noMatch": "一致する識別子がありません。",
+    "truncated": "他に {n} 件は非表示 —— 検索で絞り込んでください。"
   },
   "datasets": {
     "title": "数据集",

@@ -24,6 +24,12 @@ const [airportsResult, firsResult] = await Promise.all([
 ]);
 const airports = airportsResult.ok ? (airportsResult.data ?? []) : [];
 const firs = firsResult.ok ? (firsResult.data ?? []) : [];
+
+// `/map?fir=ZGZU` 是从航路点页链过来的。**在服务端就对着已知 FIR 列表校验**，而不是
+// 原样交给岛屿：一个乱填的值会筛出一张空图，看起来像数据没了。不认识就当没传。
+const requestedFir = Astro.url.searchParams.get("fir");
+const initialFir =
+  requestedFir && firs.includes(requestedFir) ? requestedFir : null;
 ---
 
 <AppLayout title={t("title")}>
@@ -43,6 +49,7 @@ const firs = firsResult.ok ? (firsResult.data ?? []) : [];
           messages={messages}
           airports={airports}
           firs={firs}
+          initialFir={initialFir}
           client:only="vue"
         />
       )
