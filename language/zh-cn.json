@@ -26,7 +26,8 @@
     "portal": "教员与管理",
     "main": "主站",
     "docs": "文档",
-    "map": "地图"
+    "map": "地图",
+    "route": "航路"
   },
   "title": "航行资料库",
   "denied": {
@@ -84,6 +85,32 @@
     "mapLabel": "全网机场地图",
     "shownCount": "图上 {n} 个机场",
     "standsShort": "机位"
+  },
+  "route": {
+    "title": "航路生成器",
+    "description": "在有向航路网上规划，沿途命中的限制原文一并列出。",
+    "from": "起飞",
+    "to": "落地",
+    "level": "巡航高度",
+    "levelHint": "英尺，可留空",
+    "plan": "生成",
+    "planning": "规划中…",
+    "distance": "航路距离",
+    "direct": "大圆距离",
+    "detour": "绕行",
+    "legs": "航段",
+    "notes": "这条航路有推测成分",
+    "restrictions": "沿途限制（{n} 条）",
+    "restrictionsNote": "以下为汇编原文，未做解读 —— 是否适用请自行判断。",
+    "showLegs": "展开 {n} 段明细",
+    "airway": "航路",
+    "fromFix": "起点",
+    "toFix": "终点",
+    "legDistance": "距离",
+    "copy": "复制",
+    "copied": "已复制",
+    "mapLabel": "航路示意图",
+    "unknownAirport": "其中一个代号不在当前数据里 —— 提交会失败。"
   },
   "airportMap": {
     "title": "机场图",

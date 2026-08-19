@@ -26,7 +26,8 @@
     "portal": "教员与管理",
     "main": "主站",
     "docs": "文档",
-    "map": "Map"
+    "map": "Map",
+    "route": "Route"
   },
   "title": "航行资料库",
   "denied": {
@@ -84,6 +85,32 @@
     "mapLabel": "Network airport map",
     "shownCount": "{n} airports shown",
     "standsShort": "stands"
+  },
+  "route": {
+    "title": "Route planner",
+    "description": "Plans over the directed airway network and lists every published restriction the route runs into.",
+    "from": "From",
+    "to": "To",
+    "level": "Cruise level",
+    "levelHint": "feet, optional",
+    "plan": "Plan",
+    "planning": "Planning…",
+    "distance": "Route",
+    "direct": "Great circle",
+    "detour": "Detour",
+    "legs": "Legs",
+    "notes": "This route involves guesswork",
+    "restrictions": "Restrictions en route ({n})",
+    "restrictionsNote": "Published text, unedited — judging whether it applies is yours.",
+    "showLegs": "Show {n} legs",
+    "airway": "Airway",
+    "fromFix": "From",
+    "toFix": "To",
+    "legDistance": "Distance",
+    "copy": "Copy",
+    "copied": "Copied",
+    "mapLabel": "Planned route",
+    "unknownAirport": "One of those identifiers is not in the current data — the request will fail."
   },
   "airportMap": {
     "title": "Airport map",

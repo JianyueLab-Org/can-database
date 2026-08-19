@@ -11,15 +11,19 @@ import type { NavItem, NavSecondary, Workspace } from "@jianyuelab-org/can-ui";
 import { ACCESS_WRITE, webUrl } from "@/lib/config";
 
 /**
- * 这个站的四页。
+ * 侧栏的六页。
  *
  * `/` 带斜杠是给 `SidebarNav.isCurrentPath()` 看的：以斜杠结尾的条目只精确匹配，
  * 否则「总览」会在每一个子页面上都亮着。
+ *
+ * 航路在这里，是因为它读的是这批数据 —— 但**规划本身在 can-db**（`/aip/route`），
+ * 这一页只是个入口。理由和总览那两个统计一样，见本文件顶上和 AGENTS.md。
  */
 const PAGES: Array<{ key: string; href: string; icon: string }> = [
   { key: "nav.overview", href: "/", icon: "home" },
   { key: "nav.airports", href: "/airports", icon: "mapPin" },
   { key: "nav.map", href: "/map", icon: "map" },
+  { key: "nav.route", href: "/route", icon: "paperAirplane" },
   { key: "nav.fixes", href: "/fixes", icon: "signal" },
   { key: "nav.datasets", href: "/datasets", icon: "documentText" },
 ];
@@ -53,7 +57,7 @@ export function buildSecondary(t: Translator): NavSecondary {
         href: "https://portal.ceruleanavi.net",
         icon: "shieldCheck",
       },
-      { name: t("nav.main"), href: webUrl("/"), icon: "paperAirplane" },
+      { name: t("nav.main"), href: webUrl("/"), icon: "globeAlt" },
       {
         name: t("nav.docs"),
         href: "https://docs.ceruleanavi.net",

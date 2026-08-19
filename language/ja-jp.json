@@ -26,7 +26,8 @@
     "portal": "教员与管理",
     "main": "主站",
     "docs": "文档",
-    "map": "地図"
+    "map": "地図",
+    "route": "ルート"
   },
   "title": "航行资料库",
   "denied": {
@@ -84,6 +85,32 @@
     "mapLabel": "ネットワーク空港地図",
     "shownCount": "{n} 空港を表示",
     "standsShort": "スポット"
+  },
+  "route": {
+    "title": "ルートプランナー",
+    "description": "方向を考慮した航空路網で計画し、経路上の公示制限を原文のまま列挙します。",
+    "from": "出発",
+    "to": "到着",
+    "level": "巡航高度",
+    "levelHint": "フィート、任意",
+    "plan": "計画",
+    "planning": "計画中…",
+    "distance": "経路",
+    "direct": "大圏",
+    "detour": "迂回",
+    "legs": "区間",
+    "notes": "この経路には推測が含まれます",
+    "restrictions": "経路上の制限（{n} 件）",
+    "restrictionsNote": "以下は公示の原文です。適用の判断はご自身で。",
+    "showLegs": "{n} 区間を表示",
+    "airway": "航空路",
+    "fromFix": "始点",
+    "toFix": "終点",
+    "legDistance": "距離",
+    "copy": "コピー",
+    "copied": "コピー済み",
+    "mapLabel": "計画経路",
+    "unknownAirport": "その識別子は現在のデータにありません —— 送信は失敗します。"
   },
   "airportMap": {
     "title": "空港図",
