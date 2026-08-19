@@ -44,10 +44,6 @@ const ALLOW_LIST: Record<string, Allowed> = {
     methods: ["GET"],
     who: "Fixes.vue —— 按 FIR 浏览航路点；NetworkMap.vue —— 选中 FIR 后的航路点图层",
   },
-  "aip/charts": {
-    methods: ["GET"],
-    who: "机场详情页 —— 航图索引（只有索引，没有 PDF）",
-  },
   "aip/route": {
     methods: ["GET"],
     who: "RoutePlanner.vue —— 航路生成器；规划在 can-db，这里只转发",

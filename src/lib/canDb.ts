@@ -138,26 +138,6 @@ export interface AirportSummary extends Airport {
   stands: number;
 }
 
-/**
- * 汇编里的一页图。**没有 PDF 本身** —— 那 3.3 GB 在集群里还没有地方放，所以这里是索引：
- * 有哪些图、图号、图种、多大。见 can-db 的 AGENTS.md〈航图〉。
- */
-export interface Chart {
-  family: "terminal" | "general";
-  icao: string | null;
-  name: string;
-  page: string | null;
-  kind: string | null;
-  isSup: boolean;
-  isModified: boolean;
-  /** 相对汇编根目录的路径，不是 URL —— 目前没有任何东西提供它。 */
-  filePath: string;
-  byteSize: number | null;
-  md5: string | null;
-  validFrom: string | null;
-  validUntil: string | null;
-}
-
 /** 跑道的**物理**数据 —— 没有坐标，那份汇编不给。几何在 `Runway` 里，两者按代号拼。 */
 export interface RunwayDetail {
   ident: string;
