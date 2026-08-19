@@ -136,6 +136,13 @@ can-db 现给的。
 
 **地图岛屿必须 `client:only="vue"`。** Leaflet 在模块顶层就要 `window`，SSR 会直接炸。
 
+**而且 Leaflet 只许出现在 `src/lib/mapMarkers.ts` 和地图岛屿里。** `mapBase.ts` 是「常量和
+纯函数」—— 它被 `Airports.vue`、`Fixes.vue` 这些**服务端渲染**的岛屿 import（只为了
+`firColor` 和瓦片地址）。往 mapBase 顶上加一行 `import L from "leaflet"`，机场清单页的每
+一个请求都会炸在 `window is not defined` 上，而且**本地 build 一声不吭** —— 那是运行时的
+错，不是构建期的。犯过一次，所以 `bun run build` 末尾跑
+`scripts/check-ssr-browser-only.mjs`：服务端产物里出现浏览器专用包的静态 import 就红。
+
 **Leaflet 对象放 `shallowRef`，不放 `ref`。** 它们是庞大的自引用结构，深响应式代理既
 没用又很贵。
 

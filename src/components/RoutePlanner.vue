@@ -24,14 +24,16 @@ import {
   TILES,
   TILE_ATTRIBUTION,
   ROUTE_COLORS,
-  airportMarker,
-  applyLabelZoom,
   arc,
   currentTheme,
-  fixMarker,
-  viaMarker,
   watchTheme,
 } from "@/lib/mapBase";
+import {
+  airportMarker,
+  applyLabelZoom,
+  fixMarker,
+  viaMarker,
+} from "@/lib/mapMarkers";
 
 const props = defineProps<{
   messages: Record<string, unknown>;

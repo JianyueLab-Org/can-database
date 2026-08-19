@@ -34,10 +34,9 @@ import {
   currentTheme,
   escapeHtml,
   firColor,
-  nameMarker,
-  viaMarker,
   watchTheme,
 } from "@/lib/mapBase";
+import { nameMarker, viaMarker } from "@/lib/mapMarkers";
 
 const props = defineProps<{
   messages: Record<string, unknown>;
