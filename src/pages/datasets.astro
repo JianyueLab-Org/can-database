@@ -2,7 +2,7 @@
 import AppLayout from "@/layouts/AppLayout.astro";
 import { getLocale, useTranslations } from "@/lib/i18n";
 import { callDb } from "@/server/canDb";
-import type { Dataset } from "@/lib/canDb";
+import { isRestricted, SOURCE_LABEL, type Dataset } from "@/lib/canDb";
 
 const locale = getLocale(Astro.cookies);
 const t = useTranslations(locale, "datasets");
@@ -40,6 +40,7 @@ const fmt = (iso: string | null) =>
               <tr>
                 <th>{t("airac")}</th>
                 <th>{t("source")}</th>
+                <th>{t("access")}</th>
                 <th>{t("state")}</th>
                 <th>{t("redistributable")}</th>
                 <th>{t("airports")}</th>
@@ -53,7 +54,18 @@ const fmt = (iso: string | null) =>
                   <td data-label={t("airac")} class="tnum font-mono">
                     {d.airac}
                   </td>
-                  <td data-label={t("source")}>{d.source}</td>
+                  <td data-label={t("source")}>
+                    {SOURCE_LABEL[d.source] ?? d.source}
+                  </td>
+                  {/* 受限的那几批要一眼看得出来 —— 一个校对数据的人应该分得清手上
+                      这条是官方汇编还是面向模拟的派生物。 */}
+                  <td data-label={t("access")}>
+                    {isRestricted(d.minAccess) ? (
+                      <span class="badge badge-danger">{t("restricted")}</span>
+                    ) : (
+                      <span class="text-faint">{t("open")}</span>
+                    )}
+                  </td>
                   <td data-label={t("state")}>
                     <span class={stateBadge[d.state] ?? "badge badge-neutral"}>
                       {d.state}

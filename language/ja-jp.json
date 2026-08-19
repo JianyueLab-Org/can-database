@@ -69,7 +69,8 @@
     "noElev": "未提供",
     "magneticNote": "跑道与机位航向是**磁**航向，写进 FSD 位置包前要用上面的磁差换算成真航向。",
     "onMap": "地図で見る",
-    "shownCount": "{n} / {total} 空港"
+    "shownCount": "{n} / {total} 空港",
+    "source": "出典"
   },
   "map": {
     "title": "地図",
@@ -124,7 +125,10 @@
     "empty": "还没有任何数据集。",
     "yes": "是",
     "no": "否",
-    "never": "—"
+    "never": "—",
+    "access": "アクセス",
+    "restricted": "制限付き",
+    "open": "公開"
   },
   "common": {
     "loading": "载入中…",

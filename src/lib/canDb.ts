@@ -83,7 +83,36 @@ export interface Dataset {
   createdAt: string;
   activatedAt: string | null;
   airports: number;
+  /**
+   * 看这批数据要多少级 aipAccess。0 = 公开（对任何进得来控制台的人），3 = 受限。
+   *
+   * **控制台要把它显示出来。** 一个校对数据的人应该分得清手上这条是官方汇编还是面向模拟
+   * 的派生物 —— 两者的权威性和可再分发性都不一样，而它们在页面上长得一模一样。
+   */
+  minAccess: number;
 }
+
+/** 受限数据的门槛，和 can-api 的 AIPRestrictedRead 对齐。 */
+export const RESTRICTED_ACCESS = 3;
+
+/** 这批数据是不是受限的。 */
+export function isRestricted(minAccess: number | undefined): boolean {
+  return (minAccess ?? 0) >= RESTRICTED_ACCESS;
+}
+
+/**
+ * 来源代号到人看得懂的名字。
+ *
+ * `naip` 单独标出来是这一整件事的要点：它是**中国民航局的官方航行资料汇编**，不是
+ * Navigraph 那样面向模拟的派生数据。
+ */
+export const SOURCE_LABEL: Record<string, string> = {
+  naip: "NAIP",
+  navigraph: "Navigraph",
+  sector: "Sector",
+  eaip: "eAIP",
+  manual: "手工",
+};
 
 /**
  * 总览 —— can-db 现在在服务什么。
