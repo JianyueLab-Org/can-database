@@ -34,6 +34,8 @@ import {
   currentTheme,
   escapeHtml,
   firColor,
+  nameMarker,
+  viaMarker,
   watchTheme,
 } from "@/lib/mapBase";
 
@@ -53,6 +55,8 @@ const tiles = shallowRef<L.TileLayer | null>(null);
 const airportLayer = shallowRef<L.LayerGroup | null>(null);
 const airwayLayer = shallowRef<L.LayerGroup | null>(null);
 const fixLayer = shallowRef<L.LayerGroup | null>(null);
+/** 名字单独一层：它按视野重建，而点和线不用。 */
+const labelLayer = shallowRef<L.LayerGroup | null>(null);
 
 /** null = 全部 FIR。 */
 const activeFir = ref<string | null>(props.initialFir ?? null);
@@ -150,6 +154,7 @@ async function drawAirways() {
     opacity: 0.5,
     interactive: false,
   }).addTo(layer);
+  syncLabels();
 }
 
 async function drawFixes() {
@@ -176,7 +181,7 @@ async function drawFixes() {
   }
 
   // 航路点用 circleMarker 而不是 marker：后者每个都是一个 <img> 加一个 DOM 节点，
-  // 三千多个足以让平移掉帧。
+  // 三千多个足以让平移掉帧。**名字不挂 tooltip** —— 见 syncLabels。
   for (const f of list) {
     L.circleMarker([f.lat, f.lon], {
       radius: 2,
@@ -184,9 +189,76 @@ async function drawFixes() {
       weight: 1,
       opacity: 0.7,
       fillOpacity: 0.7,
-    })
-      .bindTooltip(f.ident, { direction: "top", offset: [0, -4] })
-      .addTo(layer);
+    }).addTo(layer);
+  }
+  syncLabels();
+}
+
+/* ---------------------------------------------------------------------- *
+ * 名字：视野内、够放大、有上限
+ *
+ * can-radar 的读法是「名字建在 marker 里，用缩放开关一个 class」—— 那是给**一条航
+ * 路**几十个点写的。这张图上是 3914 个航路点和 11988 段航路，全建成 divIcon 会掉帧
+ * （点之所以是 circleMarker 就是这个原因）。
+ *
+ * 所以同一套读法换个落地方式：**只给视野内的画名字**，够放大才画，而且有上限。三个
+ * 条件缺一不可 —— 少了视野就是全网几千个标签，少了缩放就是缩到看不清时糊成一片，少
+ * 了上限就是有人放大到一个航路枢纽上时突然几百个标签。
+ * ---------------------------------------------------------------------- */
+
+/** 航路点名字从这一级开始画。 */
+const FIX_NAME_ZOOM = 8;
+/** 航路名从这一级开始画 —— 比点早，少而关键。 */
+const AIRWAY_NAME_ZOOM = 7;
+/** 一屏最多画多少个标签。超出就不画，宁可少也不糊。 */
+const LABEL_CAP = 160;
+
+function syncLabels() {
+  const m = map.value;
+  const layer = labelLayer.value;
+  if (!m || !layer) return;
+  layer.clearLayers();
+
+  const zoom = m.getZoom();
+  const bounds = m.getBounds();
+  const color = firColor(activeFir.value);
+
+  // 航路名：一条航路在一屏里只标一次，标在它可见的最长一段的中点上。can-radar 在一条
+  // 航路上是每段都标的，那里一屏只有一条航路；这里一屏可能有几十条。
+  if (showAirways.value && airwayCache && zoom >= AIRWAY_NAME_ZOOM) {
+    const { fixes, segments } = airwayCache;
+    const best = new Map<string, { mid: [number, number]; len: number }>();
+    for (const [airway, from, to] of segments) {
+      const a = fixes[from];
+      const b = fixes[to];
+      if (!a || !b) continue;
+      if (!bounds.contains([a[0], a[1]]) && !bounds.contains([b[0], b[1]]))
+        continue;
+      const len = Math.hypot(a[0] - b[0], a[1] - b[1]);
+      const prev = best.get(airway);
+      if (!prev || len > prev.len) {
+        best.set(airway, { mid: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], len });
+      }
+    }
+    let drawn = 0;
+    for (const [airway, { mid }] of best) {
+      if (drawn >= LABEL_CAP) break;
+      viaMarker(mid[0], mid[1], airway, "#7f8c9b").addTo(layer);
+      drawn++;
+    }
+  }
+
+  // 航路点名字。
+  const fir = activeFir.value;
+  const list = showFixes.value && fir ? fixCache.get(fir) : null;
+  if (list && zoom >= FIX_NAME_ZOOM) {
+    let drawn = 0;
+    for (const f of list) {
+      if (drawn >= LABEL_CAP) break;
+      if (!bounds.contains([f.lat, f.lon])) continue;
+      nameMarker(f.lat, f.lon, f.ident, color).addTo(layer);
+      drawn++;
+    }
   }
 }
 
@@ -230,17 +302,25 @@ onMounted(() => {
 
   airwayLayer.value = L.layerGroup().addTo(m);
   fixLayer.value = L.layerGroup().addTo(m);
+  // 名字在点和线之上、机场之下。
+  labelLayer.value = L.layerGroup().addTo(m);
   // 机场最后加，所以画在航路和航路点上面 —— 它们是这张图的主角。
   airportLayer.value = L.layerGroup().addTo(m);
 
   drawAirports();
   fitToShown();
 
+  // 名字按视野重建，所以平移和缩放都要重来一次 —— 见 syncLabels。
+  m.on("moveend", syncLabels);
+  m.on("zoomend", syncLabels);
+
   stopTheme = watchTheme(applyTiles);
 });
 
 onBeforeUnmount(() => {
   stopTheme?.();
+  map.value?.off("moveend", syncLabels);
+  map.value?.off("zoomend", syncLabels);
   map.value?.remove();
   map.value = null;
 });

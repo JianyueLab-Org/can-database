@@ -1,3 +1,5 @@
+import L from "leaflet";
+
 /**
  * 两张图共用的底图部分：瓦片、主题跟随、FIR 配色。
  *
@@ -97,4 +99,182 @@ export function escapeHtml(value: string): string {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+/* ===========================================================================
+   航路和点的画法 —— 照 can-radar 的约定来
+
+   雷达图上一条航路是这么画的，这里照抄，理由是**同一个网络的两张图不该有两套读
+   法**：一个成员在雷达上认得的三角形航路点和压在腿中间的航路名，点进资料库应该还
+   是那一套。can-radar 的 `RadarMap.vue` 是那一份的出处。
+
+   四条约定，每一条都是那边踩出来的：
+
+   1. **名字建在 marker 里，用容器上的一个 class 开关**，而不是 tooltip。tooltip 要
+      悬停、一次只出一个，而看图的人想要的是「这一片点都叫什么」。开关一个 class 比
+      在几十个 marker 上重建 DOM 便宜得多。
+   2. **三个缩放阈值，不是一个。** 航路名最早出现（少而关键），航路点次之，终端点最
+      后 —— 一条 SID 把六个点铺在一个进近区里，早出就是把程序写在自己身上。
+   3. **航路名标在腿上，不标在点上**，而且每一段都标。名字属于那条腿；一条长航路只
+      在中间标一次，等于放大去看某个点的人正好看不到它是哪条航路。
+   4. **程序虚线、航路实线**，转折的那条腿同时属于两段，所以线在换样式的地方没有缺
+      口。
+   =========================================================================== */
+
+/** 航路线的颜色。灰而不是蓝：底图上要压得住，又不能和限制/告警抢眼。 */
+export const ROUTE_COLORS: Record<"dark" | "light", string> = {
+  dark: "#8a8a8a",
+  light: "#5a5a5a",
+};
+
+/**
+ * 三个标签的缩放阈值。
+ *
+ * 数值取自 can-radar，不是猜的：航路名 5 级就出（一屏放得下整条航路时，`W47` 正是那
+ * 时候要读的东西），航路点 6 级，终端点 9 级。
+ */
+export const VIA_LABEL_MIN_ZOOM = 5;
+export const FIX_LABEL_MIN_ZOOM = 6;
+export const TERMINAL_LABEL_MIN_ZOOM = 9;
+
+/**
+ * 按当前缩放开关三类标签。
+ *
+ * 挂在容器的 class 上 —— 换一次缩放是切三个 class，不是重建几十个 marker。
+ */
+export function applyLabelZoom(map: L.Map): void {
+  const zoom = map.getZoom();
+  const el = map.getContainer();
+  el.classList.toggle("show-via-labels", zoom >= VIA_LABEL_MIN_ZOOM);
+  el.classList.toggle("show-fix-labels", zoom >= FIX_LABEL_MIN_ZOOM);
+  el.classList.toggle("show-terminal-labels", zoom >= TERMINAL_LABEL_MIN_ZOOM);
+}
+
+/** 一个航路点：三角形加名字。`terminal` 的名字要更高的缩放才出。 */
+export function fixMarker(
+  lat: number,
+  lon: number,
+  ident: string,
+  options: { color: string; terminal?: boolean } = { color: "" },
+): L.Marker {
+  const cls = options.terminal ? "can-fix can-fix--terminal" : "can-fix";
+  return L.marker([lat, lon], {
+    interactive: false,
+    icon: L.divIcon({
+      className: "can-map-icon",
+      html:
+        `<div class="${cls}" style="--can-fix-color:${options.color}">` +
+        `<svg class="can-fix__dot" viewBox="0 0 10 9" aria-hidden="true">` +
+        `<path d="M5 .6 9.5 8.4H.5z"/></svg>` +
+        `<span class="can-fix__name">${escapeHtml(ident)}</span></div>`,
+      iconSize: [0, 0],
+      iconAnchor: [0, 0],
+    }),
+  });
+}
+
+/**
+ * 只有名字的标签，给「点已经画了、只差名字」的场合。
+ *
+ * 全网图上航路点是 circleMarker（三千多个 divIcon 会掉帧，见 NetworkMap 的注释），所以
+ * 那里的名字用这个补，而不是整套换成 fixMarker。
+ */
+export function nameMarker(
+  lat: number,
+  lon: number,
+  text: string,
+  color: string,
+): L.Marker {
+  return L.marker([lat, lon], {
+    interactive: false,
+    icon: L.divIcon({
+      className: "can-map-icon",
+      html:
+        `<div class="can-fix" style="--can-fix-color:${color}">` +
+        `<span class="can-fix__name can-fix__name--always">${escapeHtml(text)}</span></div>`,
+      iconSize: [0, 0],
+      iconAnchor: [0, 0],
+    }),
+  });
+}
+
+/** 压在腿中间的航路名。 */
+export function viaMarker(
+  lat: number,
+  lon: number,
+  name: string,
+  color: string,
+): L.Marker {
+  return L.marker([lat, lon], {
+    interactive: false,
+    icon: L.divIcon({
+      className: "can-map-icon",
+      html: `<div class="can-via" style="--can-via-color:${color}">${escapeHtml(name)}</div>`,
+      iconSize: [0, 0],
+      iconAnchor: [0, 0],
+    }),
+  });
+}
+
+/** 机场点：实心圆加代号，永远显示 —— 它是这张图的骨架。 */
+export function airportMarker(
+  lat: number,
+  lon: number,
+  icao: string,
+  color: string,
+): L.Marker {
+  return L.marker([lat, lon], {
+    interactive: false,
+    icon: L.divIcon({
+      className: "can-map-icon",
+      html:
+        `<div class="can-airport" style="--can-airport-color:${color}">` +
+        `<span class="can-airport__dot"></span>${escapeHtml(icao.toUpperCase())}</div>`,
+      iconSize: [0, 0],
+      iconAnchor: [0, 0],
+    }),
+  });
+}
+
+/**
+ * 两点之间的大圆插值。
+ *
+ * 直接连两个经纬度画出来的是墨卡托上的直线，而航路飞的是大圆 —— 跨度一大，两者在图
+ * 上差得出来（ZGGG→RJTT 中段能差出上百公里）。段数按跨度给，短腿就是一条直线。
+ */
+export function arc(
+  from: [number, number],
+  to: [number, number],
+): [number, number][] {
+  const rad = Math.PI / 180;
+  const [lat1, lon1] = [from[0] * rad, from[1] * rad];
+  const [lat2, lon2] = [to[0] * rad, to[1] * rad];
+
+  const d =
+    2 *
+    Math.asin(
+      Math.sqrt(
+        Math.sin((lat2 - lat1) / 2) ** 2 +
+          Math.cos(lat1) * Math.cos(lat2) * Math.sin((lon2 - lon1) / 2) ** 2,
+      ),
+    );
+  if (!Number.isFinite(d) || d < 0.01) return [from, to];
+
+  const steps = Math.min(64, Math.max(8, Math.round((d / rad) * 2)));
+  const points: [number, number][] = [];
+  for (let i = 0; i <= steps; i++) {
+    const f = i / steps;
+    const a = Math.sin((1 - f) * d) / Math.sin(d);
+    const b = Math.sin(f * d) / Math.sin(d);
+    const x =
+      a * Math.cos(lat1) * Math.cos(lon1) + b * Math.cos(lat2) * Math.cos(lon2);
+    const y =
+      a * Math.cos(lat1) * Math.sin(lon1) + b * Math.cos(lat2) * Math.sin(lon2);
+    const z = a * Math.sin(lat1) + b * Math.sin(lat2);
+    points.push([
+      Math.atan2(z, Math.sqrt(x * x + y * y)) / rad,
+      Math.atan2(y, x) / rad,
+    ]);
+  }
+  return points;
 }

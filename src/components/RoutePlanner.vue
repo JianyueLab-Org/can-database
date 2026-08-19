@@ -23,8 +23,13 @@ import { api } from "@/lib/canDb";
 import {
   TILES,
   TILE_ATTRIBUTION,
+  ROUTE_COLORS,
+  airportMarker,
+  applyLabelZoom,
+  arc,
   currentTheme,
-  escapeHtml,
+  fixMarker,
+  viaMarker,
   watchTheme,
 } from "@/lib/mapBase";
 
@@ -209,46 +214,92 @@ function draw() {
     map.value = m;
     applyTiles(currentTheme());
     layer.value = L.layerGroup().addTo(m);
-    stopTheme = watchTheme(applyTiles);
+    stopTheme = watchTheme((theme) => {
+      applyTiles(theme);
+      draw();
+    });
+    // 三类标签跟着缩放开关 —— 见 mapBase 的说明。
+    m.on("zoomend", () => applyLabelZoom(m));
   }
+  const m = map.value;
   const lay = layer.value;
-  if (!lay) return;
+  if (!m || !lay) return;
   lay.clearLayers();
 
-  // **线从起飞机场开始，不是从第一个航路点。** 一个航段只带它**到达**的那个点的坐
-  // 标，所以照着航段画出来的线，落地机场在图上、起飞机场不在 —— 看图的人会以为
-  // 数据缺了一头。起点单独取自 plan 上的机场坐标。
-  const pts: L.LatLngExpression[] = [
-    [p.fromLat, p.fromLon],
-    ...p.legs.map((l): L.LatLngExpression => [l.lat, l.lon]),
-  ];
-  if (pts.length < 2) return;
+  if (!p.legs.length) return;
+  const color = ROUTE_COLORS[currentTheme()];
 
-  L.polyline(pts, { color: "#4c92c1", weight: 3, opacity: 0.9 }).addTo(lay);
+  /* **一段一条线，按「是不是程序」分段。**
+   *
+   * 程序画虚线、航路画实线，而转折的那条腿**同时属于两段** —— 否则线在换样式的地
+   * 方会缺一截。这是 can-radar 的画法，照抄。 */
+  const isProcedure = (l: RouteLeg) =>
+    l.airway === p.sid || l.airway === p.star;
 
-  const mark = (
-    lat: number,
-    lon: number,
-    label: string,
-    end: boolean,
-  ): void => {
-    L.circleMarker([lat, lon], {
-      radius: end ? 5 : 3,
-      color: end ? "#e05252" : "#4c92c1",
-      weight: 2,
-      fillOpacity: 0.85,
-    })
-      .bindTooltip(escapeHtml(label), { direction: "top", offset: [0, -4] })
-      .addTo(lay);
+  let from: [number, number] = [p.fromLat, p.fromLon];
+  let run: [number, number][] = [from];
+  let runProcedure = isProcedure(p.legs[0]);
+
+  const flush = () => {
+    if (run.length < 2) return;
+    L.polyline(run, {
+      color,
+      weight: 1.5,
+      opacity: runProcedure ? 0.9 : 0.75,
+      dashArray: runProcedure ? "4 4" : undefined,
+      interactive: false,
+    }).addTo(lay);
   };
 
-  mark(p.fromLat, p.fromLon, p.from, true);
-  // 每个航段的点就是它到达的那个点；最后一段到的是落地机场，所以 `l.to` 已经是
-  // 机场代号，不用另外接一个。
-  p.legs.forEach((l, i) => {
-    mark(l.lat, l.lon, l.to, i === p.legs.length - 1);
-  });
-  map.value?.fitBounds(L.latLngBounds(pts).pad(0.12));
+  for (const leg of p.legs) {
+    const to: [number, number] = [leg.lat, leg.lon];
+    const procedure = isProcedure(leg);
+    if (procedure !== runProcedure) {
+      flush();
+      run = [from];
+      runProcedure = procedure;
+    }
+    // 大圆插值：直接连两点画出来的是墨卡托直线，跨度一大就和真航路差得出来。
+    run.push(...arc(from, to).slice(1));
+    from = to;
+  }
+  flush();
+
+  /* 航路点：三角形加名字，名字由缩放决定出不出。两端机场不画点 —— 它们各自有一个
+   * 更显眼的机场标记。 */
+  for (const leg of p.legs.slice(0, -1)) {
+    fixMarker(leg.lat, leg.lon, leg.to, {
+      color,
+      terminal: isProcedure(leg),
+    }).addTo(lay);
+  }
+
+  /* 航路名标在腿的中点上，**每一段都标**：一条长航路只在中间标一次，等于放大去看某
+   * 个点的人正好看不到它是哪条航路。程序不标 —— 十几条腿写十几遍同一个词，而它们本
+   * 来就挤在机场周围最小的那块地方。 */
+  let prev: [number, number] = [p.fromLat, p.fromLon];
+  for (const leg of p.legs) {
+    const to: [number, number] = [leg.lat, leg.lon];
+    if (leg.airway && leg.airway !== "DCT" && !isProcedure(leg)) {
+      viaMarker(
+        (prev[0] + to[0]) / 2,
+        (prev[1] + to[1]) / 2,
+        leg.airway,
+        color,
+      ).addTo(lay);
+    }
+    prev = to;
+  }
+
+  airportMarker(p.fromLat, p.fromLon, p.from, color).addTo(lay);
+  airportMarker(p.toLat, p.toLon, p.to, color).addTo(lay);
+
+  const bounds = L.latLngBounds([
+    [p.fromLat, p.fromLon],
+    ...p.legs.map((l): [number, number] => [l.lat, l.lon]),
+  ]);
+  m.fitBounds(bounds.pad(0.12));
+  applyLabelZoom(m);
 }
 
 watch(plan, () => {

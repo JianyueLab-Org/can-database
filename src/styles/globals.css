@@ -81,3 +81,101 @@
         right / 0.4rem 100% no-repeat scroll;
   }
 }
+
+@layer components {
+  /* ── 航路点、航路名、机场点 ────────────────────────────────────────────
+     照 can-radar 的画法（见 `src/lib/mapBase.ts` 顶上那一段）。三类标签的显隐由地
+     图容器上的 class 控制，`applyLabelZoom()` 在缩放时切 —— **不是** tooltip：
+     tooltip 要悬停、一次只出一个，而看图的人问的是「这一片点都叫什么」。
+
+     `.can-map-icon` 是 divIcon 的外壳，Leaflet 会给它绝对定位；里面那层自己做居中
+     偏移，所以图标的锚点就是坐标本身。 */
+  .can-map-icon {
+    background: none;
+    border: 0;
+  }
+
+  .can-fix {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    white-space: nowrap;
+    color: var(--can-fix-color, var(--foreground));
+  }
+  .can-fix__dot {
+    width: 7px;
+    height: 6.5px;
+    flex: none;
+    fill: currentColor;
+    opacity: 0.9;
+  }
+  .can-fix__name {
+    display: none;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    line-height: 1;
+    padding: 1px 2px;
+    border-radius: 2px;
+    background: color-mix(in srgb, var(--surface) 78%, transparent);
+  }
+  /* 航路点的名字 6 级出，终端点 9 级 —— 一条 SID 把六个点铺在一个进近区里，早出
+     就是把程序写在自己身上。 */
+  .show-fix-labels .can-fix:not(.can-fix--terminal) .can-fix__name {
+    display: block;
+  }
+  .show-terminal-labels .can-fix--terminal .can-fix__name {
+    display: block;
+  }
+  /* 全网图那一批名字自己按视野和缩放决定要不要画（见 NetworkMap 的 syncLabels），
+     画出来就该显示 —— 不再受容器 class 管。 */
+  .can-fix__name--always {
+    display: block;
+  }
+
+  /* 航路名压在腿中间。比航路点更早出现：少而关键。 */
+  .can-via {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    display: none;
+    padding: 0 3px;
+    border-radius: 3px;
+    white-space: nowrap;
+    background: color-mix(in srgb, var(--surface) 82%, transparent);
+    color: var(--can-via-color, var(--foreground));
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    line-height: 1.5;
+  }
+  .show-via-labels .can-via {
+    display: block;
+  }
+
+  /* 机场点永远显示 —— 它是这张图的骨架，缩到看不清航路时它还得在。 */
+  .can-airport {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+    padding: 1px 3px;
+    border-radius: 3px;
+    background: color-mix(in srgb, var(--surface) 78%, transparent);
+    color: var(--can-airport-color, var(--foreground));
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    line-height: 1.4;
+  }
+  .can-airport__dot {
+    width: 6px;
+    height: 6px;
+    flex: none;
+    border-radius: 50%;
+    background: currentColor;
+  }
+}
