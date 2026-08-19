@@ -45,6 +45,11 @@ interface RouteLeg {
 interface Restriction {
   code: string | null;
   body: string;
+  /**
+   * `segment` = 这条限制发布的航段就在本次航路上；`airway` = 只是同一条航路，发布的
+   * 航段本次不飞。两种都列，因为汇编本身不一致 —— 见 can-db 的 RouteRestriction。
+   */
+  scope: "segment" | "airway";
 }
 interface RoutePlan {
   from: string;
@@ -53,8 +58,6 @@ interface RoutePlan {
   legs: RouteLeg[];
   distanceKm: number;
   directKm: number;
-  sid: string;
-  star: string;
   /** 两端机场的坐标 —— 航段只带它**到达**的那个点，见下面 draw()。 */
   fromLat: number;
   fromLon: number;
@@ -288,8 +291,6 @@ onBeforeUnmount(() => {
             }}{{ detour.toFixed(0) }}%
           </span>
           <span class="tnum">{{ t("legs") }}: {{ plan.legs.length }}</span>
-          <span v-if="plan.sid">SID: {{ plan.sid }}</span>
-          <span v-if="plan.star">STAR: {{ plan.star }}</span>
         </div>
       </section>
 
@@ -319,12 +320,20 @@ onBeforeUnmount(() => {
           {{ t("restrictions", { n: String(plan.restrictions.length) }) }}
         </h2>
         <p class="mb-3 text-xs text-faint">{{ t("restrictionsNote") }}</p>
+        <!-- 「同航路」那一类必须解释，否则看的人会以为它和直接命中一样确定。 -->
+        <p class="mb-3 text-xs text-faint">{{ t("scopeNote") }}</p>
         <ul class="space-y-2 text-sm text-ink">
           <li
             v-for="(r, i) in plan.restrictions"
             :key="i"
             class="leading-relaxed"
           >
+            <span
+              class="badge mr-2"
+              :class="r.scope === 'segment' ? 'badge-danger' : 'badge-neutral'"
+            >
+              {{ t(r.scope === "segment" ? "scopeSegment" : "scopeAirway") }}
+            </span>
             <span v-if="r.code" class="badge badge-neutral mr-2">{{
               r.code
             }}</span>

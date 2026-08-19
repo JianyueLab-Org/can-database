@@ -110,7 +110,10 @@
     "copy": "Copy",
     "copied": "Copied",
     "mapLabel": "Planned route",
-    "unknownAirport": "One of those identifiers is not in the current data — the request will fail."
+    "unknownAirport": "One of those identifiers is not in the current data — the request will fail.",
+    "scopeSegment": "this leg",
+    "scopeAirway": "same airway",
+    "scopeNote": "“this leg” = the published segment is one this route flies; “same airway” = only the airway matches, the published segment is elsewhere on it. The compilation uses both forms, so both are listed."
   },
   "airportMap": {
     "title": "Airport map",

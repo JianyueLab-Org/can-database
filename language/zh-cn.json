@@ -110,7 +110,10 @@
     "copy": "复制",
     "copied": "已复制",
     "mapLabel": "航路示意图",
-    "unknownAirport": "其中一个代号不在当前数据里 —— 提交会失败。"
+    "unknownAirport": "其中一个代号不在当前数据里 —— 提交会失败。",
+    "scopeSegment": "本段",
+    "scopeAirway": "同航路",
+    "scopeNote": "「本段」= 限制发布的航段就在这条航路上；「同航路」= 只是同一条航路，发布的航段这次不飞 —— 汇编里两种写法都有，所以都列出来。"
   },
   "airportMap": {
     "title": "机场图",
