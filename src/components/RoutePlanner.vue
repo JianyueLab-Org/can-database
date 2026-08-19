@@ -49,7 +49,7 @@ interface Restriction {
    * `segment` = 这条限制发布的航段就在本次航路上；`airway` = 只是同一条航路，发布的
    * 航段本次不飞。两种都列，因为汇编本身不一致 —— 见 can-db 的 RouteRestriction。
    */
-  scope: "segment" | "airway";
+  scope: "segment" | "airway" | "route";
 }
 interface RoutePlan {
   from: string;
@@ -61,6 +61,18 @@ interface RoutePlan {
   /** 搜索挑中的程序；本场没有能用的程序时是空串，那一端的接入方式写在 notes 里。 */
   sid: string;
   star: string;
+  /**
+   * `published` = 这是汇编自己发布的城市对航线；`computed` = 库里没有发布航线，这条是
+   * 按航路网算的。**两者不是同一种答案**，所以必须让人一眼看出来是哪一种。
+   */
+  source: "published" | "computed";
+  publishedName?: string;
+  /** 汇编印的总距离，量的是**航路段**；distanceKm 是机场到机场。 */
+  publishedDistanceKm?: number;
+  /** 米。 */
+  minSafeAltM?: number;
+  /** 同一个机场对还有几条发布航线。 */
+  alternatives?: number;
   /** 两端机场的坐标 —— 航段只带它**到达**的那个点，见下面 draw()。 */
   fromLat: number;
   fromLon: number;
@@ -127,6 +139,13 @@ async function copyRoute() {
     // 剪贴板被拒（非安全上下文、用户拒绝）不是错误 —— 那一行字就在屏幕上，
     // 手选一样拿得到。弹一个红色报错反而像航路出了问题。
   }
+}
+
+/** 限制是怎么命中的：本航线 / 本段 / 同航路。 */
+function scopeKey(scope: Restriction["scope"]): string {
+  if (scope === "route") return "scopeRoute";
+  if (scope === "segment") return "scopeSegment";
+  return "scopeAirway";
 }
 
 const host = ref<HTMLDivElement | null>(null);
@@ -282,6 +301,40 @@ onBeforeUnmount(() => {
             {{ copied ? t("copied") : t("copy") }}
           </button>
         </div>
+        <!-- 发布的还是算的，是这一页最重要的一个字：一条是汇编说该怎么飞，另一条是
+             我们按距离算出来的。摆在航路串正下方，不能藏进折叠里。 -->
+        <div class="mt-3 flex flex-wrap items-center gap-2">
+          <span
+            class="badge"
+            :class="
+              plan.source === 'published' ? 'badge-success' : 'badge-neutral'
+            "
+          >
+            {{
+              t(
+                plan.source === "published"
+                  ? "sourcePublished"
+                  : "sourceComputed",
+              )
+            }}
+          </span>
+          <span v-if="plan.publishedName" class="text-xs text-muted">{{
+            plan.publishedName
+          }}</span>
+          <span v-if="plan.alternatives" class="text-xs text-faint">
+            {{ t("alternatives", { n: String(plan.alternatives) }) }}
+          </span>
+        </div>
+        <p class="mt-2 text-xs text-faint">
+          {{
+            t(
+              plan.source === "published"
+                ? "sourcePublishedNote"
+                : "sourceComputedNote",
+            )
+          }}
+        </p>
+
         <div class="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-xs text-muted">
           <span class="tnum"
             >{{ t("distance") }}: {{ Math.round(plan.distanceKm) }} km</span
@@ -292,6 +345,12 @@ onBeforeUnmount(() => {
           <span v-if="detour !== null" class="tnum">
             {{ t("detour") }}: {{ detour > 0 ? "+" : ""
             }}{{ detour.toFixed(0) }}%
+          </span>
+          <span v-if="plan.publishedDistanceKm" class="tnum">
+            {{ t("enroute") }}: {{ plan.publishedDistanceKm }} km
+          </span>
+          <span v-if="plan.minSafeAltM" class="tnum">
+            {{ t("minSafeAlt") }}: {{ plan.minSafeAltM }} m
           </span>
           <span class="tnum">{{ t("legs") }}: {{ plan.legs.length }}</span>
           <span v-if="plan.sid">SID: {{ plan.sid }}</span>
@@ -335,9 +394,9 @@ onBeforeUnmount(() => {
           >
             <span
               class="badge mr-2"
-              :class="r.scope === 'segment' ? 'badge-danger' : 'badge-neutral'"
+              :class="r.scope === 'airway' ? 'badge-neutral' : 'badge-danger'"
             >
-              {{ t(r.scope === "segment" ? "scopeSegment" : "scopeAirway") }}
+              {{ t(scopeKey(r.scope)) }}
             </span>
             <span v-if="r.code" class="badge badge-neutral mr-2">{{
               r.code

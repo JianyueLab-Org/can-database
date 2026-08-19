@@ -113,7 +113,15 @@
     "unknownAirport": "其中一個代號不在目前資料裡 —— 提交會失敗。",
     "scopeSegment": "本段",
     "scopeAirway": "同航路",
-    "scopeNote": "「本段」= 限制發布的航段就在這條航路上；「同航路」= 只是同一條航路，發布的航段這次不飛 —— 彙編裡兩種寫法都有，所以都列出來。"
+    "scopeNote": "「本段」= 限制發布的航段就在這條航路上；「同航路」= 只是同一條航路，發布的航段這次不飛 —— 彙編裡兩種寫法都有，所以都列出來。",
+    "sourcePublished": "發布航線",
+    "sourceComputed": "算出來的",
+    "sourcePublishedNote": "這是彙編發布的城市對航線，原樣給出。",
+    "sourceComputedNote": "庫裡沒有這個機場對的發布航線，這條是按航路網算的最短路 —— 它不知道軍航活動區和協議路線之類圖上沒有的東西。",
+    "alternatives": "同機場對另有 {n} 條發布航線",
+    "enroute": "航路段",
+    "minSafeAlt": "最低安全高度",
+    "scopeRoute": "本航線"
   },
   "airportMap": {
     "title": "機場圖",

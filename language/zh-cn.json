@@ -113,7 +113,15 @@
     "unknownAirport": "其中一个代号不在当前数据里 —— 提交会失败。",
     "scopeSegment": "本段",
     "scopeAirway": "同航路",
-    "scopeNote": "「本段」= 限制发布的航段就在这条航路上；「同航路」= 只是同一条航路，发布的航段这次不飞 —— 汇编里两种写法都有，所以都列出来。"
+    "scopeNote": "「本段」= 限制发布的航段就在这条航路上；「同航路」= 只是同一条航路，发布的航段这次不飞 —— 汇编里两种写法都有，所以都列出来。",
+    "sourcePublished": "发布航线",
+    "sourceComputed": "算出来的",
+    "sourcePublishedNote": "这是汇编发布的城市对航线，原样给出。",
+    "sourceComputedNote": "库里没有这个机场对的发布航线，这条是按航路网算的最短路 —— 它不知道军航活动区和协议路线之类图上没有的东西。",
+    "alternatives": "同机场对另有 {n} 条发布航线",
+    "enroute": "航路段",
+    "minSafeAlt": "最低安全高度",
+    "scopeRoute": "本航线"
   },
   "airportMap": {
     "title": "机场图",

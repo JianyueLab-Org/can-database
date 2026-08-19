@@ -113,7 +113,15 @@
     "unknownAirport": "One of those identifiers is not in the current data — the request will fail.",
     "scopeSegment": "this leg",
     "scopeAirway": "same airway",
-    "scopeNote": "“this leg” = the published segment is one this route flies; “same airway” = only the airway matches, the published segment is elsewhere on it. The compilation uses both forms, so both are listed."
+    "scopeNote": "“this leg” = the published segment is one this route flies; “same airway” = only the airway matches, the published segment is elsewhere on it. The compilation uses both forms, so both are listed.",
+    "sourcePublished": "published routing",
+    "sourceComputed": "computed",
+    "sourcePublishedNote": "This is the compilation's own routing for the pair, given as published.",
+    "sourceComputedNote": "The compilation publishes no routing for this pair, so this is a shortest path over the airway network — it knows nothing of military activity areas or agreed routings.",
+    "alternatives": "{n} more published routing(s) for this pair",
+    "enroute": "Enroute",
+    "minSafeAlt": "Min safe altitude",
+    "scopeRoute": "this routing"
   },
   "airportMap": {
     "title": "Airport map",
