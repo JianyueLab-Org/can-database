@@ -144,7 +144,10 @@ const runwayRows = runwayIdents.map((ident) => {
               {t("runways")} ({runwayRows.length})
             </h2>
             <p class="mb-3 text-xs text-faint">{t("runwayNote")}</p>
-            <div class="scroll-edge-x overflow-x-auto">
+            <div
+              class="scroll-shadow-x overflow-x-auto"
+              style="--scroll-shadow-bg: var(--surface)"
+            >
               <table class="data-table w-full text-sm">
                 <thead>
                   <tr>

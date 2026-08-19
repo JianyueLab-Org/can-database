@@ -1,14 +1,83 @@
 /* ===========================================================================
-   管制员中心的样式表。
+   航行资料控制台的样式表。
 
    设计系统整体搬到了 can-ui —— 令牌、base 层、组件类、动效层都在那边一份，
    这里只留下这一行 import，以及真正属于本站的规则（目前一条都没有）。
 
    原先这里有 1,220 行，和 can-web 的 globals.css **逐字相同**（diff 为 0）。
-   其中最后那段 Leaflet 和地图 marker 的样式是从 can-web 抄过来的，这个站没有
-   地图也没有 leaflet 依赖，一条都匹配不到，搬迁顺手删了。
+   其中最后那段 Leaflet 和地图 marker 的样式是从 can-web 抄过来的、一条都匹配不
+   到，搬迁顺手删了。（这个站后来有了地图，Leaflet 的样式表在 AppLayout 里单独
+   引，理由见那边的注释。）
 
    要加本站独有的规则，写在这行 import **之后**。
    =========================================================================== */
 
 @import "@jianyuelab-org/can-ui/styles";
+
+@layer components {
+  /* ── 表格的滚动阴影 ─────────────────────────────────────────────────────
+     can-ui 的 `.scroll-edge-y` 是一层 mask：上下各淡出 1.25rem。它是给「内容滚
+     进浮层底下」那种场景写的，用在表格上有两个毛病 ——
+
+       1. **不管有没有溢出都淡。** 一张只有三行的表，首行和末行照样被糊掉一截，
+          看起来像渲染坏了。
+       2. 横向滚动的容器套上它，淡的是**另一个轴** —— 表格上下虚化，而真正该提
+          示「右边还有」的左右两侧什么也没有。
+
+     这里换成经典的滚动阴影：四层背景，两层「盖片」跟着内容滚
+     （`background-attachment: local`），两层阴影钉在容器边缘（`scroll`）。滚到
+     顶时盖片正好压住上面那道阴影 —— 所以**不能滚的时候一道阴影都不出现**，这正
+     是 mask 做不到的那件事。
+
+     **盖片的颜色要和容器的背景一致**，否则它自己就是一道边。默认取
+     `--surface-raised`（这些表大多在 `.card` 里），在别处用就覆盖
+     `--scroll-shadow-bg` —— 暗色主题下 `--surface` 和 `--surface-raised` 差一
+     档，蒙错那一档比不蒙还显眼。
+
+     如果别的站也要，它该回 can-ui；在证明通用之前先放在这里。 */
+  .scroll-shadow-y {
+    background:
+      linear-gradient(
+          var(--scroll-shadow-bg, var(--surface-raised)) 30%,
+          transparent
+        )
+        top / 100% 1.5rem no-repeat local,
+      linear-gradient(
+          transparent,
+          var(--scroll-shadow-bg, var(--surface-raised)) 70%
+        )
+        bottom / 100% 1.5rem no-repeat local,
+      radial-gradient(farthest-side at 50% 0, var(--border-strong), transparent)
+        top / 100% 0.4rem no-repeat scroll,
+      radial-gradient(
+          farthest-side at 50% 100%,
+          var(--border-strong),
+          transparent
+        )
+        bottom / 100% 0.4rem no-repeat scroll;
+  }
+
+  .scroll-shadow-x {
+    background:
+      linear-gradient(
+          to right,
+          var(--scroll-shadow-bg, var(--surface-raised)) 30%,
+          transparent
+        )
+        left / 1.5rem 100% no-repeat local,
+      linear-gradient(
+          to left,
+          var(--scroll-shadow-bg, var(--surface-raised)) 30%,
+          transparent
+        )
+        right / 1.5rem 100% no-repeat local,
+      radial-gradient(farthest-side at 0 50%, var(--border-strong), transparent)
+        left / 0.4rem 100% no-repeat scroll,
+      radial-gradient(
+          farthest-side at 100% 50%,
+          var(--border-strong),
+          transparent
+        )
+        right / 0.4rem 100% no-repeat scroll;
+  }
+}

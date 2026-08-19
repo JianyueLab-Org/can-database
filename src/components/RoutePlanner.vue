@@ -491,7 +491,7 @@ onBeforeUnmount(() => {
           <summary class="cursor-pointer px-4 py-3 text-sm text-muted">
             {{ t("showLegs", { n: String(plan.legs.length) }) }}
           </summary>
-          <div class="scroll-edge-y max-h-80 overflow-y-auto">
+          <div class="scroll-shadow-y max-h-80 overflow-y-auto">
             <table class="data-table w-full text-sm">
               <thead>
                 <tr>

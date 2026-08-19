@@ -170,7 +170,7 @@ function summary(p: Procedure): string {
 
         <div
           v-if="open.has(keyOf(p))"
-          class="scroll-edge-x overflow-x-auto border-t border-line"
+          class="scroll-shadow-x overflow-x-auto border-t border-line"
         >
           <table class="data-table w-full text-sm">
             <thead>

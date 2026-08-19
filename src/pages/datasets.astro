@@ -34,7 +34,10 @@ const fmt = (iso: string | null) =>
           <p class="text-muted">{t("empty")}</p>
         </div>
       ) : (
-        <div class="scroll-edge-y overflow-x-auto">
+        <div
+          class="scroll-shadow-x overflow-x-auto"
+          style="--scroll-shadow-bg: var(--surface)"
+        >
           <table class="data-table w-full text-sm">
             <thead>
               <tr>
