@@ -37,12 +37,11 @@
   },
   "overview": {
     "title": "总览",
-    "description": "当前生效的数据来自哪一期、哪一个来源。",
+    "description": "当前生效的是哪一期。",
     "live": "生效中",
     "loading": "载入中",
     "superseded": "已被取代",
     "airacLive": "生效周期",
-    "sources": "来源",
     "airports": "机场",
     "noData": "还没有任何数据集。先跑一次 aip-import。",
     "licensed": "有许可限制",
@@ -69,8 +68,7 @@
     "noElev": "未提供",
     "magneticNote": "跑道与机位航向是**磁**航向，写进 FSD 位置包前要用上面的磁差换算成真航向。",
     "onMap": "在地图上看",
-    "shownCount": "{n} / {total} 个机场",
-    "source": "来源"
+    "shownCount": "{n} / {total} 个机场"
   },
   "map": {
     "title": "地图",
@@ -114,14 +112,12 @@
   "datasets": {
     "title": "数据集",
     "description": "每一次导入都是一个数据集：一个来源、一个 AIRAC 周期，带着它自己的许可状态。",
-    "source": "来源",
     "airac": "周期",
     "state": "状态",
     "airports": "机场",
     "redistributable": "可再分发",
     "created": "导入于",
     "activated": "生效于",
-    "note": "备注",
     "empty": "还没有任何数据集。",
     "yes": "是",
     "no": "否",

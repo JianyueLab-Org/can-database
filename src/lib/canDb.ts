@@ -75,11 +75,9 @@ export async function api<T = unknown>(
 
 export interface Dataset {
   id: number;
-  source: string;
   airac: string;
   state: "loading" | "active" | "superseded";
   redistributable: boolean;
-  note: string | null;
   createdAt: string;
   activatedAt: string | null;
   airports: number;
@@ -101,20 +99,6 @@ export function isRestricted(minAccess: number | undefined): boolean {
 }
 
 /**
- * 来源代号到人看得懂的名字。
- *
- * `naip` 单独标出来是这一整件事的要点：它是**中国民航局的官方航行资料汇编**，不是
- * Navigraph 那样面向模拟的派生数据。
- */
-export const SOURCE_LABEL: Record<string, string> = {
-  naip: "NAIP",
-  navigraph: "Navigraph",
-  sector: "Sector",
-  eaip: "eAIP",
-  manual: "手工",
-};
-
-/**
  * 总览 —— can-db 现在在服务什么。
  *
  * **这些数字是 can-db 算的，不是这一页算的。** 从前这一页取全部 dataset 然后自己
@@ -130,7 +114,6 @@ export interface Overview {
   active: Dataset[];
   liveAirac: string | null;
   airports: number;
-  sources: string[];
 }
 
 export interface Airport {
@@ -142,7 +125,6 @@ export interface Airport {
   elev: number | null;
   variation: number | null;
   airac: string;
-  source: string;
 }
 
 /**

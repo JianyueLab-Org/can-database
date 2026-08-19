@@ -21,7 +21,6 @@ const datasets = overview?.datasets ?? 0;
 const active = overview?.active ?? [];
 const liveAirac = overview?.liveAirac ?? null;
 const totalAirports = overview?.airports ?? 0;
-const sources = overview?.sources ?? [];
 ---
 
 <AppLayout title={t("title")}>
@@ -57,14 +56,6 @@ const sources = overview?.sources ?? [];
                 {totalAirports}
               </p>
             </div>
-            <div class="card p-4">
-              <p class="text-xs uppercase tracking-wider text-faint">
-                {t("sources")}
-              </p>
-              <p class="mt-1 text-2xl font-bold text-ink">
-                {sources.join(" · ") || "—"}
-              </p>
-            </div>
           </div>
 
           <ul class="space-y-3">
@@ -73,7 +64,6 @@ const sources = overview?.sources ?? [];
                 <span class="tnum font-mono text-sm font-semibold text-can">
                   {d.airac}
                 </span>
-                <span class="text-sm text-ink">{d.source}</span>
                 <span class="badge badge-success">{t("live")}</span>
                 <span
                   class={

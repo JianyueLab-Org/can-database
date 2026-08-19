@@ -2,7 +2,6 @@
 import AppLayout from "@/layouts/AppLayout.astro";
 import AirportMap from "@/components/AirportMap.vue";
 import { getLocale, getMessages, useTranslations } from "@/lib/i18n";
-import { SOURCE_LABEL } from "@/lib/canDb";
 import { callDb } from "@/server/canDb";
 import type { AirportDetail } from "@/lib/canDb";
 
@@ -60,21 +59,6 @@ const stars = airport?.procedures.filter((p) => p.kind === "star") ?? [];
               </span>
               <span class="tnum">
                 {t("airac")}: {airport.airac}
-              </span>
-              {/* 来源要单独标出来，不是塞在周期后面的括号里：一个校对数据的人看到的
-                  第一件事应该是「这条是官方汇编还是面向模拟的派生物」—— 两者的权威性
-                  和可再分发性都不一样，而在页面上它们长得一模一样。 */}
-              <span>
-                {t("source")}:{" "}
-                <span
-                  class={
-                    airport.source === "naip"
-                      ? "badge badge-danger"
-                      : "badge badge-neutral"
-                  }
-                >
-                  {SOURCE_LABEL[airport.source] ?? airport.source}
-                </span>
               </span>
             </p>
             {/* The magnetic/true distinction is the single most expensive thing
