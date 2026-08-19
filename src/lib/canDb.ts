@@ -247,6 +247,8 @@ export interface AirportDetail extends Airport {
   milOps: string | null;
   longestRwyM: number | null;
   note: string | null;
+  speedLimitKt: number | null;
+  speedLimitBelowFt: number | null;
 
   runways: Runway[];
   runwayDetails: RunwayDetail[];

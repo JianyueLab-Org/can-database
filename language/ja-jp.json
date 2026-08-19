@@ -61,17 +61,13 @@
     "coords": "坐标",
     "runways": "跑道",
     "stands": "{n} スポット",
-    "procedures": "程序",
-    "sids": "离场",
-    "stars": "进场",
+    "procedures": "方式",
     "back": "返回机场列表",
     "notFound": "没有这个机场的当前数据。",
     "noElev": "未提供",
     "magneticNote": "跑道与机位航向是**磁**航向，写进 FSD 位置包前要用上面的磁差换算成真航向。",
     "onMap": "地図で見る",
     "shownCount": "{n} / {total} 空港",
-    "runwayDetails": "滑走路データ",
-    "runwayDetailsNote": "AIP 由来、寸法はメートル。この資料に座標はありません —— 上の地図の滑走路は別の資料からです。",
     "rwy": "滑走路",
     "rwyLength": "長さ",
     "rwyWidth": "幅",
@@ -79,7 +75,12 @@
     "rwyStrength": "強度",
     "rwyBrg": "真方位",
     "rwyThrElev": "末端標高",
-    "approaches": "進入方式"
+    "runwayNote": "幾何情報はナビデータ、寸法と舗装は AIP 由来 —— 片方しかない滑走路もあります。寸法はメートル。",
+    "rwyThreshold": "末端座標",
+    "transAlt": "転移高度",
+    "transLevel": "転移フライトレベル",
+    "speedLimit": "速度制限",
+    "international": "国際"
   },
   "map": {
     "title": "地図",
@@ -192,5 +193,24 @@
     "pilots": "パイロット",
     "controllers": "管制員",
     "exams": "試験センター"
+  },
+  "procedures": {
+    "search": "検索",
+    "searchHint": "方式名またはフィックス",
+    "kind": "種別",
+    "kindAll": "すべて",
+    "sid": "SID",
+    "star": "STAR",
+    "approach": "進入",
+    "runway": "滑走路",
+    "runwayAll": "すべて",
+    "showing": "{all} 件中 {n} 件",
+    "none": "該当する方式はありません",
+    "fix": "フィックス",
+    "path": "経路",
+    "alt": "高度制限",
+    "speed": "速度",
+    "via": "区間",
+    "altNote": "高度制限は公示の ARINC 424 符号（例 05910B03940A）のままです —— 誤って解釈するより安全です。FO＝フライオーバー、MAP＝進入復行点。"
   }
 }

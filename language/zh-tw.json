@@ -62,16 +62,12 @@
     "runways": "跑道",
     "stands": "{n} 機位",
     "procedures": "程序",
-    "sids": "离场",
-    "stars": "进场",
     "back": "返回机场列表",
     "notFound": "没有这个机场的当前数据。",
     "noElev": "未提供",
     "magneticNote": "跑道与机位航向是**磁**航向，写进 FSD 位置包前要用上面的磁差换算成真航向。",
     "onMap": "在地圖上看",
     "shownCount": "{n} / {total} 個機場",
-    "runwayDetails": "跑道資料",
-    "runwayDetailsNote": "來自航行資料彙編，尺寸單位是公尺。這一份不帶座標 —— 上面地圖裡的跑道來自另一份資料。",
     "rwy": "跑道",
     "rwyLength": "長",
     "rwyWidth": "寬",
@@ -79,7 +75,12 @@
     "rwyStrength": "強度",
     "rwyBrg": "真方位",
     "rwyThrElev": "入口標高",
-    "approaches": "進場程序"
+    "runwayNote": "幾何來自導航資料，長寬道面來自彙編 —— 一條跑道可能只有其中一半。尺寸是公尺。",
+    "rwyThreshold": "入口座標",
+    "transAlt": "過渡高度",
+    "transLevel": "過渡高度層",
+    "speedLimit": "速度限制",
+    "international": "國際"
   },
   "map": {
     "title": "地圖",
@@ -192,5 +193,24 @@
     "pilots": "飛行員",
     "controllers": "管制員",
     "exams": "考試中心"
+  },
+  "procedures": {
+    "search": "搜尋",
+    "searchHint": "程序名或航路點",
+    "kind": "類別",
+    "kindAll": "全部",
+    "sid": "離場",
+    "star": "進場",
+    "approach": "進場",
+    "runway": "跑道",
+    "runwayAll": "全部",
+    "showing": "顯示 {n} / {all} 條",
+    "none": "沒有符合的程序",
+    "fix": "點",
+    "path": "路徑",
+    "alt": "高度限制",
+    "speed": "速度",
+    "via": "段",
+    "altNote": "高度限制是彙編的編碼原文（如 05910B03940A），未做解碼 —— 解錯一個比不解更危險。FO＝飛越點，MAP＝重飛點。"
   }
 }

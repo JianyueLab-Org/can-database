@@ -1,6 +1,7 @@
 ---
 import AppLayout from "@/layouts/AppLayout.astro";
 import AirportMap from "@/components/AirportMap.vue";
+import Procedures from "@/components/Procedures.vue";
 import { getLocale, getMessages, useTranslations } from "@/lib/i18n";
 import { callDb } from "@/server/canDb";
 import type { AirportDetail } from "@/lib/canDb";
@@ -16,6 +17,7 @@ const icao = (Astro.params.icao ?? "").toUpperCase();
 const locale = getLocale(Astro.cookies);
 const t = useTranslations(locale, "airports");
 const mapMessages = getMessages(locale, "airportMap");
+const procMessages = getMessages(locale, "procedures");
 
 const result = await callDb<AirportDetail>(
   Astro,
@@ -23,25 +25,34 @@ const result = await callDb<AirportDetail>(
 );
 const airport = result.ok ? result.data : null;
 
-const sids = airport?.procedures.filter((p) => p.kind === "sid") ?? [];
-const stars = airport?.procedures.filter((p) => p.kind === "star") ?? [];
-const approaches =
-  airport?.procedures.filter((p) => p.kind === "approach") ?? [];
-
 /**
- * 一条腿印成一段字。
+ * 跑道的两半拼成一行。
  *
- * 没有定位点的腿（`CA` 爬到某高度、`VI` 飞到某航向）印它的路径终止码 —— 印空白会让人以
- * 为程序断了。高度限制**原样印**（`05910B03940A`）：那是 ARINC 424 的编码，解码要判
- * A/B/+/- 那套语义，解错一个比不解更危险。
+ * 几何（入口和终点坐标、磁航向）和物理（长宽、道面、强度、入口标高）来自**两份不同的数
+ * 据**，各自按 (机场, 代号) 解析 —— 一条跑道可能只有其中一半。拼在这里而不是并排两张
+ * 表：读的人问的是「这条跑道是什么样」，不该由他自己对代号。
  */
-function legText(pt: (typeof sids)[number]["path"][number]): string {
-  const head = pt.ident || (pt.path ?? "·");
-  const bits = [head];
-  if (pt.alt) bits.push(pt.alt);
-  if (pt.speedKt) bits.push(`${pt.speedKt}kt`);
-  return bits.join("/");
-}
+const geom = new Map((airport?.runways ?? []).map((r) => [r.id, r]));
+const phys = new Map((airport?.runwayDetails ?? []).map((r) => [r.ident, r]));
+const runwayIdents = [...new Set([...geom.keys(), ...phys.keys()])].sort();
+const runwayRows = runwayIdents.map((ident) => {
+  const g = geom.get(ident);
+  const p = phys.get(ident);
+  return {
+    ident,
+    opposite: g?.opposite ?? p?.pair ?? null,
+    hdg: g?.hdg ?? null,
+    lat: g?.lat ?? null,
+    lon: g?.lon ?? null,
+    lengthM: p?.lengthM ?? null,
+    widthM: p?.widthM ?? null,
+    surface: p?.surface ?? null,
+    strength: p?.strength ?? null,
+    strengthDesc: p?.strengthDesc ?? null,
+    trueBrg: p?.trueBrg ?? null,
+    thrElevM: p?.thrElevM ?? null,
+  };
+});
 ---
 
 <AppLayout title={icao}>
@@ -78,6 +89,36 @@ function legText(pt: (typeof sids)[number]["path"][number]): string {
                 {t("airac")}: {airport.airac}
               </span>
             </p>
+            {/* 汇编才有的那几项。别的来源给不了就整项不出现 —— 一排「—」比没有更占地方。 */}
+            <p class="mt-1 flex flex-wrap gap-x-6 gap-y-1 text-sm text-muted">
+              {airport.name && <span>{airport.name}</span>}
+              {airport.iata && <span class="font-mono">{airport.iata}</span>}
+              {airport.transitionAltM && (
+                <span class="tnum">
+                  {t("transAlt")}: {airport.transitionAltM} m
+                </span>
+              )}
+              {airport.transitionLevelM && (
+                <span class="tnum">
+                  {t("transLevel")}: {airport.transitionLevelM} m
+                </span>
+              )}
+              {airport.speedLimitKt && (
+                <span class="tnum">
+                  {t("speedLimit")}: {airport.speedLimitKt} kt
+                  {airport.speedLimitBelowFt
+                    ? ` <${airport.speedLimitBelowFt} ft`
+                    : ""}
+                </span>
+              )}
+              {airport.bureau && <span>{airport.bureau}</span>}
+              {airport.isInternational && (
+                <span class="badge badge-info">{t("international")}</span>
+              )}
+              {airport.milOps && (
+                <span class="badge badge-neutral">{airport.milOps}</span>
+              )}
+            </p>
             {/* The magnetic/true distinction is the single most expensive thing
                 to get wrong downstream — it puts a parked aircraft skew to its
                 own stand box — so the page says it rather than assuming the
@@ -95,35 +136,57 @@ function legText(pt: (typeof sids)[number]["path"][number]): string {
             />
           </section>
 
+          {/* **一张表，不是两张。** 几何（入口/终点坐标、航向）来自一份数据，物理
+              （长宽道面强度）来自另一份，但读的人问的是同一件事：这条跑道是什么样。
+              按代号拼在一起，缺哪一半就是破折号 —— 两张并排的表要读的人自己对代号。 */}
           <section class="mb-8">
             <h2 class="mb-2 text-sm font-semibold uppercase tracking-wider text-muted">
-              {t("runways")} ({airport.runways.length})
+              {t("runways")} ({runwayRows.length})
             </h2>
-            <div class="scroll-edge-y overflow-x-auto">
+            <p class="mb-3 text-xs text-faint">{t("runwayNote")}</p>
+            <div class="scroll-edge-x overflow-x-auto">
               <table class="data-table w-full text-sm">
                 <thead>
                   <tr>
-                    <th>{t("runways")}</th>
+                    <th>{t("rwy")}</th>
+                    <th>{t("rwyLength")}</th>
+                    <th>{t("rwyWidth")}</th>
+                    <th>{t("rwySurface")}</th>
+                    <th>{t("rwyStrength")}</th>
                     <th>hdg</th>
-                    <th>threshold</th>
-                    <th>end</th>
+                    <th>{t("rwyThrElev")}</th>
+                    <th>{t("rwyThreshold")}</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {airport.runways.map((r) => (
+                  {runwayRows.map((r) => (
                     <tr>
-                      <td data-label={t("runways")} class="font-mono">
-                        {r.id}
-                        {r.opposite ? ` / ${r.opposite}` : ""}
+                      <td data-label={t("rwy")} class="font-mono">
+                        {r.ident}
+                        {r.opposite ? (
+                          <span class="text-faint"> / {r.opposite}</span>
+                        ) : null}
+                      </td>
+                      <td data-label={t("rwyLength")} class="tnum">
+                        {r.lengthM ? `${r.lengthM} m` : "—"}
+                      </td>
+                      <td data-label={t("rwyWidth")} class="tnum">
+                        {r.widthM ? `${r.widthM} m` : "—"}
+                      </td>
+                      <td data-label={t("rwySurface")}>{r.surface ?? "—"}</td>
+                      <td data-label={t("rwyStrength")} class="text-xs">
+                        {r.strengthDesc ?? r.strength ?? "—"}
                       </td>
                       <td data-label="hdg" class="tnum">
-                        {r.hdg ?? "—"}
+                        {r.hdg ?? (r.trueBrg != null ? `${r.trueBrg}T` : "—")}
                       </td>
-                      <td data-label="threshold" class="tnum">
-                        {r.lat.toFixed(5)}, {r.lon.toFixed(5)}
+                      <td data-label={t("rwyThrElev")} class="tnum">
+                        {r.thrElevM ? `${r.thrElevM} m` : "—"}
                       </td>
-                      <td data-label="end" class="tnum">
-                        {r.endLat.toFixed(5)}, {r.endLon.toFixed(5)}
+                      <td data-label={t("rwyThreshold")} class="tnum text-xs">
+                        {r.lat != null
+                          ? `${r.lat.toFixed(5)}, ${r.lon!.toFixed(5)}`
+                          : "—"}
                       </td>
                     </tr>
                   ))}
@@ -156,92 +219,16 @@ function legText(pt: (typeof sids)[number]["path"][number]): string {
             )}
           </section>
 
-          {(airport.runwayDetails ?? []).length > 0 && (
-            <section class="mb-8">
-              <h2 class="mb-2 text-sm font-semibold uppercase tracking-wider text-muted">
-                {t("runwayDetails")} ({airport.runwayDetails.length})
-              </h2>
-              {/* 尺寸一律是米 —— 汇编就这么发布，换成英尺再显示回米只会来回舍入。 */}
-              <p class="mb-3 text-xs text-faint">{t("runwayDetailsNote")}</p>
-              <div class="scroll-edge-x overflow-x-auto">
-                <table class="data-table w-full text-sm">
-                  <thead>
-                    <tr>
-                      <th>{t("rwy")}</th>
-                      <th>{t("rwyLength")}</th>
-                      <th>{t("rwyWidth")}</th>
-                      <th>{t("rwySurface")}</th>
-                      <th>{t("rwyStrength")}</th>
-                      <th>{t("rwyBrg")}</th>
-                      <th>{t("rwyThrElev")}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {airport.runwayDetails.map((r) => (
-                      <tr>
-                        <td data-label={t("rwy")} class="font-mono">
-                          {r.ident}
-                        </td>
-                        <td data-label={t("rwyLength")} class="tnum">
-                          {r.lengthM ? `${r.lengthM} m` : "—"}
-                        </td>
-                        <td data-label={t("rwyWidth")} class="tnum">
-                          {r.widthM ? `${r.widthM} m` : "—"}
-                        </td>
-                        <td data-label={t("rwySurface")}>{r.surface ?? "—"}</td>
-                        <td data-label={t("rwyStrength")} class="text-xs">
-                          {r.strengthDesc ?? r.strength ?? "—"}
-                        </td>
-                        <td data-label={t("rwyBrg")} class="tnum">
-                          {r.trueBrg != null ? `${r.trueBrg}°T` : "—"}
-                        </td>
-                        <td data-label={t("rwyThrElev")} class="tnum">
-                          {r.thrElevM ? `${r.thrElevM} m` : "—"}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-          )}
-
-          <section class="grid gap-8 lg:grid-cols-2">
-            {[
-              { label: t("sids"), list: sids },
-              { label: t("stars"), list: stars },
-              { label: t("approaches"), list: approaches },
-            ].map((group) => (
-              <div>
-                <h2 class="mb-2 text-sm font-semibold uppercase tracking-wider text-muted">
-                  {group.label} ({group.list.length})
-                </h2>
-                <ul class="space-y-1.5">
-                  {group.list.map((p) => (
-                    <li class="card p-3">
-                      <p class="flex items-baseline gap-2">
-                        <span class="font-mono text-sm font-semibold text-ink">
-                          {p.name}
-                        </span>
-                        <span class="text-xs text-faint">
-                          {p.runways ?? p.runway}
-                        </span>
-                        {p.chart && p.chart !== p.name && (
-                          <span class="text-xs text-faint">{p.chart}</span>
-                        )}
-                      </p>
-                      {/* 腿上带高度和速度限制时一并印出来 —— 那是这份数据比一串代号
-                          多出来的东西，藏起来等于没导。 */}
-                      <p class="mt-1 break-words font-mono text-xs text-muted">
-                        {p.path.length > 0
-                          ? p.path.map(legText).join(" ")
-                          : p.points.join(" ")}
-                      </p>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
+          <section class="mb-8">
+            <h2 class="mb-2 text-sm font-semibold uppercase tracking-wider text-muted">
+              {t("procedures")} ({airport.procedures.length})
+            </h2>
+            <Procedures
+              messages={procMessages}
+              procedures={airport.procedures}
+              runways={runwayIdents}
+              client:load
+            />
           </section>
         </>
       )

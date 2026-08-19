@@ -61,17 +61,13 @@
     "coords": "坐标",
     "runways": "跑道",
     "stands": "{n} stands",
-    "procedures": "程序",
-    "sids": "离场",
-    "stars": "进场",
+    "procedures": "Procedures",
     "back": "返回机场列表",
     "notFound": "没有这个机场的当前数据。",
     "noElev": "未提供",
     "magneticNote": "跑道与机位航向是**磁**航向，写进 FSD 位置包前要用上面的磁差换算成真航向。",
     "onMap": "See on the map",
     "shownCount": "{n} of {total} airports",
-    "runwayDetails": "Runway data",
-    "runwayDetailsNote": "From the AIP; dimensions in metres. This source carries no coordinates — the runways on the map above come from another one.",
     "rwy": "Runway",
     "rwyLength": "Length",
     "rwyWidth": "Width",
@@ -79,7 +75,12 @@
     "rwyStrength": "Strength",
     "rwyBrg": "True brg",
     "rwyThrElev": "Thr elev",
-    "approaches": "Approaches"
+    "runwayNote": "Geometry comes from the nav data, dimensions and surface from the AIP — a runway may have only one half. Dimensions in metres.",
+    "rwyThreshold": "Threshold",
+    "transAlt": "Transition alt",
+    "transLevel": "Transition level",
+    "speedLimit": "Speed limit",
+    "international": "International"
   },
   "map": {
     "title": "Map",
@@ -192,5 +193,24 @@
     "pilots": "Pilots",
     "controllers": "ATC",
     "exams": "Exams"
+  },
+  "procedures": {
+    "search": "Search",
+    "searchHint": "Procedure name or fix",
+    "kind": "Kind",
+    "kindAll": "All",
+    "sid": "SID",
+    "star": "STAR",
+    "approach": "Approach",
+    "runway": "Runway",
+    "runwayAll": "All",
+    "showing": "Showing {n} of {all}",
+    "none": "No matching procedures",
+    "fix": "Fix",
+    "path": "Path",
+    "alt": "Altitude",
+    "speed": "Speed",
+    "via": "Segment",
+    "altNote": "Altitude constraints are the published ARINC 424 encoding (e.g. 05910B03940A), left undecoded — decoding one wrong is worse than not decoding it. FO = flyover, MAP = missed approach point."
   }
 }
