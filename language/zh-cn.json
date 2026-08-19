@@ -72,7 +72,16 @@
     "shownCount": "{n} / {total} 个机场",
     "charts": "航图",
     "chartsNote": "这是汇编的航图索引 —— 有哪些图、图号和大小。PDF 本身还没有入库，所以这里没有链接。",
-    "chartsUnsorted": "未分类"
+    "chartsUnsorted": "未分类",
+    "runwayDetails": "跑道数据",
+    "runwayDetailsNote": "来自航行资料汇编，尺寸单位是米。这一份不带坐标 —— 上面地图里的跑道来自另一份数据。",
+    "rwy": "跑道",
+    "rwyLength": "长",
+    "rwyWidth": "宽",
+    "rwySurface": "道面",
+    "rwyStrength": "强度",
+    "rwyBrg": "真方位",
+    "rwyThrElev": "入口标高"
   },
   "map": {
     "title": "地图",

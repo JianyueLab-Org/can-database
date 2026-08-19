@@ -163,6 +163,56 @@ const stars = airport?.procedures.filter((p) => p.kind === "star") ?? [];
             )}
           </section>
 
+          {(airport.runwayDetails ?? []).length > 0 && (
+            <section class="mb-8">
+              <h2 class="mb-2 text-sm font-semibold uppercase tracking-wider text-muted">
+                {t("runwayDetails")} ({airport.runwayDetails.length})
+              </h2>
+              {/* 尺寸一律是米 —— 汇编就这么发布，换成英尺再显示回米只会来回舍入。 */}
+              <p class="mb-3 text-xs text-faint">{t("runwayDetailsNote")}</p>
+              <div class="scroll-edge-x overflow-x-auto">
+                <table class="data-table w-full text-sm">
+                  <thead>
+                    <tr>
+                      <th>{t("rwy")}</th>
+                      <th>{t("rwyLength")}</th>
+                      <th>{t("rwyWidth")}</th>
+                      <th>{t("rwySurface")}</th>
+                      <th>{t("rwyStrength")}</th>
+                      <th>{t("rwyBrg")}</th>
+                      <th>{t("rwyThrElev")}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {airport.runwayDetails.map((r) => (
+                      <tr>
+                        <td data-label={t("rwy")} class="font-mono">
+                          {r.ident}
+                        </td>
+                        <td data-label={t("rwyLength")} class="tnum">
+                          {r.lengthM ? `${r.lengthM} m` : "—"}
+                        </td>
+                        <td data-label={t("rwyWidth")} class="tnum">
+                          {r.widthM ? `${r.widthM} m` : "—"}
+                        </td>
+                        <td data-label={t("rwySurface")}>{r.surface ?? "—"}</td>
+                        <td data-label={t("rwyStrength")} class="text-xs">
+                          {r.strengthDesc ?? r.strength ?? "—"}
+                        </td>
+                        <td data-label={t("rwyBrg")} class="tnum">
+                          {r.trueBrg != null ? `${r.trueBrg}°T` : "—"}
+                        </td>
+                        <td data-label={t("rwyThrElev")} class="tnum">
+                          {r.thrElevM ? `${r.thrElevM} m` : "—"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
+
           {charts.length > 0 && (
             <section class="mb-8">
               <h2 class="mb-2 text-sm font-semibold uppercase tracking-wider text-muted">

@@ -72,7 +72,16 @@
     "shownCount": "{n} / {total} 空港",
     "charts": "チャート",
     "chartsNote": "公示チャートの索引です —— 何があるか、図番、サイズ。PDF 本体は未収録のため、リンクはありません。",
-    "chartsUnsorted": "未分類"
+    "chartsUnsorted": "未分類",
+    "runwayDetails": "滑走路データ",
+    "runwayDetailsNote": "AIP 由来、寸法はメートル。この資料に座標はありません —— 上の地図の滑走路は別の資料からです。",
+    "rwy": "滑走路",
+    "rwyLength": "長さ",
+    "rwyWidth": "幅",
+    "rwySurface": "舗装",
+    "rwyStrength": "強度",
+    "rwyBrg": "真方位",
+    "rwyThrElev": "末端標高"
   },
   "map": {
     "title": "地図",

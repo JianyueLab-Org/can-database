@@ -72,7 +72,16 @@
     "shownCount": "{n} of {total} airports",
     "charts": "Charts",
     "chartsNote": "The compilation's chart index — what exists, its number and size. The PDFs are not in the database yet, so there is nothing to click.",
-    "chartsUnsorted": "Unsorted"
+    "chartsUnsorted": "Unsorted",
+    "runwayDetails": "Runway data",
+    "runwayDetailsNote": "From the AIP; dimensions in metres. This source carries no coordinates — the runways on the map above come from another one.",
+    "rwy": "Runway",
+    "rwyLength": "Length",
+    "rwyWidth": "Width",
+    "rwySurface": "Surface",
+    "rwyStrength": "Strength",
+    "rwyBrg": "True brg",
+    "rwyThrElev": "Thr elev"
   },
   "map": {
     "title": "Map",

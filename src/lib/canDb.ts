@@ -158,6 +158,31 @@ export interface Chart {
   validUntil: string | null;
 }
 
+/** 跑道的**物理**数据 —— 没有坐标，那份汇编不给。几何在 `Runway` 里，两者按代号拼。 */
+export interface RunwayDetail {
+  ident: string;
+  pair: string | null;
+  /** 米，全部。 */
+  lengthM: number | null;
+  widthM: number | null;
+  stripLengthM: number | null;
+  stripWidthM: number | null;
+  surface: string | null;
+  strength: string | null;
+  strengthDesc: string | null;
+  trueBrg: number | null;
+  slope: string | null;
+  elevM: number | null;
+  thrElevM: number | null;
+  thrDisplaceM: number | null;
+  stopwayM: number | null;
+  clearwayM: number | null;
+  takeoffM: number | null;
+  landingM: number | null;
+  asdaM: number | null;
+  note: string | null;
+}
+
 export interface Runway {
   id: string;
   opposite: string | null;
@@ -211,7 +236,19 @@ export interface AirwayGraph {
 }
 
 export interface AirportDetail extends Airport {
+  /** 汇编才有的属性，别的来源给不了就是 null。 */
+  iata: string | null;
+  /** 米 —— 中国管制按米发布，这两个不换算成英尺。 */
+  transitionAltM: number | null;
+  transitionLevelM: number | null;
+  bureau: string | null;
+  isInternational: boolean | null;
+  milOps: string | null;
+  longestRwyM: number | null;
+  note: string | null;
+
   runways: Runway[];
+  runwayDetails: RunwayDetail[];
   stands: Stand[];
   procedures: Procedure[];
 }

@@ -72,7 +72,16 @@
     "shownCount": "{n} / {total} 個機場",
     "charts": "航圖",
     "chartsNote": "這是彙編的航圖索引 —— 有哪些圖、圖號和大小。PDF 本身還沒有入庫，所以這裡沒有連結。",
-    "chartsUnsorted": "未分類"
+    "chartsUnsorted": "未分類",
+    "runwayDetails": "跑道資料",
+    "runwayDetailsNote": "來自航行資料彙編，尺寸單位是公尺。這一份不帶座標 —— 上面地圖裡的跑道來自另一份資料。",
+    "rwy": "跑道",
+    "rwyLength": "長",
+    "rwyWidth": "寬",
+    "rwySurface": "道面",
+    "rwyStrength": "強度",
+    "rwyBrg": "真方位",
+    "rwyThrElev": "入口標高"
   },
   "map": {
     "title": "地圖",
