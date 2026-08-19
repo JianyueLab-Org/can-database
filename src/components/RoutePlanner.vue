@@ -143,7 +143,21 @@ async function submit() {
     error.value = result.message;
     return;
   }
-  plan.value = result.data;
+  /* **每个列表字段都兜一次底。**
+   *
+   * 这个岛屿是 `client:only`，模板里一处 `plan.restrictions.length` 读到 null 就是一个
+   * TypeError，Vue 停止渲染，页面上什么都不剩 —— 不是报错，是空白。can-db 那边有过一次：
+   * 发布航线且一条限制都没有时，Go 的 nil 切片序列化成了 `null`，于是「有些航路一生成 UI
+   * 就没了」。那边修好了并有测试钉着，这里仍然兜底：**后端的一次回归不该让整页消失**，
+   * 而少一张卡片是能看出来的降级。 */
+  const data = result.data;
+  plan.value = {
+    ...data,
+    legs: data.legs ?? [],
+    restrictions: data.restrictions ?? [],
+    airspaces: data.airspaces ?? [],
+    notes: data.notes ?? [],
+  };
   // 地图要等 v-if 把容器渲染出来才有东西可挂。
   await nextTick();
   draw();
