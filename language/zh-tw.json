@@ -78,7 +78,8 @@
     "rwySurface": "道面",
     "rwyStrength": "強度",
     "rwyBrg": "真方位",
-    "rwyThrElev": "入口標高"
+    "rwyThrElev": "入口標高",
+    "approaches": "進場程序"
   },
   "map": {
     "title": "地圖",

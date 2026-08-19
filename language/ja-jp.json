@@ -78,7 +78,8 @@
     "rwySurface": "舗装",
     "rwyStrength": "強度",
     "rwyBrg": "真方位",
-    "rwyThrElev": "末端標高"
+    "rwyThrElev": "末端標高",
+    "approaches": "進入方式"
   },
   "map": {
     "title": "地図",

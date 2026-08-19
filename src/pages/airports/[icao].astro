@@ -25,6 +25,23 @@ const airport = result.ok ? result.data : null;
 
 const sids = airport?.procedures.filter((p) => p.kind === "sid") ?? [];
 const stars = airport?.procedures.filter((p) => p.kind === "star") ?? [];
+const approaches =
+  airport?.procedures.filter((p) => p.kind === "approach") ?? [];
+
+/**
+ * 一条腿印成一段字。
+ *
+ * 没有定位点的腿（`CA` 爬到某高度、`VI` 飞到某航向）印它的路径终止码 —— 印空白会让人以
+ * 为程序断了。高度限制**原样印**（`05910B03940A`）：那是 ARINC 424 的编码，解码要判
+ * A/B/+/- 那套语义，解错一个比不解更危险。
+ */
+function legText(pt: (typeof sids)[number]["path"][number]): string {
+  const head = pt.ident || (pt.path ?? "·");
+  const bits = [head];
+  if (pt.alt) bits.push(pt.alt);
+  if (pt.speedKt) bits.push(`${pt.speedKt}kt`);
+  return bits.join("/");
+}
 ---
 
 <AppLayout title={icao}>
@@ -193,6 +210,7 @@ const stars = airport?.procedures.filter((p) => p.kind === "star") ?? [];
             {[
               { label: t("sids"), list: sids },
               { label: t("stars"), list: stars },
+              { label: t("approaches"), list: approaches },
             ].map((group) => (
               <div>
                 <h2 class="mb-2 text-sm font-semibold uppercase tracking-wider text-muted">
@@ -205,10 +223,19 @@ const stars = airport?.procedures.filter((p) => p.kind === "star") ?? [];
                         <span class="font-mono text-sm font-semibold text-ink">
                           {p.name}
                         </span>
-                        <span class="text-xs text-faint">{p.runway}</span>
+                        <span class="text-xs text-faint">
+                          {p.runways ?? p.runway}
+                        </span>
+                        {p.chart && p.chart !== p.name && (
+                          <span class="text-xs text-faint">{p.chart}</span>
+                        )}
                       </p>
+                      {/* 腿上带高度和速度限制时一并印出来 —— 那是这份数据比一串代号
+                          多出来的东西，藏起来等于没导。 */}
                       <p class="mt-1 break-words font-mono text-xs text-muted">
-                        {p.points.join(" ")}
+                        {p.path.length > 0
+                          ? p.path.map(legText).join(" ")
+                          : p.points.join(" ")}
                       </p>
                     </li>
                   ))}

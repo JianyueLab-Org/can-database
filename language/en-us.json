@@ -78,7 +78,8 @@
     "rwySurface": "Surface",
     "rwyStrength": "Strength",
     "rwyBrg": "True brg",
-    "rwyThrElev": "Thr elev"
+    "rwyThrElev": "Thr elev",
+    "approaches": "Approaches"
   },
   "map": {
     "title": "Map",

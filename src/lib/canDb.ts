@@ -189,15 +189,36 @@ export interface Stand {
  * 画图的一方要自己跳过这些点，而不是指望它们不存在。
  */
 export interface ProcedurePoint {
+  /** 空串表示这条腿**没有定位点** —— CA/VI 这类终止在高度或航向上的腿。 */
   ident: string;
   lat: number | null;
   lon: number | null;
+
+  /** 下面这些只有 AIP 编码图那一份给得出，别的来源是 null。 */
+  path: string | null;
+  transition: string | null;
+  routeType: string | null;
+  /** ARINC 424 的编码字符串原样（`05910B03940A`），**没有解码**。 */
+  alt: string | null;
+  speedKt: number | null;
+  speedKind: string | null;
+  turn: string | null;
+  courseMag: number | null;
+  vpaDeg: number | null;
+  flyover: boolean | null;
+  isMap: boolean | null;
+  /** 进近的三段：final / missed / transition。SID/STAR 是 null。 */
+  part: string | null;
 }
 
 export interface Procedure {
-  kind: "sid" | "star";
+  kind: "sid" | "star" | "approach";
   name: string;
   runway: string | null;
+  /** 这条程序服务的全部跑道，逗号分隔 —— 一条 SID 常常服务好几条。 */
+  runways: string | null;
+  chart: string | null;
+  variant: string | null;
   /** 有序代号，印出来的程序清单读的是这一串。 */
   points: string[];
   /** 同一串，带坐标。`path[i].ident === points[i]`，长度也一定相同。 */
