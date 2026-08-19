@@ -51,6 +51,21 @@ interface Restriction {
    */
   scope: "segment" | "airway" | "route";
 }
+interface Airspace {
+  /** P 禁区 / R 限制区 / D 危险区。禁区规划器会绕开，所以这里只会看到 R 和 D。 */
+  kind: string;
+  localType: string;
+  name: string;
+  reason?: string;
+  /** 「byNOTAM」「每日0700-0830」—— 原文，没人解析它。 */
+  activeTime?: string;
+  note?: string;
+  /** 米。 */
+  lowerM: number;
+  upperM: number;
+  legs: string[];
+}
+
 interface RoutePlan {
   from: string;
   to: string;
@@ -79,6 +94,12 @@ interface RoutePlan {
   toLat: number;
   toLon: number;
   restrictions: Restriction[];
+  /** 航路穿过的限制性空域。 */
+  airspaces: Airspace[];
+  /** 沿途最高的最低超障高度，米。 */
+  mtcaM?: number;
+  /** 请求的巡航高度低于上面那个数。 */
+  levelBelowMtca?: boolean;
   notes: string[];
 }
 
@@ -352,6 +373,14 @@ onBeforeUnmount(() => {
           <span v-if="plan.minSafeAltM" class="tnum">
             {{ t("minSafeAlt") }}: {{ plan.minSafeAltM }} m
           </span>
+          <span
+            v-if="plan.mtcaM"
+            class="tnum"
+            :class="{ 'text-danger': plan.levelBelowMtca }"
+          >
+            {{ t("mtca") }}: {{ plan.mtcaM }} m
+            <template v-if="plan.levelBelowMtca">⚠</template>
+          </span>
           <span class="tnum">{{ t("legs") }}: {{ plan.legs.length }}</span>
           <span v-if="plan.sid">SID: {{ plan.sid }}</span>
           <span v-if="plan.star">STAR: {{ plan.star }}</span>
@@ -373,6 +402,43 @@ onBeforeUnmount(() => {
         role="application"
         :aria-label="String(t('mapLabel'))"
       />
+
+      <!-- 穿过的限制性空域。禁区规划器已经绕开了，所以这里看到的是限制区和危险区 ——
+           它们的活动时间是「byNOTAM」「每日0700-0830」这种文字，谁也没解析，所以列出来
+           的是「这条航路会穿过它」，不是「今天不能飞」。 -->
+      <section v-if="plan.airspaces.length" class="card border-warning/40 p-4">
+        <h2 class="mb-2 text-sm font-semibold text-ink">
+          {{ t("airspaces", { n: String(plan.airspaces.length) }) }}
+        </h2>
+        <p class="mb-3 text-xs text-faint">{{ t("airspacesNote") }}</p>
+        <ul class="space-y-3 text-sm text-ink">
+          <li v-for="(a, i) in plan.airspaces" :key="i">
+            <div class="flex flex-wrap items-center gap-2">
+              <span
+                class="badge"
+                :class="a.kind === 'D' ? 'badge-warning' : 'badge-danger'"
+              >
+                {{ a.localType }}
+              </span>
+              <span class="font-mono">{{ a.name }}</span>
+              <span v-if="a.activeTime" class="text-xs text-muted">{{
+                a.activeTime
+              }}</span>
+              <span class="tnum text-xs text-faint">
+                {{ a.lowerM }}–{{ a.upperM || "∞" }} m
+              </span>
+            </div>
+            <p v-if="a.reason || a.note" class="mt-1 text-xs text-muted">
+              <template v-if="a.reason">{{ a.reason }}</template>
+              <template v-if="a.reason && a.note"> · </template>
+              <template v-if="a.note">{{ a.note }}</template>
+            </p>
+            <p class="mt-1 font-mono text-xs text-faint">
+              {{ a.legs.join(" ") }}
+            </p>
+          </li>
+        </ul>
+      </section>
 
       <!-- 限制是原文，不是规则。这一段刻意排在最显眼的位置之一，而且不做摘要 ——
            「7800米以下可双向」这种话，摘要一次就可能把含义摘反。 -->

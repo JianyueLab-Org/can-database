@@ -121,7 +121,10 @@
     "alternatives": "同机场对另有 {n} 条发布航线",
     "enroute": "航路段",
     "minSafeAlt": "最低安全高度",
-    "scopeRoute": "本航线"
+    "scopeRoute": "本航线",
+    "mtca": "最低超障高度",
+    "airspaces": "穿过的限制性空域（{n} 个）",
+    "airspacesNote": "禁区已经在规划时绕开了；这里是限制区和危险区。活动时间是汇编原文，没人解析它 —— 这条航路会穿过它，不等于今天不能飞。"
   },
   "airportMap": {
     "title": "机场图",

@@ -121,7 +121,10 @@
     "alternatives": "{n} more published routing(s) for this pair",
     "enroute": "Enroute",
     "minSafeAlt": "Min safe altitude",
-    "scopeRoute": "this routing"
+    "scopeRoute": "this routing",
+    "mtca": "Min terrain clearance",
+    "airspaces": "Restricted airspace crossed ({n})",
+    "airspacesNote": "Prohibited areas are already routed around; these are restricted and danger areas. The activity times are published text, unparsed — crossing one is not the same as being unable to fly it today."
   },
   "airportMap": {
     "title": "Airport map",
