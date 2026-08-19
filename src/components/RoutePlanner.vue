@@ -58,6 +58,9 @@ interface RoutePlan {
   legs: RouteLeg[];
   distanceKm: number;
   directKm: number;
+  /** 搜索挑中的程序；本场没有能用的程序时是空串，那一端的接入方式写在 notes 里。 */
+  sid: string;
+  star: string;
   /** 两端机场的坐标 —— 航段只带它**到达**的那个点，见下面 draw()。 */
   fromLat: number;
   fromLon: number;
@@ -291,6 +294,8 @@ onBeforeUnmount(() => {
             }}{{ detour.toFixed(0) }}%
           </span>
           <span class="tnum">{{ t("legs") }}: {{ plan.legs.length }}</span>
+          <span v-if="plan.sid">SID: {{ plan.sid }}</span>
+          <span v-if="plan.star">STAR: {{ plan.star }}</span>
         </div>
       </section>
 
