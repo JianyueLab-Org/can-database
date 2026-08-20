@@ -535,6 +535,14 @@ watch(showGround, (on) => {
       <span v-else-if="showGround && groundState === 'none'">
         {{ t("groundNone") }}
       </span>
+      <!-- 署名：ODbL 的硬要求，有就必须显示，不能折叠也不能藏在 tooltip 里。 -->
+      <span
+        v-if="showGround && ground && ground.attribution"
+        class="text-faint"
+      >
+        {{ ground.attribution }}
+      </span>
+
       <span v-else-if="showGround && ground" class="text-muted">
         {{ t("groundAccuracy", { n: ground.accuracyM.toFixed(0) }) }}
         <template v-if="ground.runways === 0">

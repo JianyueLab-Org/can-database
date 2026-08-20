@@ -336,6 +336,12 @@ export interface GroundLines {
    * 121 个机场。
    */
   features: GroundFeature[];
+  /**
+   * 署名。**有值就必须显示** —— OSM 的数据按 ODbL 发布，署名是硬要求。
+   *
+   * 由 can-db 按数据决定：只有真返回了 OSM 来源的要素才有值。
+   */
+  attribution?: string;
   /** 这批线该信到几米。**不是**残差 —— 见 can-db 的 `chart_georef.accuracy_m`。 */
   accuracyM: number;
   /** 有几条跑道核对过配准。0 表示没核对上，那时 accuracyM 是个保守下限。 */
@@ -344,6 +350,8 @@ export interface GroundLines {
 }
 
 export interface GroundFeature {
+  /** `sector` = 扇区包手工做的；`osm` = OpenStreetMap（ODbL）。 */
+  source: string;
   /** taxiway / parking_position / holding_position / apron / terminal / runway / aerodrome */
   kind: string;
   /** 代号，例如滑行道的 `W9`。多数机位没有。 */
