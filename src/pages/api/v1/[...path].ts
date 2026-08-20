@@ -66,6 +66,14 @@ const ALLOW_PATTERNS: Array<Allowed & { test: RegExp }> = [
     methods: ["GET"],
     who: "AirportDetail.vue —— 一个机场的跑道、机位、进离场程序",
   },
+  {
+    // 子路径要**单独一条**：上面那条以 `$` 收尾，`.../ZSPD/ground` 不匹配它。
+    // 漏了这条的症状很误导 —— 反代回 404，岛屿把它当成「这个机场没有地面数据」，
+    // 于是每一个机场看起来都没有，而库里其实一条不少。
+    test: /^aip\/airports\/[A-Za-z0-9]{4}\/ground$/,
+    methods: ["GET"],
+    who: "AirportMap.vue —— 地面要素与线画（勾上才取，一个大场一兆多）",
+  },
 ];
 
 function lookup(path: string): Allowed | undefined {
