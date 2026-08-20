@@ -81,7 +81,8 @@
     "transAlt": "過渡高度",
     "transLevel": "過渡高度層",
     "speedLimit": "速度限制",
-    "international": "國際"
+    "international": "國際",
+    "groundLink": "地面資料（滑行道、機位、機坪）"
   },
   "map": {
     "title": "地圖",
@@ -253,5 +254,26 @@
     "squawk": "詢答機碼段",
     "nFreqs": "{n} 個頻率",
     "nSectors": "{n} 個扇區"
+  },
+  "ground": {
+    "title": "地面資料",
+    "featureCount": "手工要素 {n} 條",
+    "lineCount": "航圖線畫 {n} 條",
+    "chartLines": "航圖線畫（{n}）",
+    "taxiwayList": "滑行道代號（{n}）",
+    "handNote": "手工要素照著圖和衛片描的，公尺級。",
+    "chartNote": "航圖線畫從彙編機場圖上取出，位置準到約 {n} 公尺。",
+    "unchecked": "這張圖沒有跑道可核對，可能整體偏二十公尺上下",
+    "none": "這個機場還沒有地面資料",
+    "noneWhy": "彙編沒有給它機位座標表（配準要靠機位號），我們也還沒手工做過。",
+    "kind": {
+      "runway": "跑道",
+      "taxiway": "滑行道",
+      "holding_position": "等待位置",
+      "parking_position": "機位",
+      "apron": "機坪",
+      "terminal": "航廈",
+      "aerodrome": "場界"
+    }
   }
 }

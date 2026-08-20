@@ -1,0 +1,85 @@
+---
+import AppLayout from "@/layouts/AppLayout.astro";
+import GroundMap from "@/components/GroundMap.vue";
+import { getLocale, getMessages, useTranslations } from "@/lib/i18n";
+import { callDb } from "@/server/canDb";
+import type { AirportDetail, GroundLines } from "@/lib/canDb";
+
+/**
+ * 一个机场的地面数据。
+ *
+ * 单开一页而不是塞进机场页，是因为读的人在这里做的是**核对**：图占满屏、按类别分层、
+ * 滑行道按代号列出来点一下就跳过去。机场页那个勾是「顺便看一眼」，两件事。
+ *
+ * 服务端取，一次两份：`features`（手工做的，分好类带代号）和 `lines`（从航图抠的画
+ * 面）。首都那一份 JSON 一兆多，所以只有这一页取它 —— 机场页不会顺手拖上。
+ */
+const icao = (Astro.params.icao ?? "").toUpperCase();
+const locale = getLocale(Astro.cookies);
+const t = useTranslations(locale, "ground");
+const messages = getMessages(locale, "ground");
+
+const [airportRes, groundRes] = await Promise.all([
+  callDb<AirportDetail>(
+    Astro,
+    `/api/v1/aip/airports/${encodeURIComponent(icao)}`,
+  ),
+  callDb<GroundLines>(
+    Astro,
+    `/api/v1/aip/airports/${encodeURIComponent(icao)}/ground`,
+  ),
+]);
+const airport = airportRes.ok ? airportRes.data : null;
+const ground = groundRes.ok ? groundRes.data : null;
+const center: [number, number] = airport
+  ? [airport.lat, airport.lon]
+  : [35, 105];
+---
+
+<AppLayout title={`${icao} · ${t("title")}`}>
+  <div class="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    <header class="mb-5">
+      <a href={`/airports/${icao}`} class="text-xs text-muted hover:text-ink">
+        ← {airport?.name ?? icao}
+      </a>
+      <h1 class="mt-1 text-2xl font-bold tracking-tight text-ink sm:text-3xl">
+        <span class="font-mono">{icao}</span> · {t("title")}
+      </h1>
+      {
+        ground && (
+          <p class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted">
+            {ground.features.length > 0 && (
+              <span class="tnum">
+                {t("featureCount", { n: String(ground.features.length) })}
+              </span>
+            )}
+            {ground.lines.length > 0 && (
+              <span class="tnum">
+                {t("lineCount", { n: String(ground.lines.length) })}
+              </span>
+            )}
+          </p>
+        )
+      }
+    </header>
+
+    {
+      ground ? (
+        <GroundMap
+          messages={messages}
+          ground={ground}
+          center={center}
+          client:only="vue"
+        />
+      ) : (
+        /* 没有数据是常态而不是错误：277 个有图的机场里 121 个有地面数据，其余的
+           汇编既没给机位坐标表、我们也没手工做过。所以这里说清楚是哪种情况，不
+           摆一个空白的图。 */
+        <div class="rounded-xl border border-line p-8 text-center">
+          <p class="text-sm text-muted">{t("none")}</p>
+          <p class="mt-2 text-xs text-faint">{t("noneWhy")}</p>
+        </div>
+      )
+    }
+  </div>
+</AppLayout>

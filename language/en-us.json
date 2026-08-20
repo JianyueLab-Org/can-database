@@ -81,7 +81,8 @@
     "transAlt": "Transition alt",
     "transLevel": "Transition level",
     "speedLimit": "Speed limit",
-    "international": "International"
+    "international": "International",
+    "groundLink": "Ground data (taxiways, stands, aprons)"
   },
   "map": {
     "title": "Map",
@@ -253,5 +254,26 @@
     "squawk": "Squawk range",
     "nFreqs": "{n} frequencies",
     "nSectors": "{n} sectors"
+  },
+  "ground": {
+    "title": "Ground data",
+    "featureCount": "{n} hand-drawn features",
+    "lineCount": "{n} chart lines",
+    "chartLines": "Chart linework ({n})",
+    "taxiwayList": "Taxiway designators ({n})",
+    "handNote": "Hand-drawn from charts and imagery; metre-level.",
+    "chartNote": "Chart linework traced from the aerodrome chart, placed to about {n} m.",
+    "unchecked": "no runway was available to check this chart — the layer may sit some 20 m off",
+    "none": "No ground data for this airport yet",
+    "noneWhy": "The compilation publishes no stand-coordinate table for it (georeferencing needs stand numbers), and nobody has drawn it by hand.",
+    "kind": {
+      "runway": "Runway",
+      "taxiway": "Taxiway",
+      "holding_position": "Holding position",
+      "parking_position": "Stand",
+      "apron": "Apron",
+      "terminal": "Terminal",
+      "aerodrome": "Aerodrome"
+    }
   }
 }
