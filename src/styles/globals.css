@@ -129,9 +129,11 @@
   .show-terminal-labels .can-fix--terminal .can-fix__name {
     display: block;
   }
-  /* 全网图那一批名字自己按视野和缩放决定要不要画（见 NetworkMap 的 syncLabels），
-     画出来就该显示 —— 不再受容器 class 管。 */
-  .can-fix__name--always {
+  /* 两种「一直显示」：全网图那一批名字自己按视野和缩放决定要不要画（见 NetworkMap 的
+     syncLabels），画出来就该显示；航路图上**航路串里出现的那些点**也一直显示 —— 那一行
+     字就是这一页的产物，把它藏到某个缩放之后等于把答案藏起来。 */
+  .can-fix__name--always,
+  .can-fix--always .can-fix__name {
     display: block;
   }
 
@@ -150,7 +152,8 @@
     letter-spacing: 0.03em;
     line-height: 1.5;
   }
-  .show-via-labels .can-via {
+  .show-via-labels .can-via,
+  .can-via--always {
     display: block;
   }
 

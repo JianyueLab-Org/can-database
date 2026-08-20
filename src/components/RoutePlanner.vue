@@ -267,30 +267,67 @@ function draw() {
   }
   flush();
 
-  /* 航路点：三角形加名字，名字由缩放决定出不出。两端机场不画点 —— 它们各自有一个
-   * 更显眼的机场标记。 */
+  /* **按「航段的连续段」标，不按每一条腿标。**
+   *
+   * 这一页和雷达图的场景不一样，照搬它的画法在这里是错的：雷达上一屏只有航路的一小
+   * 截，每条腿都写一遍航路名才读得出「我看的这段是哪条」；而这里整条航路都在一屏
+   * 里，ZGGG→ZBAA 有 38 条腿，`A461` 会沿着线重复三十几次糊成一片。
+   *
+   * 航路串是怎么读的，这张图就怎么标：`MIKIP A461 BUBDA W56 DUGEB` —— 名字出现在**换
+   * 航路的地方**，中间那些点只决定线的形状。所以：
+   *
+   *   - 航路名一段一个，标在这一段的中点；很长的一段每 8 条腿补一个，免得放大之后
+   *     视野里一个名字都没有。
+   *   - 换航路处的那个点（也就是航路串里出现的点）名字**一直显示**。
+   *   - 中间的点只画三角形，名字要放大到 9 级才出。
+   */
+  type Run = { airway: string; legs: RouteLeg[]; startIndex: number };
+  const runs: Run[] = [];
+  for (const [i, leg] of p.legs.entries()) {
+    const last = runs[runs.length - 1];
+    if (last && last.airway === leg.airway) last.legs.push(leg);
+    else runs.push({ airway: leg.airway, legs: [leg], startIndex: i });
+  }
+
+  /** 航路串里出现的点：每一段的终点。最后一段的终点是落地机场，不算。 */
+  const significant = new Set<string>();
+  for (const run of runs) {
+    const end = run.legs[run.legs.length - 1];
+    significant.add(`${end.lat},${end.lon}`);
+  }
+
   for (const leg of p.legs.slice(0, -1)) {
+    const key = `${leg.lat},${leg.lon}`;
     fixMarker(leg.lat, leg.lon, leg.to, {
       color,
-      terminal: isProcedure(leg),
+      always: significant.has(key),
+      terminal: !significant.has(key),
     }).addTo(lay);
   }
 
-  /* 航路名标在腿的中点上，**每一段都标**：一条长航路只在中间标一次，等于放大去看某
-   * 个点的人正好看不到它是哪条航路。程序不标 —— 十几条腿写十几遍同一个词，而它们本
-   * 来就挤在机场周围最小的那块地方。 */
-  let prev: [number, number] = [p.fromLat, p.fromLon];
-  for (const leg of p.legs) {
-    const to: [number, number] = [leg.lat, leg.lon];
-    if (leg.airway && leg.airway !== "DCT" && !isProcedure(leg)) {
-      viaMarker(
-        (prev[0] + to[0]) / 2,
-        (prev[1] + to[1]) / 2,
-        leg.airway,
-        color,
-      ).addTo(lay);
+  /** 一段航路上每隔这么多条腿补一个名字。 */
+  const VIA_REPEAT = 8;
+  for (const run of runs) {
+    if (!run.airway || run.airway === "DCT" || isProcedure(run.legs[0]))
+      continue;
+
+    // 一段的起点是上一条腿的终点；第一段的起点是起飞机场。
+    const before = p.legs[run.startIndex - 1];
+    const head: [number, number] = before
+      ? [before.lat, before.lon]
+      : [p.fromLat, p.fromLon];
+
+    const points: [number, number][] = [
+      head,
+      ...run.legs.map((l): [number, number] => [l.lat, l.lon]),
+    ];
+    for (let i = 0; i + 1 < points.length; i += VIA_REPEAT) {
+      const a = points[i];
+      const b = points[Math.min(i + VIA_REPEAT, points.length - 1)];
+      viaMarker((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, run.airway, color, {
+        always: true,
+      }).addTo(lay);
     }
-    prev = to;
   }
 
   airportMarker(p.fromLat, p.fromLon, p.from, color).addTo(lay);

@@ -31,14 +31,27 @@ export function applyLabelZoom(map: L.Map): void {
   el.classList.toggle("show-terminal-labels", zoom >= TERMINAL_LABEL_MIN_ZOOM);
 }
 
-/** 一个航路点：三角形加名字。`terminal` 的名字要更高的缩放才出。 */
+/**
+ * 一个航路点：三角形加名字。
+ *
+ * 名字什么时候出，三档：
+ *   `always`   —— 一直出。给**航路串里出现的那些点**用（`MIKIP A461 BUBDA` 的两头）。
+ *   默认        —— 6 级以上出。
+ *   `terminal` —— 9 级以上才出。给密集的终端点和航路中间那些只决定线形的点用。
+ */
 export function fixMarker(
   lat: number,
   lon: number,
   ident: string,
-  options: { color: string; terminal?: boolean } = { color: "" },
+  options: { color: string; terminal?: boolean; always?: boolean } = {
+    color: "",
+  },
 ): L.Marker {
-  const cls = options.terminal ? "can-fix can-fix--terminal" : "can-fix";
+  const cls = options.always
+    ? "can-fix can-fix--always"
+    : options.terminal
+      ? "can-fix can-fix--terminal"
+      : "can-fix";
   return L.marker([lat, lon], {
     interactive: false,
     icon: L.divIcon({
@@ -79,18 +92,25 @@ export function nameMarker(
   });
 }
 
-/** 压在腿中间的航路名。 */
+/**
+ * 压在腿中间的航路名。
+ *
+ * `always` 给只画一条航路的图用：那里标签本来就只有几个，而看图的人正是来看「这段是哪
+ * 条航路」的 —— 缩放阈值在那种场景下只会让整条航路一个名字都没有。
+ */
 export function viaMarker(
   lat: number,
   lon: number,
   name: string,
   color: string,
+  options: { always?: boolean } = {},
 ): L.Marker {
+  const cls = options.always ? "can-via can-via--always" : "can-via";
   return L.marker([lat, lon], {
     interactive: false,
     icon: L.divIcon({
       className: "can-map-icon",
-      html: `<div class="can-via" style="--can-via-color:${color}">${escapeHtml(name)}</div>`,
+      html: `<div class="${cls}" style="--can-via-color:${color}">${escapeHtml(name)}</div>`,
       iconSize: [0, 0],
       iconAnchor: [0, 0],
     }),
