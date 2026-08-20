@@ -151,7 +151,9 @@
     "groundLoading": "Loading ground linework…",
     "groundNone": "No ground linework for this airport",
     "groundAccuracy": "Traced from the aerodrome chart, placed to about {n} m",
-    "groundUnchecked": "No runway was available to check the fit — the whole layer may sit some 20 m off"
+    "groundUnchecked": "No runway was available to check the fit — the whole layer may sit some 20 m off",
+    "groundOnlyGuidance": "Guidance lines only",
+    "groundGuidanceHint": "Guidance lines: runway and taxiway centrelines (unnamed)"
   },
   "fixes": {
     "title": "航路点",

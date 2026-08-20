@@ -151,7 +151,9 @@
     "groundLoading": "正在取地面線畫…",
     "groundNone": "這個機場沒有地面線畫",
     "groundAccuracy": "線畫來自航圖，位置準到約 {n} 公尺",
-    "groundUnchecked": "配準沒有跑道可核對，位置可能整體偏二十公尺上下"
+    "groundUnchecked": "配準沒有跑道可核對，位置可能整體偏二十公尺上下",
+    "groundOnlyGuidance": "只看導引線",
+    "groundGuidanceHint": "導引線：跑道與滑行道中線（不含名稱）"
   },
   "fixes": {
     "title": "航路点",

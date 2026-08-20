@@ -339,6 +339,13 @@ export interface GroundLines {
 export interface GroundLine {
   rgb: string;
   widthM: number;
+  /**
+   * `guidance` = 画在地上给航空器循的引导线（跑道中线 + 滑行道中线 + 机坪引导线）。
+   *
+   * **不是「滑行道」**：它没有滑行道名字，也没有把跑道摘出去。判据是颜色，逐个机场拿
+   * 手工数据验过 —— 最吻合的那一类永远是同一个色。位置准到几米要看 `accuracyM`。
+   */
+  kind?: "guidance";
   /** [纬, 经] */
   points: [number, number][];
 }

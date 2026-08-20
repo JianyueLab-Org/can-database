@@ -73,6 +73,13 @@ const showStands = ref(true);
 const showProc = ref<"none" | "sid" | "star">("none");
 
 const showGround = ref(false);
+/**
+ * 只画引导线。
+ *
+ * 默认关着：整张线画才是那张图的样子，而引导线是从里面挑出来的一层。要看滑行道走向的
+ * 人打开它，图上其余的线（道面边、建筑、注记）就不碍事了。
+ */
+const guidanceOnly = ref(false);
 const groundState = ref<"idle" | "loading" | "ready" | "none">("idle");
 const ground = shallowRef<GroundLines | null>(null);
 
@@ -213,6 +220,7 @@ function drawGround() {
   if (!showGround.value || !ground.value) return;
   const theme = currentTheme();
   for (const l of ground.value.lines) {
+    if (guidanceOnly.value && l.kind !== "guidance") continue;
     L.polyline(l.points as L.LatLngExpression[], {
       color: visible(l.rgb, theme),
       // 图上的线宽是米，屏幕上要的是像素。按米直接当像素画，缩到全场时整张图会糊成
@@ -333,6 +341,7 @@ onBeforeUnmount(() => {
 
 watch(showStands, drawStands);
 watch(showProc, drawProcedures);
+watch(guidanceOnly, drawGround);
 watch(showGround, (on) => {
   if (on) void loadGround();
   drawGround();
@@ -380,6 +389,15 @@ watch(showGround, (on) => {
       <label class="flex items-center gap-2">
         <input v-model="showGround" type="checkbox" class="accent-can" />
         {{ t("layerGround") }}
+      </label>
+
+      <label
+        v-if="showGround && ground"
+        class="flex items-center gap-2"
+        :title="String(t('groundGuidanceHint'))"
+      >
+        <input v-model="guidanceOnly" type="checkbox" class="accent-can" />
+        {{ t("groundOnlyGuidance") }}
       </label>
 
       <span v-if="showGround && groundState === 'loading'">
