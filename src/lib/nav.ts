@@ -11,7 +11,7 @@ import type { NavItem, NavSecondary, Workspace } from "@jianyuelab-org/can-ui";
 import { ACCESS_WRITE, webUrl } from "@/lib/config";
 
 /**
- * 侧栏的六页。
+ * 侧栏的七页。
  *
  * `/` 带斜杠是给 `SidebarNav.isCurrentPath()` 看的：以斜杠结尾的条目只精确匹配，
  * 否则「总览」会在每一个子页面上都亮着。
@@ -24,6 +24,7 @@ const PAGES: Array<{ key: string; href: string; icon: string }> = [
   { key: "nav.airports", href: "/airports", icon: "mapPin" },
   { key: "nav.map", href: "/map", icon: "map" },
   { key: "nav.route", href: "/route", icon: "paperAirplane" },
+  { key: "nav.positions", href: "/positions", icon: "speakerWave" },
   { key: "nav.fixes", href: "/fixes", icon: "signal" },
   { key: "nav.datasets", href: "/datasets", icon: "documentText" },
 ];

@@ -27,7 +27,8 @@
     "main": "主站",
     "docs": "文档",
     "map": "Map",
-    "route": "Route"
+    "route": "Route",
+    "positions": "Positions"
   },
   "title": "航行资料库",
   "denied": {
@@ -212,5 +213,24 @@
     "speed": "Speed",
     "via": "Segment",
     "altNote": "Altitude constraints are the published ARINC 424 encoding (e.g. 05910B03940A), left undecoded — decoding one wrong is worse than not decoding it. FO = flyover, MAP = missed approach point."
+  },
+  "positions": {
+    "title": "ATC positions",
+    "description": "{seats} published control positions across {units} units. One sector is one position.",
+    "search": "Search",
+    "searchHint": "Unit, sector or airport (ZGGG)",
+    "kind": "Kind",
+    "kindAll": "All",
+    "area": "Area",
+    "approach": "Approach",
+    "seats": "{n} positions",
+    "summary": "{units} units · {area} area · {approach} approach",
+    "sector": "Position",
+    "name": "Name",
+    "band": "Altitude band",
+    "frequencies": "Frequencies",
+    "runways": "Runways",
+    "none": "No matching units",
+    "scopeNote": "The compilation publishes area and approach only — tower, ground and delivery are not in it; those live in the aerodrome section as charts, not tables. Altitudes in metres."
   }
 }

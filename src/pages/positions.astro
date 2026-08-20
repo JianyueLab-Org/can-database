@@ -1,0 +1,41 @@
+---
+import AppLayout from "@/layouts/AppLayout.astro";
+import Positions from "@/components/Positions.vue";
+import { getLocale, getMessages, useTranslations } from "@/lib/i18n";
+import { callDb } from "@/server/canDb";
+import type { Unit } from "@/lib/canDb";
+
+/**
+ * 管制席位。
+ *
+ * 服务端渲染：这份数据一个 AIRAC 周期不变，没有理由让浏览器再取一次。分组和「哪一行算
+ * 席位」的规矩都在 can-db（见它的 `Positions()`）—— 这一页只负责显示。
+ */
+const locale = getLocale(Astro.cookies);
+const t = useTranslations(locale, "positions");
+const messages = getMessages(locale, "positions");
+
+const result = await callDb<Unit[]>(Astro, "/api/v1/aip/positions");
+const units = result.ok ? (result.data ?? []) : [];
+const seats = units.reduce((n, u) => n + u.positions.length, 0);
+---
+
+<AppLayout title={t("title")}>
+  <div class="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
+    <header class="mb-6">
+      <h1 class="text-2xl font-bold tracking-tight text-ink sm:text-3xl">
+        {t("title")}
+      </h1>
+      <p class="mt-2 max-w-2xl text-muted">
+        {
+          t("description", {
+            seats: String(seats),
+            units: String(units.length),
+          })
+        }
+      </p>
+    </header>
+
+    <Positions messages={messages} units={units} client:load />
+  </div>
+</AppLayout>

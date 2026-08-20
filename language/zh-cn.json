@@ -27,7 +27,8 @@
     "main": "主站",
     "docs": "文档",
     "map": "地图",
-    "route": "航路"
+    "route": "航路",
+    "positions": "席位"
   },
   "title": "航行资料库",
   "denied": {
@@ -212,5 +213,24 @@
     "speed": "速度",
     "via": "段",
     "altNote": "高度限制是汇编的编码原文（如 05910B03940A），未做解码 —— 解错一个比不解更危险。FO＝飞越点，MAP＝复飞点。"
+  },
+  "positions": {
+    "title": "管制席位",
+    "description": "汇编发布的 {seats} 个管制席位，分在 {units} 个单位里。一个扇区就是一个席位。",
+    "search": "搜索",
+    "searchHint": "单位、席位号或机场（ZGGG）",
+    "kind": "类别",
+    "kindAll": "全部",
+    "area": "区域",
+    "approach": "进近",
+    "seats": "{n} 个席位",
+    "summary": "{units} 个单位 · 区域 {area} 席 · 进近 {approach} 席",
+    "sector": "席位",
+    "name": "名称",
+    "band": "高度带",
+    "frequencies": "频率",
+    "runways": "跑道",
+    "none": "没有匹配的单位",
+    "scopeNote": "汇编只发布区域和进近，塔台、地面、放行不在其中 —— 那些在机场细则里，是图不是表。高度是米。"
   }
 }

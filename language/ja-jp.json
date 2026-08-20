@@ -27,7 +27,8 @@
     "main": "主站",
     "docs": "文档",
     "map": "地図",
-    "route": "ルート"
+    "route": "ルート",
+    "positions": "席"
   },
   "title": "航行资料库",
   "denied": {
@@ -212,5 +213,24 @@
     "speed": "速度",
     "via": "区間",
     "altNote": "高度制限は公示の ARINC 424 符号（例 05910B03940A）のままです —— 誤って解釈するより安全です。FO＝フライオーバー、MAP＝進入復行点。"
+  },
+  "positions": {
+    "title": "管制席",
+    "description": "公示されている管制席 {seats} 席、{units} 単位。1 セクター＝1 席です。",
+    "search": "検索",
+    "searchHint": "単位・席番号・空港（ZGGG）",
+    "kind": "種別",
+    "kindAll": "すべて",
+    "area": "エリア",
+    "approach": "進入",
+    "seats": "{n} 席",
+    "summary": "{units} 単位 · エリア {area} 席 · 進入 {approach} 席",
+    "sector": "席",
+    "name": "名称",
+    "band": "高度帯",
+    "frequencies": "周波数",
+    "runways": "滑走路",
+    "none": "該当する単位はありません",
+    "scopeNote": "公示はエリアと進入のみ —— タワー・グランド・デリバリーは含まれません（空港細則の図であって表ではない）。高度はメートル。"
   }
 }

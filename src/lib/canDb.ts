@@ -256,6 +256,40 @@ export interface AirportDetail extends Airport {
   procedures: Procedure[];
 }
 
+/** 一个管制席位的频率。`label` 是汇编给的类型：主频 / 备频 / 中低空日频…… */
+export interface PositionFrequency {
+  label: string;
+  freqMhz: number | null;
+  openTime: string | null;
+}
+
+/**
+ * 一个管制席位 —— 就是一个扇区。
+ *
+ * 母区（区域管制区 / 进近管制区）不在这里：它们是外框，78 个里有 42 个连频率都没有。
+ * 母区的高频昼夜频挂在单位上（`Unit.unitFrequencies`）。
+ */
+export interface Position {
+  unit: string;
+  kind: "area" | "approach";
+  /** 席位号：'11'、'AP01(南)'、'TM01(北)1'。 */
+  sector: string;
+  name: string;
+  /** 米。上限 0 表示不封顶。 */
+  lowerM: number;
+  upperM: number;
+  frequencies: PositionFrequency[];
+  /** 这个进近席位负责的跑道方向，`ZGGG/01` 的形式。区域席位是空的。 */
+  runways: string[];
+}
+
+export interface Unit {
+  name: string;
+  kind: "area" | "approach";
+  positions: Position[];
+  unitFrequencies: PositionFrequency[];
+}
+
 export interface Fix {
   ident: string;
   lat: number;
