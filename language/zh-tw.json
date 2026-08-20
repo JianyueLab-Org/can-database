@@ -230,7 +230,18 @@
     "band": "高度帶",
     "frequencies": "頻率",
     "runways": "跑道",
-    "none": "沒有符合的單位",
-    "scopeNote": "彙編只發布區域和進場，塔台、地面、放行不在其中 —— 那些在機場細則裡，是圖不是表。高度是公尺。"
+    "none": "沒有符合的席位",
+    "scopeNote": "彙編只發布區域和進場，塔台、地面、放行不在其中 —— 那些在機場細則裡，是圖不是表。高度是公尺。",
+    "networkDescription": "本網實際開放的 {seats} 個席位，{callsigns} 個登入呼號。來自扇區包，塔台、地面、放行、ATIS 都在這裡。",
+    "aipTitle": "彙編發布的管制扇區",
+    "facility": "席位類型",
+    "package": "扇區包",
+    "all": "全部",
+    "showing": "{callsigns} 個呼號 · {seats} 個席位",
+    "identifier": "標識",
+    "freq": "頻率",
+    "squawk": "詢答機碼段",
+    "nFreqs": "{n} 個頻率",
+    "nSectors": "{n} 個扇區"
   }
 }

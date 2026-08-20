@@ -1,9 +1,10 @@
 ---
 import AppLayout from "@/layouts/AppLayout.astro";
 import Positions from "@/components/Positions.vue";
+import NetworkPositions from "@/components/NetworkPositions.vue";
 import { getLocale, getMessages, useTranslations } from "@/lib/i18n";
 import { callDb } from "@/server/canDb";
-import type { Unit } from "@/lib/canDb";
+import type { NetworkPosition, Unit } from "@/lib/canDb";
 
 /**
  * 管制席位。
@@ -15,9 +16,16 @@ const locale = getLocale(Astro.cookies);
 const t = useTranslations(locale, "positions");
 const messages = getMessages(locale, "positions");
 
-const result = await callDb<Unit[]>(Astro, "/api/v1/aip/positions");
-const units = result.ok ? (result.data ?? []) : [];
+/* 两份席位，**先本网后汇编**：这一页的读者要开席位，问的是「我能开什么、频率多少」——
+ * 那是扇区包里的那一份。汇编那份是官方怎么划扇区，是参照。 */
+const [ours, aip] = await Promise.all([
+  callDb<NetworkPosition[]>(Astro, "/api/v1/aip/positions/network"),
+  callDb<Unit[]>(Astro, "/api/v1/aip/positions"),
+]);
+const network = ours.ok ? (ours.data ?? []) : [];
+const units = aip.ok ? (aip.data ?? []) : [];
 const seats = units.reduce((n, u) => n + u.positions.length, 0);
+const callsigns = new Set(network.map((p) => p.callsign)).size;
 ---
 
 <AppLayout title={t("title")}>

@@ -283,6 +283,30 @@ export interface Position {
   runways: string[];
 }
 
+/**
+ * **我们实际开的**一个席位，来自扇区包的 `[POSITIONS]`。
+ *
+ * 和 `Position`（汇编发布的管制扇区）不是一回事：那边是官方怎么划的，这边是成员登录时用
+ * 的呼号和频率 —— 塔台、地面、放行、ATIS 只有这边有。
+ */
+export interface NetworkPosition {
+  callsign: string;
+  radioName: string | null;
+  freqMhz: number | null;
+  /** 扇区归属表引用的标识。呼号**不唯一** —— 一个区调呼号常带十几条，各管一个扇区。 */
+  identifier: string | null;
+  middleLetter: string | null;
+  prefix: string | null;
+  /** DEL/GND/TWR/APP/DEP/CTR/FSS/ATIS/GCA/RMP */
+  facility: string;
+  squawkStart: string | null;
+  squawkEnd: string | null;
+  package: string;
+  /** 定义了这个席位的全部包，逗号分隔。多于一个是正常的 —— 每个包都带邻区的席位。 */
+  packages: string | null;
+  visibilityPoints: number;
+}
+
 export interface Unit {
   name: string;
   kind: "area" | "approach";

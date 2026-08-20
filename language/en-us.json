@@ -230,7 +230,18 @@
     "band": "Altitude band",
     "frequencies": "Frequencies",
     "runways": "Runways",
-    "none": "No matching units",
-    "scopeNote": "The compilation publishes area and approach only — tower, ground and delivery are not in it; those live in the aerodrome section as charts, not tables. Altitudes in metres."
+    "none": "No matching positions",
+    "scopeNote": "The compilation publishes area and approach only — tower, ground and delivery are not in it; those live in the aerodrome section as charts, not tables. Altitudes in metres.",
+    "networkDescription": "{seats} positions the network actually staffs, under {callsigns} login callsigns. From the sector packages — tower, ground, delivery and ATIS are all here.",
+    "aipTitle": "Published control sectors",
+    "facility": "Facility",
+    "package": "Package",
+    "all": "All",
+    "showing": "{callsigns} callsigns · {seats} positions",
+    "identifier": "Identifier",
+    "freq": "Frequency",
+    "squawk": "Squawk range",
+    "nFreqs": "{n} frequencies",
+    "nSectors": "{n} sectors"
   }
 }

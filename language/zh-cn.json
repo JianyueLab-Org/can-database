@@ -230,7 +230,18 @@
     "band": "高度带",
     "frequencies": "频率",
     "runways": "跑道",
-    "none": "没有匹配的单位",
-    "scopeNote": "汇编只发布区域和进近，塔台、地面、放行不在其中 —— 那些在机场细则里，是图不是表。高度是米。"
+    "none": "没有匹配的席位",
+    "scopeNote": "汇编只发布区域和进近，塔台、地面、放行不在其中 —— 那些在机场细则里，是图不是表。高度是米。",
+    "networkDescription": "本网实际开放的 {seats} 个席位，{callsigns} 个登录呼号。来自扇区包，塔台、地面、放行、ATIS 都在这里。",
+    "aipTitle": "汇编发布的管制扇区",
+    "facility": "席位类型",
+    "package": "扇区包",
+    "all": "全部",
+    "showing": "{callsigns} 个呼号 · {seats} 个席位",
+    "identifier": "标识",
+    "freq": "频率",
+    "squawk": "应答机码段",
+    "nFreqs": "{n} 个频率",
+    "nSectors": "{n} 个扇区"
   }
 }
