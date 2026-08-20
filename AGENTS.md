@@ -147,6 +147,12 @@ can-db 现给的。
 自带的 `.leaflet-control-attribution a { color:#0078A8 }` 赢过主题规则，版权条上留一串
 默认亮蓝色链接。can-radar 踩过。
 
+**地图挂在哪个容器上要**判断，不能只判断「有没有地图」。 航路页整段结果是
+`v-if="plan"`，而 `submit()` 开头会清空 `plan` —— 每生成一次，地图那个 `div` 都会被拆掉再
+建一个新的。旧地图还活着，只是挂在一个不在文档里的节点上，于是**第一次好、第二次空白**。
+`draw()` 里比对 `map.getContainer() !== host.value`，不一样就把旧的 `remove()` 掉重建，顺
+手停掉上一次的主题订阅 —— 不停的话每重建一次多一个，它们抓着旧闭包不放。
+
 **地图岛屿必须 `client:only="vue"`。** Leaflet 在模块顶层就要 `window`，SSR 会直接炸。
 
 **而且 Leaflet 只许出现在 `src/lib/mapMarkers.ts` 和地图岛屿里。** `mapBase.ts` 是「常量和

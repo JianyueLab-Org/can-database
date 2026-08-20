@@ -211,6 +211,24 @@ function draw() {
   const p = plan.value;
   if (!p || !host.value) return;
 
+  /* **地图必须挂在当前这个容器上。**
+   *
+   * 模板里整段结果是 `v-if="plan"`，而 `submit()` 开头会把 `plan` 清空 —— 于是每生成
+   * 一次，这个 `div` 都会被拆掉再建一个新的。旧地图还活着，只是挂在一个已经不在文档里
+   * 的节点上；`draw()` 如果只判断「地图存在吗」，第二次生成就会往那个看不见的旧地图上
+   * 画，页面上是一片空白。第一次好、第二次空白，就是这么来的。
+   *
+   * 所以判断的是「地图挂的还是不是现在这个容器」，不是「有没有地图」。顺手把上一次的
+   * 主题订阅停掉 —— 不停的话每重建一次就多一个订阅，它们抓着旧闭包不放。 */
+  if (map.value && map.value.getContainer() !== host.value) {
+    stopTheme?.();
+    stopTheme = null;
+    map.value.remove();
+    map.value = null;
+    layer.value = null;
+    tiles.value = null;
+  }
+
   if (!map.value) {
     const m = L.map(host.value, { zoomControl: true, minZoom: 2, maxZoom: 12 });
     map.value = m;
