@@ -89,9 +89,6 @@ const showGround = ref(false);
  * 人打开它，图上其余的线（道面边、建筑、注记）就不碍事了。
  */
 const guidanceOnly = ref(false);
-/** 手工做的地面要素。有就默认画上 —— 它比线画准，而且带名字。 */
-const showFeatures = ref(true);
-
 /** 各类要素的画法。跑道最显眼，机位最轻，其余居中。 */
 const FEATURE_STYLE: Record<string, { color: string; weight: number }> = {
   runway: { color: "#e05252", weight: 3 },
@@ -102,6 +99,79 @@ const FEATURE_STYLE: Record<string, { color: string; weight: number }> = {
   parking_position: { color: "#8a8a8a", weight: 1 },
   aerodrome: { color: "#8a8a8a", weight: 1 },
 };
+
+/** 类别按这个次序排，不按条数 —— 读的人按重要性找，不按多少找。 */
+const FEATURE_ORDER = [
+  "runway",
+  "taxiway",
+  "holding_position",
+  "parking_position",
+  "apron",
+  "terminal",
+  "aerodrome",
+];
+
+/**
+ * 每一类一个开关。
+ *
+ * **机位默认关着**：大场四百多个点铺满机坪，会把滑行道压得看不见 —— 而来看地面数据的
+ * 人多半是在找滑行道走向。跑道那一层也关着，因为这张图本来就画着跑道（画两遍只会互相
+ * 盖住，而且颜色一样）。
+ */
+const featureOn = ref<Record<string, boolean>>({});
+for (const k of FEATURE_ORDER) {
+  featureOn.value[k] = k !== "parking_position" && k !== "runway";
+}
+
+/** 图上有哪些类，各多少条。 */
+const featureKinds = computed(() => {
+  const g = ground.value;
+  if (!g) return [];
+  const n: Record<string, number> = {};
+  for (const f of g.features) n[f.kind] = (n[f.kind] ?? 0) + 1;
+  return FEATURE_ORDER.filter((k) => n[k]).map((k) => ({ kind: k, n: n[k] }));
+});
+
+/**
+ * 有代号的滑行道，按代号排。
+ *
+ * 核对的人是照着代号找的（「W9 画对了没有」），所以它是一列可点的按钮而不是图上的标
+ * 注 —— 标注在缩到全场时会糊成一片，而这一列点一下就跳过去并高亮。
+ *
+ * 同一条滑行道常被拆成好几段、代号相同，收第一段用来定位就够。
+ */
+const namedTaxiways = computed(() => {
+  const g = ground.value;
+  if (!g) return [];
+  const seen = new Map<string, [number, number][]>();
+  for (const f of g.features) {
+    if (f.kind !== "taxiway" || !f.name) continue;
+    if (!seen.has(f.name)) seen.set(f.name, f.points);
+  }
+  return [...seen.entries()]
+    .map(([name, points]) => ({ name, points }))
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+});
+
+const highlight = shallowRef<L.Polyline | null>(null);
+
+/** 点一个滑行道代号：高亮并把视野收到它身上。 */
+function focusTaxiway(points: [number, number][]) {
+  const m = map.value;
+  if (!m || !points.length) return;
+  highlight.value?.remove();
+  if (points.length < 2) {
+    m.setView(points[0] as L.LatLngExpression, 17);
+    return;
+  }
+  highlight.value = L.polyline(points as L.LatLngExpression[], {
+    color: "#ffd166",
+    weight: 6,
+    opacity: 0.7,
+    interactive: false,
+  }).addTo(m);
+  m.fitBounds(L.latLngBounds(points as L.LatLngExpression[]).pad(0.5));
+}
 const groundState = ref<"idle" | "loading" | "ready" | "none">("idle");
 const ground = shallowRef<GroundLines | null>(null);
 
@@ -240,8 +310,9 @@ function drawFeatures() {
   const layer = featureLayer.value;
   if (!layer) return;
   layer.clearLayers();
-  if (!showGround.value || !showFeatures.value || !ground.value) return;
+  if (!showGround.value || !ground.value) return;
   for (const f of ground.value.features) {
+    if (!featureOn.value[f.kind]) continue;
     const st = FEATURE_STYLE[f.kind] ?? { color: "#8a8a8a", weight: 1 };
     const tip =
       escapeHtml(f.name ?? f.kind) + (f.name ? ` · ${escapeHtml(f.kind)}` : "");
@@ -398,7 +469,7 @@ onBeforeUnmount(() => {
 watch(showStands, drawStands);
 watch(showProc, drawProcedures);
 watch(guidanceOnly, drawGround);
-watch(showFeatures, drawFeatures);
+watch(featureOn, drawFeatures, { deep: true });
 watch(showGround, (on) => {
   if (on) void loadGround();
   drawGround();
@@ -450,15 +521,6 @@ watch(showGround, (on) => {
       </label>
 
       <label
-        v-if="showGround && ground && ground.features.length"
-        class="flex items-center gap-2"
-        :title="String(t('featuresHint'))"
-      >
-        <input v-model="showFeatures" type="checkbox" class="accent-can" />
-        {{ t("featuresCount", { n: String(ground.features.length) }) }}
-      </label>
-
-      <label
         v-if="showGround && ground && ground.lines.length"
         class="flex items-center gap-2"
         :title="String(t('groundGuidanceHint'))"
@@ -485,11 +547,50 @@ watch(showGround, (on) => {
       </span>
     </div>
 
+    <!-- 地面要素按类别分层。取到数据才出现 —— 没勾「地面线画」之前这一行是空的。 -->
+    <div
+      v-if="showGround && featureKinds.length"
+      class="flex flex-wrap items-center gap-3 text-xs text-muted"
+    >
+      <label
+        v-for="k in featureKinds"
+        :key="k.kind"
+        class="flex items-center gap-1.5"
+      >
+        <input v-model="featureOn[k.kind]" type="checkbox" class="accent-can" />
+        <span
+          class="inline-block h-2 w-2 rounded-full"
+          :style="{ background: FEATURE_STYLE[k.kind]?.color ?? '#8a8a8a' }"
+        />
+        {{ t("kind." + k.kind) }}
+        <span class="tnum text-faint">{{ k.n }}</span>
+      </label>
+    </div>
+
     <div
       ref="host"
       class="h-[clamp(20rem,52vh,34rem)] w-full overflow-hidden rounded-xl border border-line"
       role="application"
       :aria-label="String(t('mapLabel', { icao: airport.icao }))"
     />
+
+    <!-- 滑行道代号：核对的人照着代号找，所以是一列可点的按钮而不是图上的标注 ——
+         标注缩到全场会糊成一片，这一列点一下就跳过去并高亮。 -->
+    <details v-if="showGround && namedTaxiways.length" class="text-xs">
+      <summary class="cursor-pointer text-muted hover:text-ink">
+        {{ t("taxiwayList", { n: String(namedTaxiways.length) }) }}
+      </summary>
+      <div class="mt-2 flex flex-wrap gap-1.5">
+        <button
+          v-for="tw in namedTaxiways"
+          :key="tw.name"
+          type="button"
+          class="rounded-md border border-line px-2 py-0.5 font-mono transition hover:border-can/50 hover:bg-can/10"
+          @click="focusTaxiway(tw.points)"
+        >
+          {{ tw.name }}
+        </button>
+      </div>
+    </details>
   </div>
 </template>

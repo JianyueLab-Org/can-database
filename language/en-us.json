@@ -81,8 +81,7 @@
     "transAlt": "Transition alt",
     "transLevel": "Transition level",
     "speedLimit": "Speed limit",
-    "international": "International",
-    "groundLink": "Ground data (taxiways, stands, aprons)"
+    "international": "International"
   },
   "map": {
     "title": "Map",
@@ -155,9 +154,16 @@
     "groundUnchecked": "No runway was available to check the fit — the whole layer may sit some 20 m off",
     "groundOnlyGuidance": "Guidance lines only",
     "groundGuidanceHint": "Guidance lines: runway and taxiway centrelines (unnamed)",
-    "layerFeatures": "Ground features",
-    "featuresHint": "Hand-drawn: taxiways, stands, holding positions, with designators",
-    "featuresCount": "Ground features ({n})"
+    "kind": {
+      "runway": "Runway",
+      "taxiway": "Taxiway",
+      "holding_position": "Holding position",
+      "parking_position": "Stand",
+      "apron": "Apron",
+      "terminal": "Terminal",
+      "aerodrome": "Aerodrome"
+    },
+    "taxiwayList": "Taxiway designators ({n})"
   },
   "fixes": {
     "title": "航路点",
@@ -254,26 +260,5 @@
     "squawk": "Squawk range",
     "nFreqs": "{n} frequencies",
     "nSectors": "{n} sectors"
-  },
-  "ground": {
-    "title": "Ground data",
-    "featureCount": "{n} hand-drawn features",
-    "lineCount": "{n} chart lines",
-    "chartLines": "Chart linework ({n})",
-    "taxiwayList": "Taxiway designators ({n})",
-    "handNote": "Hand-drawn from charts and imagery; metre-level.",
-    "chartNote": "Chart linework traced from the aerodrome chart, placed to about {n} m.",
-    "unchecked": "no runway was available to check this chart — the layer may sit some 20 m off",
-    "none": "No ground data for this airport yet",
-    "noneWhy": "The compilation publishes no stand-coordinate table for it (georeferencing needs stand numbers), and nobody has drawn it by hand.",
-    "kind": {
-      "runway": "Runway",
-      "taxiway": "Taxiway",
-      "holding_position": "Holding position",
-      "parking_position": "Stand",
-      "apron": "Apron",
-      "terminal": "Terminal",
-      "aerodrome": "Aerodrome"
-    }
   }
 }

@@ -81,8 +81,7 @@
     "transAlt": "过渡高度",
     "transLevel": "过渡高度层",
     "speedLimit": "速度限制",
-    "international": "国际",
-    "groundLink": "地面数据（滑行道、机位、机坪）"
+    "international": "国际"
   },
   "map": {
     "title": "地图",
@@ -155,9 +154,16 @@
     "groundUnchecked": "配准没有跑道可核对，位置可能整体偏二十米上下",
     "groundOnlyGuidance": "只看引导线",
     "groundGuidanceHint": "引导线：跑道与滑行道中线（不含名字）",
-    "layerFeatures": "地面要素",
-    "featuresHint": "手工做的：滑行道、机位、等待位置，带代号",
-    "featuresCount": "地面要素（{n}）"
+    "kind": {
+      "runway": "跑道",
+      "taxiway": "滑行道",
+      "holding_position": "等待位置",
+      "parking_position": "机位",
+      "apron": "机坪",
+      "terminal": "航站楼",
+      "aerodrome": "场界"
+    },
+    "taxiwayList": "滑行道代号（{n}）"
   },
   "fixes": {
     "title": "航路点",
@@ -254,26 +260,5 @@
     "squawk": "应答机码段",
     "nFreqs": "{n} 个频率",
     "nSectors": "{n} 个扇区"
-  },
-  "ground": {
-    "title": "地面数据",
-    "featureCount": "手工要素 {n} 条",
-    "lineCount": "航图线画 {n} 条",
-    "chartLines": "航图线画（{n}）",
-    "taxiwayList": "滑行道代号（{n}）",
-    "handNote": "手工要素照着图和卫片描的，米级。",
-    "chartNote": "航图线画从汇编机场图上抠出来，位置准到约 {n} 米。",
-    "unchecked": "这张图没有跑道可核对，可能整体偏二十米上下",
-    "none": "这个机场还没有地面数据",
-    "noneWhy": "汇编没有给它机位坐标表（配准要靠机位号），我们也还没手工做过。",
-    "kind": {
-      "runway": "跑道",
-      "taxiway": "滑行道",
-      "holding_position": "等待位置",
-      "parking_position": "机位",
-      "apron": "机坪",
-      "terminal": "航站楼",
-      "aerodrome": "场界"
-    }
   }
 }

@@ -81,8 +81,7 @@
     "transAlt": "転移高度",
     "transLevel": "転移フライトレベル",
     "speedLimit": "速度制限",
-    "international": "国際",
-    "groundLink": "地上データ（誘導路・スポット・エプロン）"
+    "international": "国際"
   },
   "map": {
     "title": "地図",
@@ -155,9 +154,16 @@
     "groundUnchecked": "滑走路で検証できていないため、全体が 20 m ほどずれている可能性があります",
     "groundOnlyGuidance": "誘導線のみ",
     "groundGuidanceHint": "誘導線：滑走路と誘導路の中心線（名称なし）",
-    "layerFeatures": "地上要素",
-    "featuresHint": "手作業：誘導路・スポット・待機位置、名称付き",
-    "featuresCount": "地上要素（{n}）"
+    "kind": {
+      "runway": "滑走路",
+      "taxiway": "誘導路",
+      "holding_position": "待機位置",
+      "parking_position": "スポット",
+      "apron": "エプロン",
+      "terminal": "ターミナル",
+      "aerodrome": "空港境界"
+    },
+    "taxiwayList": "誘導路名（{n}）"
   },
   "fixes": {
     "title": "航路点",
@@ -254,26 +260,5 @@
     "squawk": "スコーク帯",
     "nFreqs": "周波数 {n} 件",
     "nSectors": "{n} セクター"
-  },
-  "ground": {
-    "title": "地上データ",
-    "featureCount": "手作業要素 {n} 件",
-    "lineCount": "空港図線画 {n} 件",
-    "chartLines": "空港図線画（{n}）",
-    "taxiwayList": "誘導路名（{n}）",
-    "handNote": "手作業で図と衛星写真から起こしたもの、メートル級。",
-    "chartNote": "空港図から起こした線画、位置精度は約 {n} m。",
-    "unchecked": "この図は滑走路で検証できず、全体が 20 m ほどずれている可能性があります",
-    "none": "この空港の地上データはまだありません",
-    "noneWhy": "収録にスポット座標表がなく（位置合わせにはスポット番号が要ります）、手作業でも作られていません。",
-    "kind": {
-      "runway": "滑走路",
-      "taxiway": "誘導路",
-      "holding_position": "待機位置",
-      "parking_position": "スポット",
-      "apron": "エプロン",
-      "terminal": "ターミナル",
-      "aerodrome": "空港境界"
-    }
   }
 }

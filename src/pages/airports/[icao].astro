@@ -129,15 +129,6 @@ const runwayRows = runwayIdents.map((ident) => {
           {/* 图排在表格前面：这一页的读者多半是在核对「这个机位是不是在它该在的
               地方」，而那件事看图一眼就知道，看一张 520 行的坐标表要一行行读。 */}
           <section class="mb-8">
-            {/* 地面数据单开一页：一个大场是一兆多的几何，不该顺手拖在机场页上。 */}
-            <p class="mb-3 text-sm">
-              <a
-                href={`/airports/${airport.icao}/ground`}
-                class="text-can hover:underline"
-              >
-                {t("groundLink")} →
-              </a>
-            </p>
             <AirportMap
               messages={mapMessages}
               airport={airport}
