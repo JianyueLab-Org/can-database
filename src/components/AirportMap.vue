@@ -17,6 +17,19 @@
  * 这里的处理是**画出来并标红**，不是悄悄跳过。理由很直接：这个站是拿来校对数据的，
  * 把可疑的一段藏起来，看图的人会以为数据是干净的。判据和 can-db 那份记录一致 ——
  * 离机场超过 `SUSPECT_KM` 的腿是可疑的。
+ *
+ * ## 地面线画是**按需取**的，而且画的是图上的原色
+ *
+ * 一个大场的线画是五千多条线、两万多个点，跟机场详情一起拖等于每次打开机场页都多下
+ * 一兆多几何 —— 而多数人来这一页是看跑道和频率的。所以它单独一条路由，勾上才取。
+ *
+ * 颜色用 can-db 存的**图上原色**，不重新配色：那些线没有语义（图上只有颜色和线宽，
+ * 没有一个字说哪条是滑行道中线），自己配色等于替它做一个没有依据的分类。原色画出来
+ * 就是原图的样子。
+ *
+ * 唯一的例外是**看不见的那一档**：图上的颜色是配着白纸选的，所以深色底图上纯黑的线、
+ * 浅色底图上近白的线都会消失。那种情况只调亮度、保住色相 —— 让线看得见是必要的，把
+ * 橙线改成蓝线不是。
  */
 import {
   computed,
@@ -28,7 +41,8 @@ import {
 } from "vue";
 import L from "leaflet";
 import { createTranslator } from "@/lib/i18n";
-import type { AirportDetail, Procedure } from "@/lib/canDb";
+import { api } from "@/lib/canDb";
+import type { AirportDetail, GroundLines, Procedure } from "@/lib/canDb";
 import {
   TILES,
   TILE_ATTRIBUTION,
@@ -53,9 +67,14 @@ const tiles = shallowRef<L.TileLayer | null>(null);
 const standLayer = shallowRef<L.LayerGroup | null>(null);
 const runwayLayer = shallowRef<L.LayerGroup | null>(null);
 const procLayer = shallowRef<L.LayerGroup | null>(null);
+const groundLayer = shallowRef<L.LayerGroup | null>(null);
 
 const showStands = ref(true);
 const showProc = ref<"none" | "sid" | "star">("none");
+
+const showGround = ref(false);
+const groundState = ref<"idle" | "loading" | "ready" | "none">("idle");
+const ground = shallowRef<GroundLines | null>(null);
 
 const base = computed(() => props.airport);
 
@@ -138,6 +157,70 @@ function drawStands() {
         { direction: "top", offset: [0, -4] },
       )
       .addTo(layer);
+  }
+}
+
+async function loadGround() {
+  if (ground.value || groundState.value === "loading") return;
+  groundState.value = "loading";
+  const r = await api<GroundLines>(
+    `/api/v1/aip/airports/${encodeURIComponent(base.value.icao)}/ground`,
+  );
+  if (!r.ok) {
+    groundState.value = "none";
+    return;
+  }
+  ground.value = r.data;
+  groundState.value = "ready";
+  drawGround();
+}
+
+/**
+ * 把和底图撞在一起的那一档亮度拉开，色相不动。
+ *
+ * 航图的颜色是配着白纸选的：黑线在深色底图上、近白的线在浅色底图上都会整条消失。这里
+ * 只在**确实看不见**的时候动手（亮度太低或太高），而且是整体缩放 RGB —— 橙线还是橙线。
+ */
+function visible(rgb: string, theme: "dark" | "light"): string {
+  const m = /^#([0-9a-f]{6})$/i.exec(rgb);
+  if (!m) return rgb;
+  const n = parseInt(m[1], 16);
+  let r = (n >> 16) & 255,
+    g = (n >> 8) & 255,
+    b = n & 255;
+  const lum = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+  const scale =
+    theme === "dark" && lum < 0.3
+      ? (0.55 + lum) / Math.max(lum, 0.02)
+      : theme === "light" && lum > 0.85
+        ? 0.65 / lum
+        : 1;
+  if (scale === 1) return rgb;
+  const clamp = (v: number) =>
+    Math.min(255, Math.max(0, Math.round(v * scale)));
+  // 纯黑乘任何系数还是黑，所以那一档给一个固定的灰。
+  if (lum < 0.02) return theme === "dark" ? "#8c8c8c" : rgb;
+  r = clamp(r);
+  g = clamp(g);
+  b = clamp(b);
+  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, "0")}`;
+}
+
+function drawGround() {
+  const layer = groundLayer.value;
+  if (!layer) return;
+  layer.clearLayers();
+  if (!showGround.value || !ground.value) return;
+  const theme = currentTheme();
+  for (const l of ground.value.lines) {
+    L.polyline(l.points as L.LatLngExpression[], {
+      color: visible(l.rgb, theme),
+      // 图上的线宽是米，屏幕上要的是像素。按米直接当像素画，缩到全场时整张图会糊成
+      // 一块 —— 所以只用它分粗细，压到 0.5–2 像素之间。
+      weight: Math.min(2, Math.max(0.5, l.widthM / 4)),
+      opacity: 0.75,
+      interactive: false,
+    }).addTo(layer);
   }
 }
 
@@ -225,6 +308,8 @@ onMounted(() => {
   map.value = m;
   applyTiles(currentTheme());
 
+  // 线画在最底下：它是底图，别的都画在它上面。
+  groundLayer.value = L.layerGroup().addTo(m);
   procLayer.value = L.layerGroup().addTo(m);
   standLayer.value = L.layerGroup().addTo(m);
   // 跑道最后加：它是这张图上最该看得见的东西。
@@ -234,7 +319,10 @@ onMounted(() => {
   drawStands();
   fitToField();
 
-  stopTheme = watchTheme(applyTiles);
+  stopTheme = watchTheme((theme) => {
+    applyTiles(theme);
+    drawGround(); // 线的颜色跟着主题走，见 visible()
+  });
 });
 
 onBeforeUnmount(() => {
@@ -245,6 +333,10 @@ onBeforeUnmount(() => {
 
 watch(showStands, drawStands);
 watch(showProc, drawProcedures);
+watch(showGround, (on) => {
+  if (on) void loadGround();
+  drawGround();
+});
 </script>
 
 <template>
@@ -284,6 +376,24 @@ watch(showProc, drawProcedures);
           }}
         </button>
       </div>
+
+      <label class="flex items-center gap-2">
+        <input v-model="showGround" type="checkbox" class="accent-can" />
+        {{ t("layerGround") }}
+      </label>
+
+      <span v-if="showGround && groundState === 'loading'">
+        {{ t("groundLoading") }}
+      </span>
+      <span v-else-if="showGround && groundState === 'none'">
+        {{ t("groundNone") }}
+      </span>
+      <span v-else-if="showGround && ground" class="text-muted">
+        {{ t("groundAccuracy", { n: ground.accuracyM.toFixed(0) }) }}
+        <template v-if="ground.runways === 0">
+          · {{ t("groundUnchecked") }}
+        </template>
+      </span>
 
       <span v-if="suspectCount" class="text-warning">
         {{ t("suspectCount", { n: String(suspectCount) }) }}

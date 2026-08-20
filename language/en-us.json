@@ -146,7 +146,12 @@
     "procStar": "STARs ({n})",
     "suspect": "suspect",
     "suspectCount": "{n} procedure points sit over 400 km from the field — most likely a misresolved identifier",
-    "mapLabel": "{icao} airport map"
+    "mapLabel": "{icao} airport map",
+    "layerGround": "Ground linework",
+    "groundLoading": "Loading ground linework…",
+    "groundNone": "No ground linework for this airport",
+    "groundAccuracy": "Traced from the aerodrome chart, placed to about {n} m",
+    "groundUnchecked": "No runway was available to check the fit — the whole layer may sit some 20 m off"
   },
   "fixes": {
     "title": "航路点",

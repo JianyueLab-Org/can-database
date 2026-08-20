@@ -320,3 +320,25 @@ export interface Fix {
   lon: number;
   fir: string | null;
 }
+
+/**
+ * 一个机场的地面线画，从航图上抠出来的。
+ *
+ * `rgb` 是**图上的原色**，不是语义。图上的线没有语义 —— can-db 那边只存得到颜色和线
+ * 宽，没有一个字说哪条是滑行道中线、哪条是机坪边界。要按语义用，得自己再判一层。
+ */
+export interface GroundLines {
+  icao: string;
+  /** 这批线该信到几米。**不是**残差 —— 见 can-db 的 `chart_georef.accuracy_m`。 */
+  accuracyM: number;
+  /** 有几条跑道核对过配准。0 表示没核对上，那时 accuracyM 是个保守下限。 */
+  runways: number;
+  lines: GroundLine[];
+}
+
+export interface GroundLine {
+  rgb: string;
+  widthM: number;
+  /** [纬, 经] */
+  points: [number, number][];
+}

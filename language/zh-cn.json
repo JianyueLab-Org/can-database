@@ -146,7 +146,12 @@
     "procStar": "进场 STAR ({n})",
     "suspect": "可疑",
     "suspectCount": "{n} 个程序点离本场超过 400 km，很可能是代号解析解错了",
-    "mapLabel": "{icao} 机场图"
+    "mapLabel": "{icao} 机场图",
+    "layerGround": "地面线画",
+    "groundLoading": "正在取地面线画…",
+    "groundNone": "这个机场没有地面线画",
+    "groundAccuracy": "线画来自航图，位置准到约 {n} 米",
+    "groundUnchecked": "配准没有跑道可核对，位置可能整体偏二十米上下"
   },
   "fixes": {
     "title": "航路点",
