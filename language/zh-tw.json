@@ -153,7 +153,10 @@
     "groundAccuracy": "線畫來自航圖，位置準到約 {n} 公尺",
     "groundUnchecked": "配準沒有跑道可核對，位置可能整體偏二十公尺上下",
     "groundOnlyGuidance": "只看導引線",
-    "groundGuidanceHint": "導引線：跑道與滑行道中線（不含名稱）"
+    "groundGuidanceHint": "導引線：跑道與滑行道中線（不含名稱）",
+    "layerFeatures": "地面要素",
+    "featuresHint": "手工做的：滑行道、機位、等待位置，帶代號",
+    "featuresCount": "地面要素（{n}）"
   },
   "fixes": {
     "title": "航路点",

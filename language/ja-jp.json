@@ -153,7 +153,10 @@
     "groundAccuracy": "空港図から起こしたもので、位置精度は約 {n} m",
     "groundUnchecked": "滑走路で検証できていないため、全体が 20 m ほどずれている可能性があります",
     "groundOnlyGuidance": "誘導線のみ",
-    "groundGuidanceHint": "誘導線：滑走路と誘導路の中心線（名称なし）"
+    "groundGuidanceHint": "誘導線：滑走路と誘導路の中心線（名称なし）",
+    "layerFeatures": "地上要素",
+    "featuresHint": "手作業：誘導路・スポット・待機位置、名称付き",
+    "featuresCount": "地上要素（{n}）"
   },
   "fixes": {
     "title": "航路点",

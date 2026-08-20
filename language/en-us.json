@@ -153,7 +153,10 @@
     "groundAccuracy": "Traced from the aerodrome chart, placed to about {n} m",
     "groundUnchecked": "No runway was available to check the fit — the whole layer may sit some 20 m off",
     "groundOnlyGuidance": "Guidance lines only",
-    "groundGuidanceHint": "Guidance lines: runway and taxiway centrelines (unnamed)"
+    "groundGuidanceHint": "Guidance lines: runway and taxiway centrelines (unnamed)",
+    "layerFeatures": "Ground features",
+    "featuresHint": "Hand-drawn: taxiways, stands, holding positions, with designators",
+    "featuresCount": "Ground features ({n})"
   },
   "fixes": {
     "title": "航路点",

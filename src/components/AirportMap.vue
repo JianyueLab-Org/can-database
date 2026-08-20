@@ -18,6 +18,14 @@
  * 把可疑的一段藏起来，看图的人会以为数据是干净的。判据和 can-db 那份记录一致 ——
  * 离机场超过 `SUSPECT_KM` 的腿是可疑的。
  *
+ * ## 地面数据有两份，手工那份优先
+ *
+ * 接口一次给两样：`features` 是手工做的地面要素（分好类、带代号、米级，90 个机场），
+ * `lines` 是从航图上抠的线画（没语义、5 到 20 米，100 个机场）。两份并起来 121 个机场。
+ *
+ * 有 `features` 就先画它 —— 它知道自己是什么，还带着滑行道代号。线画留作底衬：那才是
+ * 那张航图的画面，而手工那份只描了要紧的东西。
+ *
  * ## 地面线画是**按需取**的，而且画的是图上的原色
  *
  * 一个大场的线画是五千多条线、两万多个点，跟机场详情一起拖等于每次打开机场页都多下
@@ -68,6 +76,7 @@ const standLayer = shallowRef<L.LayerGroup | null>(null);
 const runwayLayer = shallowRef<L.LayerGroup | null>(null);
 const procLayer = shallowRef<L.LayerGroup | null>(null);
 const groundLayer = shallowRef<L.LayerGroup | null>(null);
+const featureLayer = shallowRef<L.LayerGroup | null>(null);
 
 const showStands = ref(true);
 const showProc = ref<"none" | "sid" | "star">("none");
@@ -80,6 +89,19 @@ const showGround = ref(false);
  * 人打开它，图上其余的线（道面边、建筑、注记）就不碍事了。
  */
 const guidanceOnly = ref(false);
+/** 手工做的地面要素。有就默认画上 —— 它比线画准，而且带名字。 */
+const showFeatures = ref(true);
+
+/** 各类要素的画法。跑道最显眼，机位最轻，其余居中。 */
+const FEATURE_STYLE: Record<string, { color: string; weight: number }> = {
+  runway: { color: "#e05252", weight: 3 },
+  taxiway: { color: "#4c92c1", weight: 1.6 },
+  apron: { color: "#5bbd8a", weight: 1.2 },
+  terminal: { color: "#9a8ac1", weight: 1.2 },
+  holding_position: { color: "#e0a252", weight: 2 },
+  parking_position: { color: "#8a8a8a", weight: 1 },
+  aerodrome: { color: "#8a8a8a", weight: 1 },
+};
 const groundState = ref<"idle" | "loading" | "ready" | "none">("idle");
 const ground = shallowRef<GroundLines | null>(null);
 
@@ -180,6 +202,7 @@ async function loadGround() {
   ground.value = r.data;
   groundState.value = "ready";
   drawGround();
+  drawFeatures();
 }
 
 /**
@@ -211,6 +234,37 @@ function visible(rgb: string, theme: "dark" | "light"): string {
   g = clamp(g);
   b = clamp(b);
   return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, "0")}`;
+}
+
+function drawFeatures() {
+  const layer = featureLayer.value;
+  if (!layer) return;
+  layer.clearLayers();
+  if (!showGround.value || !showFeatures.value || !ground.value) return;
+  for (const f of ground.value.features) {
+    const st = FEATURE_STYLE[f.kind] ?? { color: "#8a8a8a", weight: 1 };
+    const tip =
+      escapeHtml(f.name ?? f.kind) + (f.name ? ` · ${escapeHtml(f.kind)}` : "");
+    // 单点的要素（等待位置、一部分机位）画成点，不是线 —— 折线要两个点才画得出来。
+    if (f.points.length < 2) {
+      L.circleMarker(f.points[0] as L.LatLngExpression, {
+        radius: 2.5,
+        color: st.color,
+        weight: 1,
+        fillOpacity: 0.85,
+      })
+        .bindTooltip(tip, { direction: "top", offset: [0, -4] })
+        .addTo(layer);
+      continue;
+    }
+    L.polyline(f.points as L.LatLngExpression[], {
+      color: st.color,
+      weight: st.weight,
+      opacity: 0.85,
+    })
+      .bindTooltip(tip, { sticky: true })
+      .addTo(layer);
+  }
 }
 
 function drawGround() {
@@ -318,6 +372,8 @@ onMounted(() => {
 
   // 线画在最底下：它是底图，别的都画在它上面。
   groundLayer.value = L.layerGroup().addTo(m);
+  // 要素画在线画之上：它更准，该压着底衬。
+  featureLayer.value = L.layerGroup().addTo(m);
   procLayer.value = L.layerGroup().addTo(m);
   standLayer.value = L.layerGroup().addTo(m);
   // 跑道最后加：它是这张图上最该看得见的东西。
@@ -342,9 +398,11 @@ onBeforeUnmount(() => {
 watch(showStands, drawStands);
 watch(showProc, drawProcedures);
 watch(guidanceOnly, drawGround);
+watch(showFeatures, drawFeatures);
 watch(showGround, (on) => {
   if (on) void loadGround();
   drawGround();
+  drawFeatures();
 });
 </script>
 
@@ -392,7 +450,16 @@ watch(showGround, (on) => {
       </label>
 
       <label
-        v-if="showGround && ground"
+        v-if="showGround && ground && ground.features.length"
+        class="flex items-center gap-2"
+        :title="String(t('featuresHint'))"
+      >
+        <input v-model="showFeatures" type="checkbox" class="accent-can" />
+        {{ t("featuresCount", { n: String(ground.features.length) }) }}
+      </label>
+
+      <label
+        v-if="showGround && ground && ground.lines.length"
         class="flex items-center gap-2"
         :title="String(t('groundGuidanceHint'))"
       >

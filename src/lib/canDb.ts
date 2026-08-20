@@ -329,11 +329,28 @@ export interface Fix {
  */
 export interface GroundLines {
   icao: string;
+  /**
+   * 手工做的地面要素：分好类、带代号、米级，但只有 90 个机场。
+   *
+   * **有它就该用它** —— `lines` 只是那张航图的画面，没有语义也没有名字。两份并起来
+   * 121 个机场。
+   */
+  features: GroundFeature[];
   /** 这批线该信到几米。**不是**残差 —— 见 can-db 的 `chart_georef.accuracy_m`。 */
   accuracyM: number;
   /** 有几条跑道核对过配准。0 表示没核对上，那时 accuracyM 是个保守下限。 */
   runways: number;
   lines: GroundLine[];
+}
+
+export interface GroundFeature {
+  /** taxiway / parking_position / holding_position / apron / terminal / runway / aerodrome */
+  kind: string;
+  /** 代号，例如滑行道的 `W9`。多数机位没有。 */
+  name?: string;
+  widthM?: number;
+  /** [纬, 经]。**可能只有一个点** —— 等待位置和一部分机位本来就是点。 */
+  points: [number, number][];
 }
 
 export interface GroundLine {
