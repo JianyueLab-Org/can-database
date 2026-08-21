@@ -91,8 +91,47 @@ export function webUrl(path: string): string {
  *
  * 抄一份而不是共享，理由和 can-db 的 `internal/session` 里那份一样：两个仓库各自
  * 发布，共享模块会把它们的发布节奏绑在一起。can-api 的 `aipaccess_test.go` 专门
- * 把这三个数字钉死，就是为了让这些副本敢依赖它们。
+ * 把这几个数字钉死，就是为了让这些副本敢依赖它们。
+ *
+ * ## 一个数字，两条轴
+ *
+ * | 级别 | 许可轴（哪一批数据） | 用途轴（怎么用）       |
+ * | ---- | -------------------- | ---------------------- |
+ * | 0    | ——                   | ——                     |
+ * | 1    | 公开数据             | **调用** —— 接口取数   |
+ * | 2    | 公开数据             | **访问** —— 进资料库翻 |
+ * | 3    | 公开 + 官方汇编      | 调用                   |
+ * | 4    | 公开 + 官方汇编      | 访问                   |
+ *
+ * **许可轴累积，用途轴看奇偶。** 前者让 can-db 那边 `min_access <= can_access()`
+ * 一条比较成立：3 级看得到门槛 1 和门槛 3 的东西。后者不是 —— **3 比 2 大，但 3
+ * 是「调用」而 2 是「访问」**。
+ *
+ * **这里没有「写权限」那一档。**「调用」是别的服务替成员取数（can-portal 的
+ * SweatBox 生成器、EFB、雷达都走接口）；「访问」是这个人自己打开这个站翻。
  */
 export const ACCESS_NONE = 0;
 export const ACCESS_READ = 1;
 export const ACCESS_WRITE = 2;
+export const ACCESS_RESTRICTED_READ = 3;
+export const ACCESS_RESTRICTED_WRITE = 4;
+
+/**
+ * 这个人能不能打开资料库本身。
+ *
+ * **必须列举，不能比大小。** 写成 `aipAccess >= ACCESS_WRITE` 会把 3 级放进来，
+ * 而 3 是「调用」那一档 —— 它的数字比 2 大（许可轴上它确实在 2 之上，看得到官方
+ * 汇编），用途轴上却在 2 之下。这不是笔误，是一个数字编码两件事的必然结果。
+ *
+ * 这一条从前就是错的：中间件拦的是 `aipAccess < ACCESS_READ`，也就是 `>= 1` 就放
+ * 进来，于是 1 级（只该**调用**）打得开整个站。
+ *
+ * **权威的那一份在 can-db**：`GET /api/v1/aip/session` 的 `canUseConsole`，
+ * `TestTheSessionRouteAnswersBothAxes` 把五种人的答案逐个钉住。这里抄一份是因为
+ * 中间件手上**已经有** `aipAccess` 了，而这条规则是它的纯函数 —— 为了算一个已经
+ * 拿得到的东西给每个页面请求加一次网络往返，不划算。要 `tier` 或者别的判断时去问
+ * 那条路由。
+ */
+export function canUseConsole(aipAccess: number): boolean {
+  return aipAccess === ACCESS_WRITE || aipAccess === ACCESS_RESTRICTED_WRITE;
+}
