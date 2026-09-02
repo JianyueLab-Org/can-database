@@ -127,9 +127,13 @@ const handler: APIRoute = async (context) => {
   }
 
   // 写操作的 Origin 检查。Astro 的 checkOrigin 关掉了（反代下它永远误判，见
-  // astro.config.mjs），这是补上的那一半。今天名单里一条写操作都没有 —— 编辑功能
-  // 还没做 —— 但这几行现在就写着，因为第一条写路径加进来的那天，谁也不会记得回来
-  // 补它。
+  // astro.config.mjs），这是补上的那一半。
+  //
+  // **今天名单里仍然一条写操作都没有，但理由变了。** can-db 那边已经有三条改数据集
+  // 生命周期的路由（`POST /aip/datasets/{id}/activate` 一类，走 `withConsole`，2 和
+  // 4 够得着）—— 这个站只是还没有调它们的界面。所以这几行不再是「为一个还没做的功能
+  // 先写着」，而是「等白名单里放行第一个 POST 的那天就生效」。加那天记得两样一起加：
+  // 白名单条目的 methods，和一个真的会用它的页面。
   if (UNSAFE.has(method)) {
     const sent = context.request.headers.get("origin");
     if (sent && sent !== origin()) {
