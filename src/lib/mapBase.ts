@@ -10,20 +10,26 @@
  */
 
 /**
- * 瓦片。照抄 can-radar 的选择，不是随手挑的：CARTO 的 light_all / dark_all 是**无注记
- * 的浅色底**，航路线和机场点压在上面读得清；换成 OSM 标准图，底图自己的路网和地名会
- * 和航路抢注意力。
+ * 瓦片。照抄 can-radar 的选择，不是随手挑的：Esri 的 Canvas 深浅两套**只标国名，不画
+ * 路网也不标城市**，航路线和机场点压在上面读得清；换成 OSM 标准图，底图自己的路网和
+ * 地名会和航路抢注意力。
  *
- * `{r}` 是高清后缀，`{s}` 是子域 —— 两个都是 CARTO 模板的一部分，抄别家瓦片地址时把
- * 它们一起带过去会得到一片 404。
+ * **2026-09 从 CARTO 换过来。** `basemaps.cartocdn.com` 开始给没有 API key 的请求回一
+ * 张把 "API KEY REQUIRED" 烤进 PNG 里的瓦片 —— HTTP 还是 200，图也照画，只看状态码发
+ * 现不了。换供应商而不是去申请一把 key：这个仓库是公开的，客户端包里的 key 就是公开
+ * 的 key。can-radar 的 `RadarMap.vue` 是这一份的出处，同一天同一处改的，两边要一起动。
+ *
+ * 三个组件都不传 `subdomains`，因为这条模板没有 `{s}` 子域，也没有 `{r}` 高清后缀 ——
+ * 抄别家瓦片地址回来时把这两个占位符落下或者多带，都会得到一片 404。
  */
 export const TILES: Record<"dark" | "light", string> = {
-  dark: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-  light: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+  dark: "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+  light:
+    "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}",
 };
 
 export const TILE_ATTRIBUTION =
-  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>';
+  '&copy; <a href="https://www.esri.com/">Esri</a>, HERE, Garmin, &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 
 /** 当前主题。can-ui 的 ThemeScript 把 `.dark` 放在 <html> 上，这里就读那一处。 */
 export function currentTheme(): "dark" | "light" {
