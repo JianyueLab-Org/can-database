@@ -23,6 +23,7 @@ import { api } from "@/lib/canDb";
 import {
   TILES,
   TILE_ATTRIBUTION,
+  TILE_MAX_NATIVE_ZOOM,
   ROUTE_COLORS,
   arc,
   currentTheme,
@@ -203,6 +204,7 @@ function applyTiles(theme: "dark" | "light") {
   tiles.value = L.tileLayer(TILES[theme], {
     attribution: TILE_ATTRIBUTION,
     maxZoom: 12,
+    maxNativeZoom: TILE_MAX_NATIVE_ZOOM,
     pane: "tilePane",
   }).addTo(m);
 }

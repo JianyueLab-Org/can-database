@@ -28,6 +28,18 @@ export const TILES: Record<"dark" | "light", string> = {
     "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}",
 };
 
+/**
+ * 这两张底图**真正有数据**的最深一级。
+ *
+ * 和瓦片地址放在一起，因为它是地址的一部分属性而不是各组件自己的偏好：换供应商时
+ * 两个值必须一起改。Esri 的 Canvas 数据到 **z16** 为止，再深它**不返回 404**，而是
+ * 一张 HTTP 200、写着 "Map data not yet available" 的占位图，全球每块都一样。所以
+ * 超过这一级必须靠 `maxNativeZoom` 让 Leaflet 放大最深那级，而不能放任它去请求。
+ *
+ * can-radar 的 `RadarMap.vue` 是同一处判断的出处，那边连实测数据一起记着。
+ */
+export const TILE_MAX_NATIVE_ZOOM = 16;
+
 export const TILE_ATTRIBUTION =
   '&copy; <a href="https://www.esri.com/">Esri</a>, HERE, Garmin, &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 
