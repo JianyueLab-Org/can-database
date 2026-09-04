@@ -36,7 +36,10 @@ export const TILES: Record<"dark" | "light", string> = {
  * 一张 HTTP 200、写着 "Map data not yet available" 的占位图，全球每块都一样。所以
  * 超过这一级必须靠 `maxNativeZoom` 让 Leaflet 放大最深那级，而不能放任它去请求。
  *
- * can-radar 的 `RadarMap.vue` 是同一处判断的出处，那边连实测数据一起记着。
+ * can-radar 的 `RadarMap.vue` 是同一处判断的出处，那边连实测数据一起记着；选型、
+ * 候选清单和自建成本在 can-radar 的 `docs/basemap.md`。**底图的定时健康检查只在
+ * can-radar 那边跑一份**（`scripts/check-basemap.mjs`）—— 两个仓库用的是同样的
+ * Esri 图层，跑两份只会收到两封一样的告警邮件。
  */
 export const TILE_MAX_NATIVE_ZOOM = 16;
 
