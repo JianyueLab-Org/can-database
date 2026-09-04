@@ -54,6 +54,7 @@ import type { AirportDetail, GroundLines, Procedure } from "@/lib/canDb";
 import {
   TILES,
   TILE_ATTRIBUTION,
+  TILE_MAX_NATIVE_ZOOM,
   currentTheme,
   escapeHtml,
   firColor,
@@ -429,6 +430,7 @@ function applyTiles(theme: "dark" | "light") {
   tiles.value = L.tileLayer(TILES[theme], {
     attribution: TILE_ATTRIBUTION,
     maxZoom: 18,
+    maxNativeZoom: TILE_MAX_NATIVE_ZOOM,
     pane: "tilePane",
   }).addTo(m);
 }

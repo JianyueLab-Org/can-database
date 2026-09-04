@@ -31,6 +31,7 @@ import type { AirportSummary, AirwayGraph, Fix } from "@/lib/canDb";
 import {
   TILES,
   TILE_ATTRIBUTION,
+  TILE_MAX_NATIVE_ZOOM,
   currentTheme,
   escapeHtml,
   firColor,
@@ -279,6 +280,7 @@ function applyTiles(theme: "dark" | "light") {
   tiles.value = L.tileLayer(TILES[theme], {
     attribution: TILE_ATTRIBUTION,
     maxZoom: 12,
+    maxNativeZoom: TILE_MAX_NATIVE_ZOOM,
     // 底图在最下面。不设的话后加的瓦片会盖住已经画好的航路。
     pane: "tilePane",
   }).addTo(m);
