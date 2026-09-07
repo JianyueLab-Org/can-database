@@ -138,8 +138,14 @@ async function drawAirways() {
   const { fixes, segments } = airwayCache;
   // 一条 Polyline 装全部 3065 段，而不是 3065 条 Polyline：后者是三千个 SVG 元素，
   // 平移一次浏览器就要重排三千次。Leaflet 的多段线接受「线的数组」，画出来一样。
+  //
+  // **一段是个对象，不是三元组。** 这里从前写的是 `for (const [, from, to] of …)`，
+  // 而 can-db 给的是 `{airway, from, to, dir, minAlt, maxAlt}` —— 对着普通对象做数组
+  // 解构直接抛 TypeError，整个图层一条线都没画出来过。见 `lib/canDb.ts` 的
+  // `AirwaySegment`。`dir` 和高度带这里不看：单向和双向在图上是同一条线，而按高度层
+  // 筛是 can-db 的路由参数，不是这里的一段 JavaScript。
   const lines: L.LatLngExpression[][] = [];
-  for (const [, from, to] of segments) {
+  for (const { from, to } of segments) {
     const a = fixes[from];
     const b = fixes[to];
     if (!a || !b) continue;
@@ -228,7 +234,7 @@ function syncLabels() {
   if (showAirways.value && airwayCache && zoom >= AIRWAY_NAME_ZOOM) {
     const { fixes, segments } = airwayCache;
     const best = new Map<string, { mid: [number, number]; len: number }>();
-    for (const [airway, from, to] of segments) {
+    for (const { airway, from, to } of segments) {
       const a = fixes[from];
       const b = fixes[to];
       if (!a || !b) continue;

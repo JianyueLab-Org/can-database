@@ -84,9 +84,17 @@ export interface Dataset {
   /**
    * 看这批数据要多少级 aipAccess。**1 = 公开，3 = 受限（官方汇编）。**
    *
-   * 下限跟着**来源**走，由 can-db 那边的 CHECK 钉住（迁移 0025）：naip 至少 3，其余至少
-   * 1，只能往上抬不能往下降。**公开的下限是 1 不是 0** —— 0 是「无权访问」，不是「一种
-   * 公开」。
+   * 下限跟着**来源**走，而不是一条笼统的范围检查：naip 的数据集不许降到 3 以下，其余至
+   * 少 1。**公开的下限是 1 不是 0** —— 0 是「无权访问」，不是「一种公开」。
+   *
+   * 钉住它的是 can-db 那边的两处，一处挡人一处兜底：`aip.SetDatasetMinAccess` 里按来源
+   * 判的那道下限（改门槛那条路由和 `aip-import` 都走它），加上迁移
+   * `0027_min_access_floor.sql` 加的 CHECK 约束。**要的就是两处** —— 前者能给出一句人
+   * 看得懂的话，后者管住任何绕开它的写法（手写 SQL 也算）。
+   *
+   * 这一段从前写的是「由 CHECK 钉住（迁移 0025）」，而 0025 是
+   * `0025_ils_and_airport_comm.sql`，和 min_access 毫无关系 —— 那时候根本没有约束。一
+   * 句凭空的「已经有人管了」比没有这句更糟：它会让下一个人省掉去确认的那一步。
    *
    * **控制台要把它显示出来。** 一个校对数据的人应该分得清手上这条是官方汇编还是面向模拟
    * 的派生物 —— 两者的权威性和可再分发性都不一样，而它们在页面上长得一模一样。
@@ -229,15 +237,68 @@ export interface Procedure {
   path: ProcedurePoint[];
 }
 
+/** 一条航路整体的属性 —— 航段表只有一段段的连接，没有这一层。 */
+export interface AirwayMeta {
+  /**
+   * 汇编给的类型（'国内对外开放航路' 之类）。要按类型分色就用它，**别按 designator 的
+   * 字母猜** —— 猜出来的分色在图上一样好看，错了没人会发现。
+   */
+  locType: string | null;
+  lengthKm: number | null;
+  lengthNm: number | null;
+  /** **米**，整条航路的最低超障高度。 */
+  mtcaM: number | null;
+  note: string | null;
+}
+
+/**
+ * 航路网的一段。
+ *
+ * **这是一个对象，不是三元组。** 这里从前写的是 `[string, string, string]`，而 can-db
+ * 一直给的是这六个字段 —— 见下面 `AirwayGraph` 上那段。
+ */
+export interface AirwaySegment {
+  airway: string;
+  from: string;
+  to: string;
+  /**
+   * `both` | `forward`（只能 from→to）| `backward`（只能 to→from）。
+   *
+   * **方向不是装饰。** 少了它这张图就是无向的，规划器会逆着单向航路排出一条图上好看、
+   * 报不上去的航路。不过规划在 can-db（`internal/aip/route.go`），这个站只画，而一条单
+   * 向航路和一条双向的在图上是同一条线 —— 所以这个字段今天**没有用到**。
+   */
+  dir: "both" | "forward" | "backward";
+  /** 英尺。来源没发布高度带时是 null（Go 那边是 `*int`，nil 序列化成 `null`）。 */
+  minAlt: number | null;
+  maxAlt: number | null;
+}
+
 /**
  * 全国航路网。
  *
- * `fixes` 是 ident → [lat, lon]，`segments` 是 [airway, from, to]。一次取整张图而不是
- * 按 FIR 切：一条 ZGGG→ZBAA 的航路跨四个 FIR，在边界上切开的图只能规划到那一块的边缘。
+ * `fixes` 是 ident → [lat, lon]，`segments` 是一段段的连接。一次取整张图而不是按 FIR
+ * 切：一条 ZGGG→ZBAA 的航路跨四个 FIR，在边界上切开的图只能规划到那一块的边缘。
+ *
+ * **`segments` 从前在这里被写成 `Array<[string, string, string]>`，而它一直是对象。**
+ * 那不是一处笔误可以带过的事：`NetworkMap.vue` 照着这份声明对每一段做数组解构，而对着
+ * 一个普通对象解构会抛 `TypeError: … is not iterable` —— 航路图层一条线都画不出来，而
+ * 且因为那一下同样发生在 `moveend`/`zoomend` 的处理里，之后每一次平移缩放都把航路名和
+ * 航路点名字一起带走。CI 全绿，因为**漂移的正是手写的这一半**：`vue-tsc` 拿着错的声明
+ * 去校验用它的代码，两边自洽。
+ *
+ * 所以这一段的教训不是「小心一点」，是文件抬头那句话要当真：**字段名和 Go 的 json 标
+ * 签逐字对应，改一边要改两边**（can-db 的 `internal/aip/store.go`，`AirwayGraph` /
+ * `AirwaySegment` / `AirwayMeta` 三个结构）。
  */
 export interface AirwayGraph {
   fixes: Record<string, [number, number]>;
-  segments: Array<[string, string, string]>;
+  /**
+   * designator → 这条航路整体的属性。**这个站今天一个字段都没读**，写在这里是因为接口
+   * 确实给 —— 一份「只写用得到的字段」的手写类型正是上面那个 bug 的来路。
+   */
+  airways: Record<string, AirwayMeta>;
+  segments: AirwaySegment[];
 }
 
 export interface AirportDetail extends Airport {
