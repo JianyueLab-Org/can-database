@@ -19,8 +19,11 @@ function clean(value: string | undefined): string {
  * can-db 在同一个集群里，走 Service 少一跳，而且不会因为 Cloudflare 隧道抖一下就连
  * 自己的后端都读不到。
  *
- * 浏览器无论如何打不到 can-db：岛屿只能打本站的同源反代
- * （`src/pages/api/v1/[...path].ts`），由反代转进集群。
+ * 这个站的岛屿只打本站的同源反代（`src/pages/api/v1/[...path].ts`），由反代转进集
+ * 群。**但别把它读成「浏览器无论如何打不到 can-db」** —— 这一段从前就是那么写的，而
+ * `api-db.ceruleanavi.net` 是公网可达的，can-db 的 CORS 白名单里还正好有这个域。挡
+ * 住人的是 can-db 每条路由上的 `guard`，不是网络可达性；那一层的完整说明在反代文件
+ * 的抬头。
  *
  * 兜底值是 `localhost:8080` 而不是某个 https 地址：本地开发时你自己起一个 can-db。
  * 写一个公网地址当兜底会让「忘了配」这件事悄悄变成「打到了别的东西上」。
@@ -126,11 +129,25 @@ export const ACCESS_RESTRICTED_WRITE = 4;
  * 这一条从前就是错的：中间件拦的是 `aipAccess < ACCESS_READ`，也就是 `>= 1` 就放
  * 进来，于是 1 级（只该**调用**）打得开整个站。
  *
- * **权威的那一份在 can-db**：`GET /api/v1/aip/session` 的 `canUseConsole`，
- * `TestTheSessionRouteAnswersBothAxes` 把五种人的答案逐个钉住。这里抄一份是因为
- * 中间件手上**已经有** `aipAccess` 了，而这条规则是它的纯函数 —— 为了算一个已经
- * 拿得到的东西给每个页面请求加一次网络往返，不划算。要 `tier` 或者别的判断时去问
- * 那条路由。
+ * **上游没有这条规则的权威副本，别去找。** 这里从前写着「权威的那一份在 can-db：
+ * `GET /api/v1/aip/session` 的 `canUseConsole`，`TestTheSessionRouteAnswersBothAxes`
+ * 把五种人的答案逐个钉住」—— 那条路由、那个函数、那个测试**一个都不存在**（can-db
+ * 的路由表在 `internal/httpx/server.go`，从头到尾没有 session 那一条）。
+ *
+ * 会话实际上是这么解的：can-db 把成员的 cookie **原样转给 can-api** 的
+ * `GET /api/v1/auth/session`，拿回 `rating` 和 `aipAccess`（`internal/session`）。它
+ * 自己只有两条判断，都不是这一条：`CanRead()` 放 `aipAccess >= 1` **或**评级 >= 8 的
+ * 人过（教员要让 can-portal 的 SweatBox 生成器替他们取数），`CanWrite()` 是
+ * `aipAccess >= 2`。
+ *
+ * 所以这一条是**这个站自己的门槛，没有上游可对**，而且和上游的两条都不重合：它比
+ * `CanRead` 严（不放教员、不放 1 级），也和 `CanWrite` 的 `>= 2` 划不到一起 —— 3 级
+ * 过得了 `CanWrite`，过不了这里。**两边不一致是真的，但怎么收敛是一个产品决定，不
+ * 要顺手在这里改**：改这个函数就是改谁能打开这个站，而进得来的人拿到的是渲染在
+ * HTML 里的航行资料，不是几个 403 链接。
+ *
+ * 这里抄一份是因为中间件手上**已经有** `aipAccess` 了，而这条规则是它的纯函数 ——
+ * 为了算一个已经拿得到的东西给每个页面请求加一次网络往返，不划算。
  */
 export function canUseConsole(aipAccess: number): boolean {
   return aipAccess === ACCESS_WRITE || aipAccess === ACCESS_RESTRICTED_WRITE;

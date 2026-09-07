@@ -9,11 +9,26 @@ export const prerender = false;
  * ## 为什么有这一层
  *
  * 别的站上这一层的理由是 CORS：can-api 的 `ALLOWED_ORIGINS` 里没有它们的域，同源
- * 反代让它们今天就能跑。这里的理由更硬一层：**can-db 在集群里根本没有 Ingress**。
- * 它服务的是有许可限制的航行资料，而唯一需要它的就是这个站，所以它只在集群内监
- * 听。浏览器不是「最好别直连」，是根本连不上。
+ * 反代让它们今天就能跑。这里的理由一样，**而不是「更硬一层」** —— 这一段从前写着
+ * 「can-db 在集群里根本没有 Ingress，浏览器不是最好别直连，是根本连不上」，于是这个
+ * 文件是浏览器和那份数据之间唯一的通路。那句话是假的。
  *
- * 于是这个文件是浏览器和那份数据之间**唯一**的通路，值得按那个分量来读。
+ * can-db 从 2026-08-18 起就有 `api-db.ceruleanavi.net`（它的 `deploy/k8s.yaml` 里那
+ * 条走 `cloudflare-tunnel` 的 Ingress），因为它真正要服务的消费者根本不在集群里 ——
+ * 控制员机器上的桌面程序解析不了 ClusterIP。而且它的 `ALLOWED_ORIGINS` 恰恰就是
+ * `https://database.ceruleanavi.net`，还带 `Access-Control-Allow-Credentials: true`：
+ * 这个域下的浏览器**带着会话 cookie 直连它是通的**。这一层不是那份数据唯一的通路，
+ * 从来都不是。
+ *
+ * 真正挡住人的是 can-db 自己的两样东西：`internal/httpx/server.go` 里每一条路由都套
+ * 着的 `guard`（它解析会话、判 `aipAccess`；`/healthz` 是唯一一条没套的），加上那份
+ * 不是通配的 CORS 白名单。今天一个字节都没漏出去，是因为**没有一条路由是裸的**，不
+ * 是因为外面连不上。
+ *
+ * 这段话必须写成现在这样，理由不在这个文件里：一句「反正外面连不上」会让下一个在
+ * can-db 那边加路由的人以为漏掉 `withRead`/`withWrite` 只是一处内部疏忽。它不是，它
+ * 是公网泄漏。这一层的价值仍然在 —— 白名单把这个站的浏览器能碰到的路径收到它真的要
+ * 用的那几条 —— 但它是**一层**，不是那道边界。
  *
  * ## 鉴权在哪
  *
@@ -129,14 +144,25 @@ const handler: APIRoute = async (context) => {
   // 写操作的 Origin 检查。Astro 的 checkOrigin 关掉了（反代下它永远误判，见
   // astro.config.mjs），这是补上的那一半。
   //
-  // **今天名单里仍然一条写操作都没有，但理由变了。** can-db 那边已经有三条改数据集
-  // 生命周期的路由（`POST /aip/datasets/{id}/activate` 一类，走 `withConsole`，2 和
-  // 4 够得着）—— 这个站只是还没有调它们的界面。所以这几行不再是「为一个还没做的功能
-  // 先写着」，而是「等白名单里放行第一个 POST 的那天就生效」。加那天记得两样一起加：
-  // 白名单条目的 methods，和一个真的会用它的页面。
+  // **头不在就是不通过，不是跳过检查。** 这里从前写的是 `if (sent && sent !== …)`，
+  // 于是一个**不带** Origin 头的请求径直穿过去 —— 而那正是要防的那一类：CSRF 想要的
+  // 就是让浏览器代替成员发一个请求，攻击者控制不了这个头，但一个不经浏览器的客户端
+  // （或者哪天某个不发这个头的路径）就白拿一次放行。一道只在攻击者不方便时才生效的
+  // 检查不是检查。
+  //
+  // **这只管不安全的方法，而那正好是浏览器一定带 Origin 的那一类。** 按 Fetch 规范，
+  // 方法既不是 GET 也不是 HEAD 的请求一律带 Origin，**同源的也带** —— 所以把它改成必
+  // 须匹配，不会伤到任何一个正常的 POST。反过来，GET 根本进不到这几行：同源导航和同
+  // 源 GET 通常**不**带 Origin，要是这道检查也套在它们头上，整站每一次取数都是 403。
+  // 所以 `UNSAFE` 这个集合不是修饰，它是这条检查能收紧的前提。
+  //
+  // 今天走到这里的写操作只有一条：`POST auth/signout`（转给 can-api）。can-db 那边
+  // 已经有三条改数据集生命周期的路由（`POST /aip/datasets/{id}/activate` 一类，走
+  // `withWrite`，也就是 `aipAccess >= 2`），这个站只是还没有调它们的界面 —— 加那天记
+  // 得两样一起加：白名单条目的 methods，和一个真的会用它的页面。
   if (UNSAFE.has(method)) {
     const sent = context.request.headers.get("origin");
-    if (sent && sent !== origin()) {
+    if (sent !== origin()) {
       return Response.json(
         { error: "bad_origin", message: "跨站请求被拒绝。" },
         { status: 403 },
@@ -155,6 +181,21 @@ const handler: APIRoute = async (context) => {
   if (cookie) headers.set("cookie", cookie);
   const contentType = context.request.headers.get("content-type");
   if (contentType) headers.set("content-type", contentType);
+
+  // 写操作要把 Origin 带给 can-db。
+  //
+  // can-db 现在对不安全的方法查 Origin，而且**头不在就是拒绝**（它那边的
+  // `sameOrigin` 中间件；活跃站点的 activate/supersede 不带 body 也不带自定义头，
+  // 是 CORS 的简单请求，浏览器直接就发出去了，所以那是唯一挡得住的地方）。
+  //
+  // 而这一层是**服务端** fetch：它自己不会加 Origin。所以第一条转到 can-db 的写路
+  // 由如果不带这个头，会稳定地拿到 403，而错误信息说的是「跨站请求被拒绝」——
+  // 指向 CSRF，不指向这里少了一行。
+  //
+  // 带过去的就是上面刚验过的那一个（不匹配的早已 403 返回），也正是 can-db 的
+  // `ALLOWED_ORIGINS` 里那一个。**只给 can-db 带** —— can-api 那条走的是签退，它
+  // 的 CORS 名单是另一份，往上塞一个它没预期的头不属于这次改动。
+  if (UNSAFE.has(method) && !authEntry) headers.set("origin", origin());
 
   let upstream: Response;
   try {
