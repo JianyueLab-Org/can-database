@@ -17,6 +17,16 @@ const messages = getMessages(locale, "route");
 
 const result = await callDb<AirportSummary[]>(Astro, "/api/v1/aip/airports");
 const airports = (result.ok ? (result.data ?? []) : []).map((a) => a.icao);
+
+/**
+ * 成员的 `aipAccess`，只为决定「不使用受限汇编」那个勾选框出不出。
+ *
+ * **它不是权限判断。** 真正卡的是 can-db：`?unrestricted=1` 在那边是把级别**往下压**
+ * （`min(自己的, 2)`），所以哪怕这里判错、或者有人自己拼一个带参数的请求，也只可能少看到
+ * 东西而不会多看到。这里的级别只是「给 3–4 级的人一个开关」这句话的字面实现 —— 1–2 级
+ * 的人本来就在档下，多一个永远无效的勾选框只会让人以为自己错过了什么。
+ */
+const aipAccess = Astro.locals.user?.aipAccess ?? 0;
 ---
 
 <AppLayout title={t("title")}>
@@ -28,6 +38,11 @@ const airports = (result.ok ? (result.data ?? []) : []).map((a) => a.icao);
       <p class="mt-2 max-w-2xl text-muted">{t("description")}</p>
     </header>
 
-    <RoutePlanner messages={messages} airports={airports} client:only="vue" />
+    <RoutePlanner
+      messages={messages}
+      airports={airports}
+      aipAccess={aipAccess}
+      client:only="vue"
+    />
   </div>
 </AppLayout>

@@ -136,7 +136,11 @@
     "scopeRoute": "本航線",
     "mtca": "最低超障高度",
     "airspaces": "穿過的限制性空域（{n} 個）",
-    "airspacesNote": "禁區已經在規劃時繞開了；這裡是限制區和危險區。活動時間是彙編原文，沒人解析它 —— 這條航路會穿過它，不等於今天不能飛。"
+    "airspacesNote": "禁區已經在規劃時繞開了；這裡是限制區和危險區。活動時間是彙編原文，沒人解析它 —— 這條航路會穿過它，不等於今天不能飛。",
+    "unrestricted": "不使用受限彙編",
+    "unrestrictedHint": "按 1–2 級的資料規劃，也就是不用 NAIP。結果可以給看不到那一份的人。",
+    "unrestrictedBadge": "未使用受限彙編",
+    "notPublishable": "所有資料集均不可再散布 —— 這條航路不得對外發布。"
   },
   "airportMap": {
     "title": "機場圖",

@@ -39,6 +39,14 @@ import {
 const props = defineProps<{
   messages: Record<string, unknown>;
   airports: string[];
+  /**
+   * 成员的 `aipAccess`，**只用来决定勾选框出不出**，不是权限判断。
+   *
+   * can-db 那边 `?unrestricted=1` 是把级别往下压（`min(自己的, 2)`），所以这里判错也只
+   * 会少看到而不会多看到。1–2 级的人本来就在档下，给他们一个永远无效的开关只会让人以为
+   * 自己错过了什么。
+   */
+  aipAccess: number;
 }>();
 const t = createTranslator(props.messages);
 
@@ -109,11 +117,16 @@ interface RoutePlan {
   /** 请求的巡航高度低于上面那个数。 */
   levelBelowMtca?: boolean;
   notes: string[];
+  /** 这份计划没有把受限汇编算进来 —— can-db 自己报的，不是这里推的。 */
+  unrestricted: boolean;
 }
 
 const from = ref("");
 const to = ref("");
 const level = ref("");
+const unrestricted = ref(false);
+/** 勾选框对谁可见。档下的人不显示 —— 对他们这个开关恒为空转。 */
+const canChooseTier = computed(() => props.aipAccess >= 3);
 const plan = ref<RoutePlan | null>(null);
 const loading = ref(false);
 const error = ref("");
@@ -144,6 +157,9 @@ async function submit() {
   loading.value = true;
   const params = new URLSearchParams({ from: f, to: d });
   if (level.value.trim()) params.set("level", level.value.trim());
+  // 只在档上的人勾了才带 —— 带 `unrestricted=0` 和不带是一回事，少一个参数少一份歧义。
+  if (canChooseTier.value && unrestricted.value)
+    params.set("unrestricted", "1");
   const result = await api<RoutePlan>(`/api/v1/aip/route?${params}`);
   loading.value = false;
 
@@ -423,6 +439,27 @@ onBeforeUnmount(() => {
       </button>
     </form>
 
+    <!-- 3–4 级才有的开关：把规划压到 1–2 级的数据上，也就是不用 NAIP 汇编。
+         档下的人不显示 —— 对他们这个开关恒为空转，摆出来只会让人以为自己错过了什么。 -->
+    <label
+      v-if="canChooseTier"
+      class="-mt-2 flex w-fit cursor-pointer items-start gap-2 text-sm"
+      for="rp-unrestricted"
+    >
+      <input
+        id="rp-unrestricted"
+        v-model="unrestricted"
+        type="checkbox"
+        class="mt-0.5"
+      />
+      <span>
+        <span class="text-ink">{{ t("unrestricted") }}</span>
+        <span class="mt-0.5 block text-xs text-muted">{{
+          t("unrestrictedHint")
+        }}</span>
+      </span>
+    </label>
+
     <!-- 代号不在库里就提前说。提交后拿一个 404 也能懂，但那时人已经在怀疑是不是服务坏了。 -->
     <p v-if="!fromKnown || !toKnown" class="text-xs text-warning">
       {{ t("unknownAirport") }}
@@ -462,6 +499,15 @@ onBeforeUnmount(() => {
                   : "sourceComputed",
               )
             }}
+          </span>
+          <!-- 只对档上的人显示。1–2 级本来就永远是「未使用」，对他们这不是一条信息。
+               值取 can-db 报的 `plan.unrestricted`，不是这里的勾选框 —— 答案该由产出
+               它的那一方描述，而不是由发起请求的一方记着。 -->
+          <span
+            v-if="canChooseTier && plan.unrestricted"
+            class="badge badge-neutral"
+          >
+            {{ t("unrestrictedBadge") }}
           </span>
           <span v-if="plan.publishedName" class="text-xs text-muted">{{
             plan.publishedName
