@@ -16,7 +16,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "astro check && node ./scripts/typecheck-vue.mjs",
-    "lint": "bun run format:check && bun run typecheck"
+    "lint": "bun run format:check && bun run typecheck && bun run test",
+    "test": "bun test"
   },
   "dependencies": {
     "@astrojs/node": "^11.0.0",
@@ -30,6 +31,7 @@
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.9",
+    "@types/bun": "^1.4.2",
     "@types/leaflet": "^1.9.22",
     "@types/node": "^26.1.2",
     "prettier": "^3.9.6",
