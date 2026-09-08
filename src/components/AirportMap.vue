@@ -419,12 +419,34 @@ function drawGround() {
    * 上的（`ref`），全库 4060 条 / 83 个机场 / 526 种。它和地面要素的 `name` 可能不一致 ——
    * **那正是它有用的地方**：地面要素两份都是 OSM 派生的，而这一份来自汇编，不一致的地方
    * 值得看一眼。所以两边都标，不合并。 */
-  for (const l of taxiwayLabels(
-    ground.value.lines
-      .filter((l) => l.kind === "guidance" && l.ref)
-      .map((l) => ({ name: l.ref as string, points: l.points })),
-  )) {
-    labelMarker(l.lat, l.lon, l.name, "#7aa7c7").addTo(layer);
+  /* **摆在航图印它的地方，不摆在线的中点。**
+   *
+   * 这些线中位 130–230 米、最长 4.5 公里 —— 摆中点实测把标注挪开 32–41 米（中位），
+   * 90 分位 170–250 米，最大 2.6 公里。线画本身没有偏移（拿 OSM 量过，东/北向中位在
+   * ±3.3 米内），偏的是标注被挪走了。
+   *
+   * 同一个编号可能绑在好几条线上（一条滑行道是几十条被切开的路径），仍然只出一个 ——
+   * 挑印得最靠中间的那个没有意义，挑第一个取决于数组顺序；这里挑**它所在那条线最长**
+   * 的，和地面要素那边同一条规矩。 */
+  const byRef = new Map<string, { lat: number; lon: number; len: number }>();
+  for (const l of ground.value.lines) {
+    const name = (l.ref ?? "").trim();
+    if (l.kind !== "guidance" || !name || !l.refLat || !l.refLon) continue;
+    let len = 0;
+    for (let i = 1; i < l.points.length; i++) {
+      const [aLat, aLon] = l.points[i - 1];
+      const [bLat, bLon] = l.points[i];
+      len += Math.hypot(
+        (bLat - aLat) * 111320,
+        (bLon - aLon) * 111320 * Math.cos((aLat * Math.PI) / 180),
+      );
+    }
+    const cur = byRef.get(name);
+    if (!cur || len > cur.len)
+      byRef.set(name, { lat: l.refLat, lon: l.refLon, len });
+  }
+  for (const [name, p] of byRef) {
+    labelMarker(p.lat, p.lon, name, "#7aa7c7").addTo(layer);
   }
 }
 
