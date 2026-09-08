@@ -51,6 +51,7 @@ import L from "leaflet";
 import { createTranslator } from "@/lib/i18n";
 import { api } from "@/lib/canDb";
 import { taxiwayLabels } from "@/lib/taxiwayLabels";
+import { defaultFeatureLayers } from "@/lib/groundDefaults";
 import type { AirportDetail, GroundLines, Procedure } from "@/lib/canDb";
 import {
   TILES,
@@ -120,10 +121,10 @@ const FEATURE_ORDER = [
  * 人多半是在找滑行道走向。跑道那一层也关着，因为这张图本来就画着跑道（画两遍只会互相
  * 盖住，而且颜色一样）。
  */
-const featureOn = ref<Record<string, boolean>>({});
-for (const k of FEATURE_ORDER) {
-  featureOn.value[k] = k !== "parking_position" && k !== "runway";
-}
+/* 初值按「没有航图」算；数据到手之后 loadGround 会按实际情况重设一次。 */
+const featureOn = ref<Record<string, boolean>>(
+  defaultFeatureLayers(FEATURE_ORDER, false),
+);
 
 /** 图上有哪些类，各多少条。 */
 const featureKinds = computed(() => {
@@ -273,6 +274,24 @@ async function loadGround() {
   }
   ground.value = r.data;
   groundState.value = "ready";
+
+  /* **有航图就以航图为准，没有才用 OSM。**
+   *
+   * 两份画的是同一批东西：航图那份是汇编抠的线画（93 个机场，带滑行道编号），OSM 那份是
+   * `ground_feature`（343 个机场 —— `sector` 那一份也是 Overpass 抓的）。两边同时画就是
+   * 同一条滑行道画两遍、颜色还不一样。
+   *
+   * 只关掉航图画得了的（滑行道、机坪）。等待位置、航站楼、机场轮廓航图给不出，关掉是
+   * 白丢。规则和它的理由见 defaultFeatureLayers。
+   *
+   * 这是默认值不是能力 —— 勾回来仍然能两份对着看，而那是判断航图那份准不准的唯一办法。
+   *
+   * 在数据到手之后才定，因为「有没有航图」只有这时候才知道。 */
+  featureOn.value = defaultFeatureLayers(
+    FEATURE_ORDER,
+    r.data.lines.some((l) => l.kind === "guidance"),
+  );
+
   drawGround();
   drawFeatures();
 }
