@@ -50,6 +50,7 @@ import {
 import L from "leaflet";
 import { createTranslator } from "@/lib/i18n";
 import { api } from "@/lib/canDb";
+import { taxiwayLabels } from "@/lib/taxiwayLabels";
 import type { AirportDetail, GroundLines, Procedure } from "@/lib/canDb";
 import {
   TILES,
@@ -337,6 +338,47 @@ function drawFeatures() {
       .bindTooltip(tip, { sticky: true })
       .addTo(layer);
   }
+
+  /* 滑行道编号标在图上。
+   *
+   * 一个编号一个标注，放在最长那一段上 —— 逐条标就是同一个 `C3` 沿着滑行道印二十遍
+   * （一条滑行道在数据里是几十条被路口切开的线），糊成一条黑带。规则见 taxiwayLabels。 */
+  if (featureOn.value.taxiway) {
+    for (const l of taxiwayLabels(
+      ground.value.features
+        .filter((f) => f.kind === "taxiway" && f.name)
+        .map((f) => ({ name: f.name as string, points: f.points })),
+    )) {
+      labelMarker(l.lat, l.lon, l.name, FEATURE_STYLE.taxiway.color).addTo(
+        layer,
+      );
+    }
+  }
+}
+
+/**
+ * 一个只有字的标注。
+ *
+ * `interactive: false` —— 标注不该拦住底下的线：那些线是可点的（有编号的那些），而
+ * 一个盖在上面的透明 div 会把点击吃掉，表现是「有的地方点得到有的地方点不到」。
+ */
+function labelMarker(
+  lat: number,
+  lon: number,
+  text: string,
+  color: string,
+): L.Marker {
+  return L.marker([lat, lon], {
+    interactive: false,
+    icon: L.divIcon({
+      className: "can-map-icon",
+      html:
+        `<div class="can-fix" style="--can-fix-color:${color}">` +
+        `<span class="can-fix__name can-fix__name--always">${escapeHtml(text)}</span></div>`,
+      iconSize: [0, 0],
+      iconAnchor: [0, 0],
+    }),
+  });
 }
 
 function drawGround() {
@@ -371,6 +413,18 @@ function drawGround() {
       );
     }
     poly.addTo(layer);
+  }
+
+  /* 航图那一份的编号。和上面同一条规则，但数据是另一套：这些是从图上印的标注绑到引导线
+   * 上的（`ref`），全库 4060 条 / 83 个机场 / 526 种。它和地面要素的 `name` 可能不一致 ——
+   * **那正是它有用的地方**：地面要素两份都是 OSM 派生的，而这一份来自汇编，不一致的地方
+   * 值得看一眼。所以两边都标，不合并。 */
+  for (const l of taxiwayLabels(
+    ground.value.lines
+      .filter((l) => l.kind === "guidance" && l.ref)
+      .map((l) => ({ name: l.ref as string, points: l.points })),
+  )) {
+    labelMarker(l.lat, l.lon, l.name, "#7aa7c7").addTo(layer);
   }
 }
 
