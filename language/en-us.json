@@ -167,7 +167,8 @@
       "terminal": "Terminal",
       "aerodrome": "Aerodrome"
     },
-    "taxiwayList": "Taxiway designators ({n})"
+    "taxiwayList": "Taxiway designators ({n})",
+    "refFromChart": "designator read off the chart"
   },
   "fixes": {
     "title": "航路点",

@@ -167,7 +167,8 @@
       "terminal": "航站楼",
       "aerodrome": "场界"
     },
-    "taxiwayList": "滑行道代号（{n}）"
+    "taxiwayList": "滑行道代号（{n}）",
+    "refFromChart": "编号自航图标注"
   },
   "fixes": {
     "title": "航路点",
