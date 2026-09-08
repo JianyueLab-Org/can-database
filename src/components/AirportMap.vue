@@ -373,6 +373,7 @@ function drawProcedures() {
     // 所以断口把线**切成两段**而不是连过去。
     let run: L.LatLngExpression[] = [];
     let suspect = false;
+    let runTransition: string | null = null;
     const flush = () => {
       if (run.length >= 2) {
         L.polyline(run, {
@@ -384,6 +385,7 @@ function drawProcedures() {
           .bindTooltip(
             escapeHtml(p.name) +
               (p.runway ? ` · ${escapeHtml(p.runway)}` : "") +
+              (runTransition ? ` · ${escapeHtml(runTransition)}` : "") +
               (suspect ? ` · ${escapeHtml(String(t("suspect")))}` : ""),
             { sticky: true },
           )
@@ -393,10 +395,23 @@ function drawProcedures() {
       suspect = false;
     };
 
+    /* **一条程序的点列不是一条航迹。**
+     *
+     * NAIP 把一条 SID 的跑道转换和公共段全塞进同一行的 seq 序列里 —— ZGGG 的 AGVIL7
+     * 是一行（跑道记作 19L），点却横跨 RW19L、RW19R、RW21、ALL 四组。整条连起来画，
+     * 线会从 AGVIL 跳回 RW01L 再跳到 RW03，而每一段本身画得很漂亮，所以看不出错。
+     * 346 条 SID 和 47 条 STAR 是这样。
+     *
+     * 换转换就断线，和无坐标处断线是同一个道理：那里本来就不连。 */
     for (const pt of p.path) {
       if (pt.lat === null || pt.lon === null) {
         flush();
+        runTransition = pt.transition;
         continue;
+      }
+      if (pt.transition !== runTransition) {
+        flush();
+        runTransition = pt.transition;
       }
       if (distanceKm(a.lat, a.lon, pt.lat, pt.lon) > SUSPECT_KM) suspect = true;
       run.push([pt.lat, pt.lon]);
