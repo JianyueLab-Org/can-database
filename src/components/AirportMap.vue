@@ -347,14 +347,30 @@ function drawGround() {
   const theme = currentTheme();
   for (const l of ground.value.lines) {
     if (guidanceOnly.value && l.kind !== "guidance") continue;
-    L.polyline(l.points as L.LatLngExpression[], {
+    /* 有编号的线**可点**，其余不可点。
+     *
+     * `interactive` 对整张图开着会拦掉底图的拖拽和别的图层的点击 —— 一个大场两万条
+     * 线，全都可交互等于把地图变成一块什么都点不动的板。只给有话可说的那几千条开。 */
+    const named = (l.ref ?? "").trim();
+    const poly = L.polyline(l.points as L.LatLngExpression[], {
       color: visible(l.rgb, theme),
       // 图上的线宽是米，屏幕上要的是像素。按米直接当像素画，缩到全场时整张图会糊成
       // 一块 —— 所以只用它分粗细，压到 0.5–2 像素之间。
       weight: Math.min(2, Math.max(0.5, l.widthM / 4)),
       opacity: 0.75,
-      interactive: false,
-    }).addTo(layer);
+      interactive: Boolean(named),
+    });
+    if (named) {
+      // 提示里写明这是从航图标注绑来的，不是汇编直接给的一个字段 —— 看的人有权知道
+      // 它是推出来的。
+      poly.bindTooltip(
+        escapeHtml(named) + " · " + escapeHtml(String(t("refFromChart"))),
+        {
+          sticky: true,
+        },
+      );
+    }
+    poly.addTo(layer);
   }
 }
 

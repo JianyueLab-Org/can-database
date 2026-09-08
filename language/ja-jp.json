@@ -167,7 +167,8 @@
       "terminal": "ターミナル",
       "aerodrome": "空港境界"
     },
-    "taxiwayList": "誘導路名（{n}）"
+    "taxiwayList": "誘導路名（{n}）",
+    "refFromChart": "チャートの注記から取得"
   },
   "fixes": {
     "title": "航路点",
