@@ -50,7 +50,7 @@ import {
 import L from "leaflet";
 import { createTranslator } from "@/lib/i18n";
 import { api } from "@/lib/canDb";
-import { taxiwayLabels } from "@/lib/taxiwayLabels";
+import { snapToLine, taxiwayLabels } from "@/lib/taxiwayLabels";
 import { defaultFeatureLayers } from "@/lib/groundDefaults";
 import type { AirportDetail, GroundLines, Procedure } from "@/lib/canDb";
 import {
@@ -460,9 +460,16 @@ function drawGround() {
         (bLon - aLon) * 111320 * Math.cos((aLat * Math.PI) / 180),
       );
     }
+    /* **吸附到它自己那条线上。**
+     *
+     * 航图把编号印在线**旁边**：实测离它命名的那条线中位 9–16 米、最大 30 米（30 是
+     * 绑定阈值）。在这个缩放下那是个看得见的空隙，而平行滑行道间距常常只有几十米 ——
+     * 偏 30 米就能让标注看起来离邻线更近，读的人认不出它在说哪条。
+     *
+     * 库里存的仍然是航图印它的位置（那是事实），摆在哪儿好读是渲染的事。 */
+    const [lat, lon] = snapToLine(l.refLat, l.refLon, l.points);
     const cur = byRef.get(name);
-    if (!cur || len > cur.len)
-      byRef.set(name, { lat: l.refLat, lon: l.refLon, len });
+    if (!cur || len > cur.len) byRef.set(name, { lat, lon, len });
   }
   for (const [name, p] of byRef) {
     labelMarker(p.lat, p.lon, name, "#7aa7c7").addTo(layer);

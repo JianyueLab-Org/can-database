@@ -78,3 +78,48 @@ export function taxiwayLabels(segments: TaxiwaySegment[]): TaxiwayLabel[] {
     lon: m.mid[1],
   }));
 }
+
+/**
+ * 把一个点吸附到一条折线上（取垂足，落在段外就收到端点）。
+ *
+ * **给滑行道编号用的。** 航图把编号印在线**旁边**：实测离它命名的那条线中位 9–16 米、
+ * 最大 30 米（30 是绑定阈值）。在机场图的缩放下这是个看得见的空隙，而平行滑行道间距常常
+ * 只有几十米 —— 30 米的偏就能让标注**看起来离邻线更近**，读的人根本认不出它在说哪条。
+ *
+ * 吸附是**渲染**的事：库里存的仍然是航图印它的位置（`refLat`/`refLon`），那是事实；摆在
+ * 哪儿好读是另一回事。所以这一步在这里做，不在 can-db 做。
+ *
+ * 不外插：垂足在段外就收到端点。外插会把标注甩到线的延长线上，比原来更远。
+ */
+export function snapToLine(
+  lat: number,
+  lon: number,
+  points: [number, number][],
+): [number, number] {
+  if (!points || points.length < 2) return [lat, lon];
+  // 米每度。经度那一档随纬度收缩，在机场这个尺度上取一次就够。
+  const mLat = 111320;
+  const mLon = mLat * Math.cos((lat * Math.PI) / 180);
+
+  let best = Infinity;
+  let out: [number, number] = [lat, lon];
+  for (let i = 1; i < points.length; i++) {
+    const [aLat, aLon] = points[i - 1];
+    const [bLat, bLon] = points[i];
+    const ax = (aLon - lon) * mLon;
+    const ay = (aLat - lat) * mLat;
+    const bx = (bLon - lon) * mLon;
+    const by = (bLat - lat) * mLat;
+    const dx = bx - ax;
+    const dy = by - ay;
+    const l2 = dx * dx + dy * dy;
+    const t =
+      l2 === 0 ? 0 : Math.max(0, Math.min(1, -(ax * dx + ay * dy) / l2));
+    const d = Math.hypot(ax + t * dx, ay + t * dy);
+    if (d < best) {
+      best = d;
+      out = [aLat + (bLat - aLat) * t, aLon + (bLon - aLon) * t];
+    }
+  }
+  return out;
+}

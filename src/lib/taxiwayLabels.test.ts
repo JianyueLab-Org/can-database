@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { taxiwayLabels } from "@/lib/taxiwayLabels";
+import { snapToLine, taxiwayLabels } from "@/lib/taxiwayLabels";
 
 /**
  * 一个编号一个标注，放在**最长**那一段上。
@@ -71,5 +71,52 @@ describe("taxiwayLabels", () => {
     ]);
     expect(got.length).toBe(1);
     expect(got[0].name).toBe("C3");
+  });
+});
+
+/**
+ * 标注吸附到它自己那条线上。
+ *
+ * 航图把编号印在线**旁边**：实测离它命名的那条线中位 9–16 米、最大 30 米（30 是绑定
+ * 阈值）。在机场图的缩放下这是个看得见的空隙，而平行滑行道间距常常只有几十米 —— 30 米
+ * 的偏就能让标注**看起来离邻线更近**，也就是「和线没有直接显著的关系」。
+ *
+ * 吸附是**渲染**的事：库里存的仍然是航图印它的位置（`ref_lat`/`ref_lon`），那是事实；
+ * 摆在哪儿好读是另一回事。
+ */
+describe("snapToLine", () => {
+  test("垂足落在线段中间", () => {
+    const got = snapToLine(40.001, 116.005, [
+      [40, 116],
+      [40, 116.01],
+    ]);
+    expect(got[0]).toBeCloseTo(40, 6);
+    expect(got[1]).toBeCloseTo(116.005, 6);
+  });
+
+  // 垂足在线段外时收到端点上，不能外插 —— 外插会把标注甩到线的延长线上，比原来更远。
+  test("垂足在线段外就收到端点", () => {
+    const got = snapToLine(40, 116.05, [
+      [40, 116],
+      [40, 116.01],
+    ]);
+    expect(got[1]).toBeCloseTo(116.01, 6);
+  });
+
+  test("多段折线取最近的那一段", () => {
+    const got = snapToLine(40.0005, 116.02, [
+      [40, 116],
+      [40, 116.01],
+      [40.001, 116.03],
+    ]);
+    // 落在第二段上，纬度介于两端之间
+    expect(got[0]).toBeGreaterThan(40);
+    expect(got[0]).toBeLessThan(40.001);
+  });
+
+  // 点不够就原样返回：没有线可吸附。
+  test("点不够就不动", () => {
+    expect(snapToLine(40, 116, [[41, 117]])).toEqual([40, 116]);
+    expect(snapToLine(40, 116, [])).toEqual([40, 116]);
   });
 });
