@@ -45,6 +45,7 @@
     "superseded": "已被取代",
     "airacLive": "生效周期",
     "airports": "机场",
+    "datasets": "数据集",
     "noData": "还没有任何数据集。先跑一次 aip-import。",
     "licensed": "有许可限制",
     "open": "可再分发"
@@ -62,6 +63,7 @@
     "coords": "坐标",
     "runways": "跑道",
     "stands": "{n} 机位",
+    "standsTitle": "机位",
     "procedures": "程序",
     "back": "返回机场列表",
     "notFound": "没有这个机场的当前数据。",

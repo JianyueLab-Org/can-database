@@ -1,0 +1,37 @@
+---
+/**
+ * 小节标题：名字、条数，下面可以跟一句说明。
+ *
+ * 机场详情页有三个小节（跑道 / 机位 / 程序），原来是三段逐字相同的类串
+ * （`text-sm font-semibold uppercase tracking-wider text-muted`）。
+ *
+ * **字号从 `text-sm` 全大写改成 `.text-title-3`，这是有意的换级。** 原来那一行和
+ * 表头同号同色，于是「跑道」这个小节标题在屏幕上并不比它下面那张表的表头更重 ——
+ * 一页三个小节读下来分不出哪里是分界。现在的层次是三级：页标题 `.text-title-1`
+ * → 小节 `.text-title-3`（1rem / 600，`text-ink`）→ 表头。条数退到 `text-faint`：
+ * 它是这一节的注脚，不是标题的一部分。
+ *
+ * **条数始终渲染，`0` 也渲染。** 这一页是拿来校对数据的，「这个机场没有机位」和
+ * 「机位那一节没渲染出来」对读的人是两件完全不同的事，而空着的时候它们长得一样。
+ */
+interface Props {
+  title: string;
+  count?: number;
+  /** 小节级的说明 —— 单位、口径、截断。 */
+  note?: string;
+}
+
+const { title, count, note } = Astro.props;
+---
+
+<div class="mb-3">
+  <h2 class="text-title-3 text-ink">
+    {title}
+    {
+      count !== undefined && (
+        <span class="tnum ml-1.5 font-normal text-faint">{count}</span>
+      )
+    }
+  </h2>
+  {note && <p class="mt-1 max-w-2xl text-xs text-faint">{note}</p>}
+</div>

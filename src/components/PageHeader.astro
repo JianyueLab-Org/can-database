@@ -1,0 +1,65 @@
+---
+/**
+ * 页面的标题区 —— 每一页都从它开始。
+ *
+ * 在这里之前，八个页面各自拼一段 `<header>`，其中七个的类串是**逐字相同**的
+ * （`text-2xl font-bold tracking-tight text-ink sm:text-3xl`）。逐字相同不是没有
+ * 代价的稳定，它只是还没漂而已 —— can-efb 的同名组件注释里记着 can-web 正是从这
+ * 里开始漂的：一个页面 `mb-6`、另一个 `mb-8`，标题一个 `text-2xl` 一个 `text-xl`。
+ * 这个仓库的第八个页面（机场详情）已经是第二种写法了。
+ *
+ * **字号用 can-ui 的 `.text-title-1`，不再手订两个断点值。** 那个类是
+ * `clamp(1.5rem, 1.25rem + 1.1vw, 1.875rem)`，字距和行高跟着字号一起变（见 can-ui
+ * `base.css` 的排版级）；手写的 `text-2xl sm:text-3xl` 是在两个断点上各钉一个值，
+ * 中间那一段视口宽度得不到任何照顾，而那正是设计系统里有这个类的原因。
+ *
+ * **为什么不直接用 can-ui 的 `PageHeader.vue`。** 它把说明放在一个不设上限的
+ * `<p>` 里，而这个站的正文列宽到 6xl（72rem）—— `fixes` 那句 65 字的说明会铺满
+ * 整行，一行字读到底再回到行首是排版上最贵的一件事。这里保留 `max-w-2xl`。它也
+ * 需要说明里的 `**强调**` 能渲染出来（见 `RichText.astro`），而那要经过具名插槽
+ * 才办得到。同一套排版级、站里自己的版式 —— can-efb 出于同一类理由也是自己一
+ * 份。
+ *
+ * `title` 插槽给机场详情页：那一页的标题是一个标识符（ICAO），要等宽字体，但字号
+ * 该和别的页面的标题是同一级。
+ */
+import RichText from "@/components/RichText.astro";
+
+interface Props {
+  title: string;
+  /** 说明文字，支持 `**强调**`。 */
+  description?: string;
+  /** 标题上面那行小号全大写的标签。 */
+  eyebrow?: string;
+}
+
+const { title, description, eyebrow } = Astro.props;
+---
+
+<header
+  class="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"
+>
+  <div class="min-w-0">
+    {eyebrow && <p class="text-eyebrow mb-1.5 text-can">{eyebrow}</p>}
+    <h1 class="text-title-1 text-ink">
+      <slot name="title">{title}</slot>
+    </h1>
+    {
+      (description || Astro.slots.has("description")) && (
+        <p class="mt-2 max-w-2xl text-muted">
+          <slot name="description">
+            <RichText text={description ?? ""} />
+          </slot>
+        </p>
+      )
+    }
+  </div>
+
+  {
+    Astro.slots.has("actions") && (
+      <div class="flex shrink-0 flex-wrap items-center gap-3">
+        <slot name="actions" />
+      </div>
+    )
+  }
+</header>

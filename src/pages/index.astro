@@ -1,5 +1,7 @@
 ---
 import AppLayout from "@/layouts/AppLayout.astro";
+import PageHeader from "@/components/PageHeader.astro";
+import StatCard from "@jianyuelab-org/can-ui/components/StatCard.vue";
 import { getLocale, useTranslations } from "@/lib/i18n";
 import { callDb } from "@/server/canDb";
 import type { Overview } from "@/lib/canDb";
@@ -24,13 +26,8 @@ const totalAirports = overview?.airports ?? 0;
 ---
 
 <AppLayout title={t("title")}>
-  <div class="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
-    <header class="mb-8">
-      <h1 class="text-2xl font-bold tracking-tight text-ink sm:text-3xl">
-        {t("title")}
-      </h1>
-      <p class="mt-2 max-w-2xl text-muted">{t("description")}</p>
-    </header>
+  <div class="mx-auto w-full max-w-5xl">
+    <PageHeader title={t("title")} description={t("description")} />
 
     {
       datasets === 0 ? (
@@ -39,23 +36,34 @@ const totalAirports = overview?.airports ?? 0;
         </div>
       ) : (
         <>
-          <div class="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-3">
-            <div class="card p-4">
-              <p class="text-xs uppercase tracking-wider text-faint">
-                {t("airacLive")}
-              </p>
-              <p class="tnum mt-1 text-2xl font-bold text-ink">
-                {liveAirac ?? "—"}
-              </p>
-            </div>
-            <div class="card p-4">
-              <p class="text-xs uppercase tracking-wider text-faint">
-                {t("airports")}
-              </p>
-              <p class="tnum mt-1 text-2xl font-bold text-ink">
-                {totalAirports}
-              </p>
-            </div>
+          {/* can-ui 的 `StatCard`，不再手抄一份。原来那两块是「小号全大写标签 +
+              大号 tnum 数字」，也就是 StatCard 的版式照着写了一遍 —— 而设计系统那
+              一份还带图标槽、hover 抬升和 `truncate`（手机上两块并排时长标签不会
+              截成空的）。
+
+              **第三块是补上的，不是新加的需求。** 网格本来就写着
+              `sm:grid-cols-3` 却只放了两块，`sm` 以上右边空着一格；`overview.datasets`
+              这个数这一页早就取回来了（下面 `datasets === 0` 那个判断用的就是
+              它），只是没显示。它挂 `href` 指向 `/datasets` —— 一个总览页上的数
+              字，人看见了下一步就是想看清单。 */}
+          <div class="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
+            <StatCard
+              label={t("airacLive")}
+              value={liveAirac ?? "—"}
+              icon="calendarDays"
+            />
+            <StatCard
+              label={t("airports")}
+              value={totalAirports}
+              icon="mapPin"
+            />
+            <StatCard
+              label={t("datasets")}
+              value={datasets}
+              icon="squares2x2"
+              accent="neutral"
+              href="/datasets"
+            />
           </div>
 
           <ul class="space-y-3">

@@ -1,5 +1,8 @@
 ---
 import AppLayout from "@/layouts/AppLayout.astro";
+import PageHeader from "@/components/PageHeader.astro";
+import RichText from "@/components/RichText.astro";
+import SectionTitle from "@/components/SectionTitle.astro";
 import AirportMap from "@/components/AirportMap.vue";
 import Procedures from "@/components/Procedures.vue";
 import { getLocale, getMessages, useTranslations } from "@/lib/i18n";
@@ -53,11 +56,87 @@ const runwayRows = runwayIdents.map((ident) => {
     thrElevM: p?.thrElevM ?? null,
   };
 });
+
+/**
+ * 机场的事实做成「标签 / 值」两行一组，而不是一串 `FIR: ZGZU`。
+ *
+ * 原来这里是两段 `text-sm text-muted` 的 `<span>`，最多十二项挤在两行里 —— 标签和
+ * 值同号同色、只靠一个冒号分开，于是这一堆字**没有任何一处可以让眼睛落下来**。要在
+ * 里面找磁差，只能从头读。分成两级（标签 `.text-eyebrow` 退到 `text-faint`，值升到
+ * `text-ink`）之后它是一张可以扫的表，而这一页的用途正是核对某一个数。
+ *
+ * **两类项目的缺失处理不一样，这是原来就有的规矩，保留：** 前五项任何来源都该给得
+ * 出，缺了要显示成「—」（一个空着的格子和一个没渲染出来的格子分不清）；后面几项只
+ * 有官方汇编有，给不了就**整项不出现** —— 一排「—」比没有更占地方。
+ */
+interface Fact {
+  label: string;
+  value: string;
+  /** 数字要等宽，否则同一列里 `1` 和 `7` 的宽度不同，值对不齐。 */
+  tnum?: boolean;
+  mono?: boolean;
+}
+
+const facts: Fact[] = !airport
+  ? []
+  : [
+      { label: t("fir"), value: airport.fir ?? "—" },
+      {
+        label: t("coords"),
+        value: `${airport.lat.toFixed(5)}, ${airport.lon.toFixed(5)}`,
+        tnum: true,
+      },
+      {
+        label: t("elev"),
+        value: airport.elev === null ? t("noElev") : `${airport.elev} ft`,
+        tnum: true,
+      },
+      {
+        label: t("variation"),
+        value: airport.variation === null ? "—" : String(airport.variation),
+        tnum: true,
+      },
+      { label: t("airac"), value: airport.airac, tnum: true },
+      ...(airport.iata
+        ? [{ label: "IATA", value: airport.iata, mono: true }]
+        : []),
+      ...(airport.transitionAltM
+        ? [
+            {
+              label: t("transAlt"),
+              value: `${airport.transitionAltM} m`,
+              tnum: true,
+            },
+          ]
+        : []),
+      ...(airport.transitionLevelM
+        ? [
+            {
+              label: t("transLevel"),
+              value: `${airport.transitionLevelM} m`,
+              tnum: true,
+            },
+          ]
+        : []),
+      ...(airport.speedLimitKt
+        ? [
+            {
+              label: t("speedLimit"),
+              value:
+                `${airport.speedLimitKt} kt` +
+                (airport.speedLimitBelowFt
+                  ? ` <${airport.speedLimitBelowFt} ft`
+                  : ""),
+              tnum: true,
+            },
+          ]
+        : []),
+    ];
 ---
 
 <AppLayout title={icao}>
-  <div class="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
-    <a href="/airports" class="link text-sm">← {t("back")}</a>
+  <div class="mx-auto w-full max-w-5xl">
+    <a href="/airports" class="link mb-4 inline-block text-sm">← {t("back")}</a>
 
     {
       !airport ? (
@@ -66,65 +145,55 @@ const runwayRows = runwayIdents.map((ident) => {
         </div>
       ) : (
         <>
-          <header class="mb-6 mt-4">
-            <h1 class="font-mono text-3xl font-bold tracking-tight text-ink">
+          <PageHeader
+            title={airport.icao}
+            description={airport.name ?? undefined}
+          >
+            <span slot="title" class="font-mono">
               {airport.icao}
-            </h1>
-            <p class="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-sm text-muted">
-              <span>
-                {t("fir")}: {airport.fir ?? "—"}
-              </span>
-              <span class="tnum">
-                {t("coords")}: {airport.lat.toFixed(5)},{" "}
-                {airport.lon.toFixed(5)}
-              </span>
-              <span class="tnum">
-                {t("elev")}:{" "}
-                {airport.elev === null ? t("noElev") : `${airport.elev} ft`}
-              </span>
-              <span class="tnum">
-                {t("variation")}: {airport.variation ?? "—"}
-              </span>
-              <span class="tnum">
-                {t("airac")}: {airport.airac}
-              </span>
-            </p>
-            {/* 汇编才有的那几项。别的来源给不了就整项不出现 —— 一排「—」比没有更占地方。 */}
-            <p class="mt-1 flex flex-wrap gap-x-6 gap-y-1 text-sm text-muted">
-              {airport.name && <span>{airport.name}</span>}
-              {airport.iata && <span class="font-mono">{airport.iata}</span>}
-              {airport.transitionAltM && (
-                <span class="tnum">
-                  {t("transAlt")}: {airport.transitionAltM} m
-                </span>
-              )}
-              {airport.transitionLevelM && (
-                <span class="tnum">
-                  {t("transLevel")}: {airport.transitionLevelM} m
-                </span>
-              )}
-              {airport.speedLimitKt && (
-                <span class="tnum">
-                  {t("speedLimit")}: {airport.speedLimitKt} kt
-                  {airport.speedLimitBelowFt
-                    ? ` <${airport.speedLimitBelowFt} ft`
-                    : ""}
-                </span>
-              )}
-              {airport.bureau && <span>{airport.bureau}</span>}
+            </span>
+            {/* 分类属性排在右边当标签 —— 它们没有「值」，和下面那张有单位有数字的
+                事实表不是一类东西。 */}
+            <Fragment slot="actions">
               {airport.isInternational && (
                 <span class="badge badge-info">{t("international")}</span>
+              )}
+              {airport.bureau && (
+                <span class="badge badge-neutral">{airport.bureau}</span>
               )}
               {airport.milOps && (
                 <span class="badge badge-neutral">{airport.milOps}</span>
               )}
-            </p>
-            {/* The magnetic/true distinction is the single most expensive thing
-                to get wrong downstream — it puts a parked aircraft skew to its
-                own stand box — so the page says it rather than assuming the
-                reader knows which one these columns are. */}
-            <p class="mt-3 max-w-2xl text-xs text-faint">{t("magneticNote")}</p>
-          </header>
+            </Fragment>
+          </PageHeader>
+
+          {/* 值**不截断**。一个被省略号切掉一半的坐标在这一页上比换行难看得多 ——
+              这是拿来核对数字的地方，宁可让「23.39250, 113.29889」在手机上折成两
+              行（逗号后面是它唯一的断点），也不能让人读到一个不完整的数。 */}
+          <dl class="card mb-6 grid grid-cols-2 gap-x-6 gap-y-4 p-4 sm:grid-cols-3 sm:p-5 lg:grid-cols-4">
+            {facts.map((f) => (
+              <div class="min-w-0">
+                <dt class="text-eyebrow text-faint">{f.label}</dt>
+                <dd
+                  class:list={[
+                    "mt-1 text-sm text-ink",
+                    f.tnum && "tnum",
+                    f.mono && "font-mono",
+                  ]}
+                >
+                  {f.value}
+                </dd>
+              </div>
+            ))}
+          </dl>
+
+          {/* The magnetic/true distinction is the single most expensive thing
+              to get wrong downstream — it puts a parked aircraft skew to its
+              own stand box — so the page says it rather than assuming the
+              reader knows which one these columns are. */}
+          <p class="mb-8 max-w-2xl text-xs text-faint">
+            <RichText text={t("magneticNote")} />
+          </p>
 
           {/* 图排在表格前面：这一页的读者多半是在核对「这个机位是不是在它该在的
               地方」，而那件事看图一眼就知道，看一张 520 行的坐标表要一行行读。 */}
@@ -140,10 +209,11 @@ const runwayRows = runwayIdents.map((ident) => {
               （长宽道面强度）来自另一份，但读的人问的是同一件事：这条跑道是什么样。
               按代号拼在一起，缺哪一半就是破折号 —— 两张并排的表要读的人自己对代号。 */}
           <section class="mb-8">
-            <h2 class="mb-2 text-sm font-semibold uppercase tracking-wider text-muted">
-              {t("runways")} ({runwayRows.length})
-            </h2>
-            <p class="mb-3 text-xs text-faint">{t("runwayNote")}</p>
+            <SectionTitle
+              title={t("runways")}
+              count={runwayRows.length}
+              note={t("runwayNote")}
+            />
             <div
               class="scroll-shadow-x overflow-x-auto"
               style="--scroll-shadow-bg: var(--surface)"
@@ -199,9 +269,10 @@ const runwayRows = runwayIdents.map((ident) => {
           </section>
 
           <section class="mb-8">
-            <h2 class="mb-2 text-sm font-semibold uppercase tracking-wider text-muted">
-              {t("stands")} ({airport.stands.length})
-            </h2>
+            <SectionTitle
+              title={t("standsTitle")}
+              count={airport.stands.length}
+            />
             {/* Capped at 60 rendered rows. ZGGG has 520 stands and a wall of
                 them helps nobody read this page; the count above is the honest
                 number and the cap says so rather than silently truncating. */}
@@ -223,9 +294,10 @@ const runwayRows = runwayIdents.map((ident) => {
           </section>
 
           <section class="mb-8">
-            <h2 class="mb-2 text-sm font-semibold uppercase tracking-wider text-muted">
-              {t("procedures")} ({airport.procedures.length})
-            </h2>
+            <SectionTitle
+              title={t("procedures")}
+              count={airport.procedures.length}
+            />
             <Procedures
               messages={procMessages}
               procedures={airport.procedures}
