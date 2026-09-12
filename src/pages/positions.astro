@@ -1,6 +1,7 @@
 ---
 import AppLayout from "@/layouts/AppLayout.astro";
 import PageHeader from "@/components/PageHeader.astro";
+import SectionTitle from "@/components/SectionTitle.astro";
 import Positions from "@/components/Positions.vue";
 import NetworkPositions from "@/components/NetworkPositions.vue";
 import { getLocale, getMessages, useTranslations } from "@/lib/i18n";
@@ -25,20 +26,45 @@ const [ours, aip] = await Promise.all([
 ]);
 const network = ours.ok ? (ours.data ?? []) : [];
 const units = aip.ok ? (aip.data ?? []) : [];
-const seats = units.reduce((n, u) => n + u.positions.length, 0);
-const callsigns = new Set(network.map((p) => p.callsign)).size;
+
+/* 两个数各归各的一半，名字带上是哪一半 —— 从前这里叫 `seats`，而页上有两种席位，
+ * 光看名字分不出它数的是哪一种。呼号数只有本网那份有意义：汇编不发布呼号。 */
+const networkSeats = network.length;
+const networkCallsigns = new Set(network.map((p) => p.callsign)).size;
+const aipSeats = units.reduce((n, u) => n + u.positions.length, 0);
 ---
 
 <AppLayout title={t("title")}>
   <div class="mx-auto w-full max-w-6xl">
+    {
+      /* 页头说的是**本网**那一份，因为它排在前面而且是这一页的主答案：一个要开席位
+        的人问的是「我能开什么、频率多少」。汇编那一份的介绍降成它自己那一节的说明。 */
+    }
     <PageHeader
       title={t("title")}
-      description={t("description", {
-        seats: String(seats),
-        units: String(units.length),
+      description={t("networkDescription", {
+        seats: String(networkSeats),
+        callsigns: String(networkCallsigns),
       })}
     />
 
-    <Positions messages={messages} units={units} client:load />
+    {
+      /* **先本网后汇编**，理由在 AGENTS.md 的〈席位页有两份席位〉：官方怎么划扇区和
+        我们实际开什么是两个问题，而塔台、地面、放行、ATIS 只有本网这一份有。汇编那
+        份放后面作参照，所以它有标题、本网这份没有 —— 页头就是它的标题。 */
+    }
+    <NetworkPositions messages={messages} positions={network} client:load />
+
+    <section class="mt-10">
+      <SectionTitle
+        title={t("aipTitle")}
+        count={aipSeats}
+        note={t("description", {
+          seats: String(aipSeats),
+          units: String(units.length),
+        })}
+      />
+      <Positions messages={messages} units={units} client:load />
+    </section>
   </div>
 </AppLayout>
