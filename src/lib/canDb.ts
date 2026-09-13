@@ -321,38 +321,15 @@ export interface AirportDetail extends Airport {
   procedures: Procedure[];
 }
 
-/** 一个管制席位的频率。`label` 是汇编给的类型：主频 / 备频 / 中低空日频…… */
-export interface PositionFrequency {
-  label: string;
-  freqMhz: number | null;
-  openTime: string | null;
-}
-
-/**
- * 一个管制席位 —— 就是一个扇区。
- *
- * 母区（区域管制区 / 进近管制区）不在这里：它们是外框，78 个里有 42 个连频率都没有。
- * 母区的高频昼夜频挂在单位上（`Unit.unitFrequencies`）。
- */
-export interface Position {
-  unit: string;
-  kind: "area" | "approach";
-  /** 席位号：'11'、'AP01(南)'、'TM01(北)1'。 */
-  sector: string;
-  name: string;
-  /** 米。上限 0 表示不封顶。 */
-  lowerM: number;
-  upperM: number;
-  frequencies: PositionFrequency[];
-  /** 这个进近席位负责的跑道方向，`ZGGG/01` 的形式。区域席位是空的。 */
-  runways: string[];
-}
-
 /**
  * **我们实际开的**一个席位，来自扇区包的 `[POSITIONS]`。
  *
- * 和 `Position`（汇编发布的管制扇区）不是一回事：那边是官方怎么划的，这边是成员登录时用
- * 的呼号和频率 —— 塔台、地面、放行、ATIS 只有这边有。
+ * 全网只有这一份了。汇编 `CONTROLLED` 切出来的那 594 个（从前的 `Unit` / `Position` /
+ * `PositionFrequency`）**已经删掉**：can-db 的 `/api/v1/aip/positions` 换成了这一份，
+ * 那三个类型再没有东西能填满它们，而一个填不满的类型会让下一个人照着它写一个永远空的页。
+ *
+ * 数据本身没删 —— `airspace` 上的 `unit`/`unit_kind`/`sector_code` 三列还在 can-db 的库
+ * 里，只是没人读。要它回来是 can-db 那边的一次决定，不是这里补一个 interface。
  */
 export interface NetworkPosition {
   callsign: string;
@@ -366,17 +343,17 @@ export interface NetworkPosition {
   facility: string;
   squawkStart: string | null;
   squawkEnd: string | null;
+  /** 归属包 —— 这个席位由哪个包定义为准。频率、标识都以它为准。 */
   package: string;
-  /** 定义了这个席位的全部包，逗号分隔。多于一个是正常的 —— 每个包都带邻区的席位。 */
-  packages: string | null;
+  /**
+   * **除归属包之外**还定义过这个席位的包，逗号分隔；**对账用，不是权威**。888 行里只有
+   * 104 行非空 —— 空是常态，意思是「只有归属包定义了它」，不是「不知道」。
+   *
+   * 从前这一列叫 `packages`，装的是**全部**包（含归属包）。换成归属包规则之后语义反了，
+   * 所以名字也换了 —— 一个照旧读 `packages` 的地方会拿到 undefined 而不是错误。
+   */
+  alsoIn: string | null;
   visibilityPoints: number;
-}
-
-export interface Unit {
-  name: string;
-  kind: "area" | "approach";
-  positions: Position[];
-  unitFrequencies: PositionFrequency[];
 }
 
 export interface Fix {

@@ -240,24 +240,10 @@
   },
   "positions": {
     "title": "管制席位",
-    "description": "彙編發布的 {seats} 個管制席位，分在 {units} 個單位裡。一個扇區就是一個席位。",
     "search": "搜尋",
-    "searchHint": "單位、席位號或機場（ZGGG）",
-    "kind": "類別",
-    "kindAll": "全部",
-    "area": "區域",
-    "approach": "進場",
-    "seats": "{n} 個席位",
-    "summary": "{units} 個單位 · 區域 {area} 席 · 進場 {approach} 席",
-    "sector": "席位",
-    "name": "名稱",
-    "band": "高度帶",
-    "frequencies": "頻率",
-    "runways": "跑道",
+    "searchHint": "呼號、呼叫名、標識或頻率",
     "none": "沒有符合的席位",
-    "scopeNote": "彙編只發布區域和進場，塔台、地面、放行不在其中 —— 那些在機場細則裡，是圖不是表。高度是公尺。",
     "networkDescription": "本網實際開放的 {seats} 個席位，{callsigns} 個登入呼號。來自扇區包，塔台、地面、放行、ATIS 都在這裡。",
-    "aipTitle": "彙編發布的管制扇區",
     "facility": "席位類型",
     "package": "扇區包",
     "all": "全部",
@@ -266,6 +252,7 @@
     "freq": "頻率",
     "squawk": "詢答機碼段",
     "nFreqs": "{n} 個頻率",
-    "nSectors": "{n} 個扇區"
+    "nSectors": "{n} 個扇區",
+    "alsoInHint": "另有幾個包也定義了這個席位（對帳用，頻率和標識以歸屬包為準）"
   }
 }

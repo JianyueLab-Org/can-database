@@ -240,24 +240,10 @@
   },
   "positions": {
     "title": "管制席",
-    "description": "公示されている管制席 {seats} 席、{units} 単位。1 セクター＝1 席です。",
     "search": "検索",
-    "searchHint": "単位・席番号・空港（ZGGG）",
-    "kind": "種別",
-    "kindAll": "すべて",
-    "area": "エリア",
-    "approach": "進入",
-    "seats": "{n} 席",
-    "summary": "{units} 単位 · エリア {area} 席 · 進入 {approach} 席",
-    "sector": "席",
-    "name": "名称",
-    "band": "高度帯",
-    "frequencies": "周波数",
-    "runways": "滑走路",
+    "searchHint": "コールサイン、無線名、識別子、周波数",
     "none": "該当する席はありません",
-    "scopeNote": "公示はエリアと進入のみ —— タワー・グランド・デリバリーは含まれません（空港細則の図であって表ではない）。高度はメートル。",
     "networkDescription": "当ネットワークが実際に開設する {seats} 席、ログインコールサイン {callsigns} 件。セクターパッケージ由来で、タワー・グランド・デリバリー・ATIS もここにあります。",
-    "aipTitle": "公示管制セクター",
     "facility": "席種別",
     "package": "パッケージ",
     "all": "すべて",
@@ -266,6 +252,7 @@
     "freq": "周波数",
     "squawk": "スコーク帯",
     "nFreqs": "周波数 {n} 件",
-    "nSectors": "{n} セクター"
+    "nSectors": "{n} セクター",
+    "alsoInHint": "他のパッケージでも定義されています（照合用。周波数と識別子は所属パッケージが正）"
   }
 }

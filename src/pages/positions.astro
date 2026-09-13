@@ -1,70 +1,53 @@
 ---
 import AppLayout from "@/layouts/AppLayout.astro";
 import PageHeader from "@/components/PageHeader.astro";
-import SectionTitle from "@/components/SectionTitle.astro";
-import Positions from "@/components/Positions.vue";
 import NetworkPositions from "@/components/NetworkPositions.vue";
 import { getLocale, getMessages, useTranslations } from "@/lib/i18n";
 import { callDb } from "@/server/canDb";
-import type { NetworkPosition, Unit } from "@/lib/canDb";
+import type { NetworkPosition } from "@/lib/canDb";
 
 /**
  * 管制席位。
  *
- * 服务端渲染：这份数据一个 AIRAC 周期不变，没有理由让浏览器再取一次。分组和「哪一行算
- * 席位」的规矩都在 can-db（见它的 `Positions()`）—— 这一页只负责显示。
+ * **这一页从前有两份席位,现在只有一份。** 汇编 `CONTROLLED` 切出来的那 594 个曾经并排
+ * 摆在下半页作参照;can-db 的 `/api/v1/aip/positions` 换成扇区包那份之后它没有数据源了。
+ * 「席位」在全网只该有一个答案 —— 一个要开席位的人问的是「我能开什么、频率多少」,而汇编
+ * 那份既没有呼号,也没有塔台、地面、放行。
+ *
+ * 服务端渲染:这份数据一个扇区包版本内不变,没有理由让浏览器再取一次。分组和「哪一行算
+ * 席位」的规矩都在 can-db —— 这一页只负责显示。
+ *
+ * **打的仍然是 `/positions/network` 而不是 `/positions`**,虽然两条答同一份。两个仓库
+ * 各自部署:can-db 那边上线之前 `/positions` 还答着汇编那份(形状是 `Unit[]`),这一页拿
+ * 到它会一行都渲染不出来。等 can-db 上线之后换成 `/positions`,那条别名就可以删。
  */
 const locale = getLocale(Astro.cookies);
 const t = useTranslations(locale, "positions");
 const messages = getMessages(locale, "positions");
 
-/* 两份席位，**先本网后汇编**：这一页的读者要开席位，问的是「我能开什么、频率多少」——
- * 那是扇区包里的那一份。汇编那份是官方怎么划扇区，是参照。 */
-const [ours, aip] = await Promise.all([
-  callDb<NetworkPosition[]>(Astro, "/api/v1/aip/positions/network"),
-  callDb<Unit[]>(Astro, "/api/v1/aip/positions"),
-]);
+const ours = await callDb<NetworkPosition[]>(
+  Astro,
+  "/api/v1/aip/positions/network",
+);
 const network = ours.ok ? (ours.data ?? []) : [];
-const units = aip.ok ? (aip.data ?? []) : [];
 
-/* 两个数各归各的一半，名字带上是哪一半 —— 从前这里叫 `seats`，而页上有两种席位，
- * 光看名字分不出它数的是哪一种。呼号数只有本网那份有意义：汇编不发布呼号。 */
-const networkSeats = network.length;
-const networkCallsigns = new Set(network.map((p) => p.callsign)).size;
-const aipSeats = units.reduce((n, u) => n + u.positions.length, 0);
+/* 两个数,名字带上它数的是什么。**呼号数和席位数不一样而且差得远** —— 一个区调呼号常带
+ * 十几个标识各管一个扇区(`RJTG_CTR` 在 RJJJ 里有 19 行),所以「888 个席位」和「多少人
+ * 能同时上线」不是一个问题。 */
+const seats = network.length;
+const callsigns = new Set(network.map((p) => p.callsign)).size;
 ---
 
 <AppLayout title={t("title")}>
   <div class="mx-auto w-full max-w-6xl">
-    {
-      /* 页头说的是**本网**那一份，因为它排在前面而且是这一页的主答案：一个要开席位
-        的人问的是「我能开什么、频率多少」。汇编那一份的介绍降成它自己那一节的说明。 */
-    }
     <PageHeader
       title={t("title")}
       description={t("networkDescription", {
-        seats: String(networkSeats),
-        callsigns: String(networkCallsigns),
+        seats: String(seats),
+        callsigns: String(callsigns),
       })}
     />
 
-    {
-      /* **先本网后汇编**，理由在 AGENTS.md 的〈席位页有两份席位〉：官方怎么划扇区和
-        我们实际开什么是两个问题，而塔台、地面、放行、ATIS 只有本网这一份有。汇编那
-        份放后面作参照，所以它有标题、本网这份没有 —— 页头就是它的标题。 */
-    }
     <NetworkPositions messages={messages} positions={network} client:load />
-
-    <section class="mt-10">
-      <SectionTitle
-        title={t("aipTitle")}
-        count={aipSeats}
-        note={t("description", {
-          seats: String(aipSeats),
-          units: String(units.length),
-        })}
-      />
-      <Positions messages={messages} units={units} client:load />
-    </section>
   </div>
 </AppLayout>
