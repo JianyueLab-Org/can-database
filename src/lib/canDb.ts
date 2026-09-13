@@ -321,38 +321,15 @@ export interface AirportDetail extends Airport {
   procedures: Procedure[];
 }
 
-/** 一个管制席位的频率。`label` 是汇编给的类型：主频 / 备频 / 中低空日频…… */
-export interface PositionFrequency {
-  label: string;
-  freqMhz: number | null;
-  openTime: string | null;
-}
-
-/**
- * 一个管制席位 —— 就是一个扇区。
- *
- * 母区（区域管制区 / 进近管制区）不在这里：它们是外框，78 个里有 42 个连频率都没有。
- * 母区的高频昼夜频挂在单位上（`Unit.unitFrequencies`）。
- */
-export interface Position {
-  unit: string;
-  kind: "area" | "approach";
-  /** 席位号：'11'、'AP01(南)'、'TM01(北)1'。 */
-  sector: string;
-  name: string;
-  /** 米。上限 0 表示不封顶。 */
-  lowerM: number;
-  upperM: number;
-  frequencies: PositionFrequency[];
-  /** 这个进近席位负责的跑道方向，`ZGGG/01` 的形式。区域席位是空的。 */
-  runways: string[];
-}
-
 /**
  * **我们实际开的**一个席位，来自扇区包的 `[POSITIONS]`。
  *
- * 和 `Position`（汇编发布的管制扇区）不是一回事：那边是官方怎么划的，这边是成员登录时用
- * 的呼号和频率 —— 塔台、地面、放行、ATIS 只有这边有。
+ * 全网只有这一份了。汇编 `CONTROLLED` 切出来的那 594 个（从前的 `Unit` / `Position` /
+ * `PositionFrequency`）**已经删掉**：can-db 的 `/api/v1/aip/positions` 换成了这一份，
+ * 那三个类型再没有东西能填满它们，而一个填不满的类型会让下一个人照着它写一个永远空的页。
+ *
+ * 数据本身没删 —— `airspace` 上的 `unit`/`unit_kind`/`sector_code` 三列还在 can-db 的库
+ * 里，只是没人读。要它回来是 can-db 那边的一次决定，不是这里补一个 interface。
  */
 export interface NetworkPosition {
   callsign: string;
@@ -366,17 +343,91 @@ export interface NetworkPosition {
   facility: string;
   squawkStart: string | null;
   squawkEnd: string | null;
+  /** 归属包 —— 这个席位由哪个包定义为准。频率、标识都以它为准。 */
   package: string;
-  /** 定义了这个席位的全部包，逗号分隔。多于一个是正常的 —— 每个包都带邻区的席位。 */
-  packages: string | null;
+  /**
+   * **除归属包之外**还定义过这个席位的包，逗号分隔；**对账用，不是权威**。888 行里只有
+   * 104 行非空 —— 空是常态，意思是「只有归属包定义了它」，不是「不知道」。
+   *
+   * 从前这一列叫 `packages`，装的是**全部**包（含归属包）。换成归属包规则之后语义反了，
+   * 所以名字也换了 —— 一个照旧读 `packages` 的地方会拿到 undefined 而不是错误。
+   */
+  alsoIn: string | null;
   visibilityPoints: number;
 }
 
-export interface Unit {
+/** top-down 链上的一环。`rank` 0 是优先级最高的那个。 */
+export interface SectorOwner {
+  rank: number;
+  identifier: string;
+  /**
+   * **可能是 null。** 那表示这个标识在它那个包里找不到对应席位（全库 46 处，6 个标识）。
+   * 行留着是因为删了 `rank` 会出现空洞，而 rank 就是 top-down 的全部意义 —— 所以画的
+   * 一方要把它显示成「这一环解析不到」，不是跳过。
+   */
+  callsign: string | null;
+}
+
+/**
+ * **我们实际划的**一个管制扇区，来自扇区包的 `[AIRSPACE]`。
+ *
+ * 和汇编那 594 个（`airspace` 上 `family='controlled'`）不是一回事：那边是官方怎么划的、
+ * 跟 NAIP 那期的 3 级门槛走；这边是我们自己划的，不设门槛。
+ *
+ * **形状有两种，不要假定是多边形。** `shape === "circle"` 时 `vertices` 是空的，圆心和
+ * 半径才是它的几何 —— 569 块里有 140 块是圆。圆**不离散化**，因为离散化会把弧拉成弦；
+ * 画的一方用 `L.circle`（半径是海里，乘 1852 换成米）。把圆当成「顶点还没导进来」，屏
+ * 幕上就会缺一块空域而没有任何报错。
+ */
+export interface NetworkSector {
+  id: number;
+  package: string;
   name: string;
-  kind: "area" | "approach";
-  positions: Position[];
-  unitFrequencies: PositionFrequency[];
+  seq: number;
+  /** **英尺。** ESE 就是英尺，字段名带着单位。 */
+  floorFt: number;
+  ceilingFt: number;
+  /** TWR / APP / CTR / GND / FSS —— 但取值域比这五个大，别照着写穷举。 */
+  facility: string;
+  shape: "polygon" | "circle";
+  centreLat: number | null;
+  centreLon: number | null;
+  radiusNm: number | null;
+  /** 拼好的闭环，`[lat, lon]`；`shape === "circle"` 时是空的。 */
+  vertices: [number, number][];
+  /** 按 rank 排好的 top-down 链。 */
+  owners: SectorOwner[];
+  depAirports: string[];
+  arrAirports: string[];
+  activeRunways: string[];
+  alsoIn: string | null;
+}
+
+/** 一个扇区在某一份在线名单下归谁。 */
+export interface SectorOwnership {
+  id: number;
+  name: string;
+  package: string;
+  owner: string | null;
+  rank: number | null;
+  /**
+   * 链上一个都不在线。**必须当成一种显式状态画出来** —— 「没人管」和「没查过」在地图上
+   * 长得一样，而它们是两件事。
+   */
+  uncovered: boolean;
+}
+
+/** 一个席位管着哪些扇区、哪些机场。 */
+export interface PositionCoverage {
+  callsign: string;
+  sectors: number[];
+  airports: string[];
+}
+
+/** top-down 解析的两个方向。 */
+export interface Resolution {
+  sectors: SectorOwnership[];
+  positions: PositionCoverage[];
 }
 
 export interface Fix {

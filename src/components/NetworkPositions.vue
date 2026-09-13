@@ -61,8 +61,9 @@ const groups = computed(() => {
 
   for (const p of props.positions) {
     if (facility.value && p.facility !== facility.value) continue;
-    if (pkg.value && !(p.packages ?? p.package).split(",").includes(pkg.value))
-      continue;
+    // **按归属包筛,不按 also_in。** 一个席位只由归属包定义为准,邻包的副本只是对账
+    // 用的;把 also_in 也算进来,选 ZSHA 会筛出一批实际归 RKRR 的席位。
+    if (pkg.value && p.package !== pkg.value) continue;
     if (
       needle &&
       !p.callsign.toUpperCase().includes(needle) &&
@@ -200,7 +201,13 @@ function freqSummary(list: NetworkPosition[]): string {
                   {{ p.squawkStart ? `${p.squawkStart}–${p.squawkEnd}` : "—" }}
                 </td>
                 <td :data-label="t('package')" class="text-xs text-faint">
-                  {{ p.packages ?? p.package }}
+                  {{ p.package }}
+                  <span
+                    v-if="p.alsoIn"
+                    :title="t('alsoInHint')"
+                    class="text-faint"
+                    >+{{ p.alsoIn.split(",").length }}</span
+                  >
                 </td>
               </tr>
             </tbody>

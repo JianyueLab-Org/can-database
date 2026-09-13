@@ -87,7 +87,7 @@
   },
   "map": {
     "title": "Map",
-    "description": "All 233 airports coloured by FIR. Overlay the airway network, and a FIR's fixes once you pick one.",
+    "description": "233 airports coloured by FIR; overlay the network's 569 sectors, the airway graph, and — once a FIR is picked — its fixes.",
     "empty": "No active dataset, so there is nothing to draw.",
     "allFirs": "All",
     "layerAirways": "Airways",
@@ -98,7 +98,20 @@
     "open": "Open airport",
     "mapLabel": "Network airport map",
     "shownCount": "{n} airports shown",
-    "standsShort": "stands"
+    "standsShort": "stands",
+    "layerSectors": "Sectors",
+    "loadingSectors": "Loading sectors…",
+    "resolving": "Resolving ownership…",
+    "sectorsCount": "{n} sectors",
+    "sectorChain": "Top-down chain (rank 0 is highest)",
+    "sectorDangling": "This identifier resolves to no position in its own package — the row is kept because deleting it would leave a hole in the ranking",
+    "onlineLabel": "Online callsigns",
+    "onlineHint": "Online callsigns, comma separated: ZBAA_CTR, ZBAA_APP",
+    "resolveRun": "Resolve",
+    "resolveClear": "Clear",
+    "resolveSummary": "{owned} covered · {uncovered} uncovered",
+    "ownedBy": "Owned by",
+    "uncovered": "Uncovered — nobody on the chain is online"
   },
   "route": {
     "title": "Route planner",
@@ -240,24 +253,10 @@
   },
   "positions": {
     "title": "ATC positions",
-    "description": "{seats} published control positions across {units} units. One sector is one position.",
     "search": "Search",
-    "searchHint": "Unit, sector or airport (ZGGG)",
-    "kind": "Kind",
-    "kindAll": "All",
-    "area": "Area",
-    "approach": "Approach",
-    "seats": "{n} positions",
-    "summary": "{units} units · {area} area · {approach} approach",
-    "sector": "Position",
-    "name": "Name",
-    "band": "Altitude band",
-    "frequencies": "Frequencies",
-    "runways": "Runways",
+    "searchHint": "Callsign, radio name, identifier or frequency",
     "none": "No matching positions",
-    "scopeNote": "The compilation publishes area and approach only — tower, ground and delivery are not in it; those live in the aerodrome section as charts, not tables. Altitudes in metres.",
     "networkDescription": "{seats} positions the network actually staffs, under {callsigns} login callsigns. From the sector packages — tower, ground, delivery and ATIS are all here.",
-    "aipTitle": "Published control sectors",
     "facility": "Facility",
     "package": "Package",
     "all": "All",
@@ -266,6 +265,7 @@
     "freq": "Frequency",
     "squawk": "Squawk range",
     "nFreqs": "{n} frequencies",
-    "nSectors": "{n} sectors"
+    "nSectors": "{n} sectors",
+    "alsoInHint": "Also defined in this many other packages (for reconciliation — the home package is authoritative)"
   }
 }
