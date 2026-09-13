@@ -87,7 +87,7 @@
   },
   "map": {
     "title": "地圖",
-    "description": "全網 233 個機場依 FIR 著色；可疊加航路網，選取某個 FIR 後可疊加它的航路點。",
+    "description": "全網 233 個機場按 FIR 著色；可疊加本網劃的 569 塊扇區、航路網，選中一個 FIR 後可疊加它的航路點。",
     "empty": "還沒有生效的資料集，圖上沒有東西可畫。",
     "allFirs": "全部",
     "layerAirways": "航路網",
@@ -98,7 +98,20 @@
     "open": "開啟機場",
     "mapLabel": "全網機場地圖",
     "shownCount": "圖上 {n} 個機場",
-    "standsShort": "機位"
+    "standsShort": "機位",
+    "layerSectors": "扇區",
+    "loadingSectors": "正在取扇區…",
+    "resolving": "正在解析歸屬…",
+    "sectorsCount": "{n} 塊扇區",
+    "sectorChain": "歸屬鏈（rank 0 最高）",
+    "sectorDangling": "這個標識在它那個包裡找不到對應席位 —— 行留著是因為刪了 rank 會出現空洞",
+    "onlineLabel": "線上呼號",
+    "onlineHint": "線上呼號，逗號分隔：ZBAA_CTR, ZBAA_APP",
+    "resolveRun": "解析歸屬",
+    "resolveClear": "清除",
+    "resolveSummary": "{owned} 塊有人管 · {uncovered} 塊沒人管",
+    "ownedBy": "歸",
+    "uncovered": "沒人管（鏈上一個都不在線）"
   },
   "route": {
     "title": "航路產生器",

@@ -27,7 +27,14 @@ import {
 import L from "leaflet";
 import { createTranslator } from "@/lib/i18n";
 import { api } from "@/lib/canDb";
-import type { AirportSummary, AirwayGraph, Fix } from "@/lib/canDb";
+import type {
+  AirportSummary,
+  AirwayGraph,
+  Fix,
+  NetworkSector,
+  Resolution,
+  SectorOwnership,
+} from "@/lib/canDb";
 import {
   TILES,
   TILE_ATTRIBUTION,
@@ -38,6 +45,9 @@ import {
   watchTheme,
 } from "@/lib/mapBase";
 import { nameMarker, viaMarker } from "@/lib/mapMarkers";
+// 三条会静默出错的规则住在 lib 里，配了测试：三种状态各一种画法（「没解析过」和「没人
+// 管」必须分开）、大的先画小的后画（否则点塔台弹出区调）、圆按半径量。
+import { NM_TO_M, drawOrder, sectorPaint, sectorState } from "@/lib/sectorMap";
 
 const props = defineProps<{
   messages: Record<string, unknown>;
@@ -55,6 +65,7 @@ const tiles = shallowRef<L.TileLayer | null>(null);
 const airportLayer = shallowRef<L.LayerGroup | null>(null);
 const airwayLayer = shallowRef<L.LayerGroup | null>(null);
 const fixLayer = shallowRef<L.LayerGroup | null>(null);
+const sectorLayer = shallowRef<L.LayerGroup | null>(null);
 /** 名字单独一层：它按视野重建，而点和线不用。 */
 const labelLayer = shallowRef<L.LayerGroup | null>(null);
 
@@ -62,12 +73,30 @@ const labelLayer = shallowRef<L.LayerGroup | null>(null);
 const activeFir = ref<string | null>(props.initialFir ?? null);
 const showAirways = ref(false);
 const showFixes = ref(false);
+const showSectors = ref(false);
+/** 在线呼号输入框的原文。解析是**手动触发**的 —— 见 runResolve。 */
+const onlineText = ref("");
 const loading = ref<string | null>(null);
 const failed = ref<string | null>(null);
 
 /** 取过就留着，切 FIR 不该重下一次路网。 */
 let airwayCache: AirwayGraph | null = null;
 const fixCache = new Map<string, Fix[]>();
+/** 按包缓存。键是包名，全网那份用 `*` —— 空串会和「没选」混淆。 */
+const sectorCache = new Map<string, NetworkSector[]>();
+
+/* ---------------------------------------------------------------------- *
+ * top-down 归属
+ *
+ * **规则不在这里。** 「沿链找第一个在线的」写在 can-db 的 `ResolveTopDown` 里，这一页
+ * 只是把它的答案上色 —— 控制台要列、排班要用、在线图要画，三处各实现一遍迟早不一致。
+ *
+ * `ownership` 为空表示**没解析过**，和「解析过但没人管」是两件事：前者画包色，后者画
+ * 成红色虚线。这两种在地图上长得一样正是 can-db 显式返回 `uncovered` 的理由，所以这
+ * 里不能把它们合成一个「没有颜色」。
+ * ---------------------------------------------------------------------- */
+const ownership = shallowRef<Map<number, SectorOwnership> | null>(null);
+const resolveNote = ref<string | null>(null);
 
 const shownAirports = computed(() =>
   activeFir.value
@@ -201,6 +230,155 @@ async function drawFixes() {
 }
 
 /* ---------------------------------------------------------------------- *
+ * 扇区图层
+ *
+ * 画的是**我们实际划的**那 569 块（`network_sector`，扇区包的 `[AIRSPACE]`），不是汇编
+ * 发布的 594 个管制扇区。几何是 can-db 在导入时拼好的：共享边按端点接成闭环，容差 11cm
+ * 是量出来的下界。这里一条几何都不算 —— 算了就等于把「规则在导入时定」又搬回查询时。
+ * ---------------------------------------------------------------------- */
+
+function sectorPopup(sc: NetworkSector): string {
+  const band = `${sc.floorFt}–${sc.ceilingFt} ft`;
+  const own = ownership.value?.get(sc.id);
+
+  // **走和上色同一个判据。** 两处各判一遍，就会出现「画成没人管、弹窗里什么都不说」
+  // 这种不一致（`uncovered=false` 而 `owner` 为 null 时正是如此）。
+  let verdict = "";
+  switch (sectorState(own)) {
+    case "uncovered":
+      verdict = `<div class="mt-1 text-xs" style="color:#e05252">${escapeHtml(String(t("uncovered")))}</div>`;
+      break;
+    case "owned":
+      verdict =
+        `<div class="mt-1 text-xs">${escapeHtml(String(t("ownedBy")))} ` +
+        `<span class="font-mono font-semibold">${escapeHtml(own!.owner!)}</span>` +
+        `<span class="opacity-60"> · rank ${own!.rank}</span></div>`;
+      break;
+    default:
+      break;
+  }
+
+  // **悬空的一环画成「解析不到」，不跳过。** callsign 为 null 表示这个标识在它那个包里
+  // 找不到席位（全库 46 处）；跳过它会让 rank 出现空洞，而 rank 就是 top-down 的意义。
+  const chain = sc.owners.length
+    ? `<div class="mt-2 text-xs opacity-70">${escapeHtml(String(t("sectorChain")))}</div>` +
+      `<ol class="mt-0.5 text-xs">` +
+      sc.owners
+        .map(
+          (o) =>
+            `<li><span class="opacity-50">${o.rank}</span> ` +
+            (o.callsign
+              ? `<span class="font-mono">${escapeHtml(o.callsign)}</span>`
+              : `<span class="font-mono opacity-50" title="${escapeHtml(String(t("sectorDangling")))}">${escapeHtml(o.identifier)} ?</span>`) +
+            `</li>`,
+        )
+        .join("") +
+      `</ol>`
+    : "";
+
+  return (
+    `<div class="font-mono text-sm font-semibold">${escapeHtml(sc.name)}</div>` +
+    `<div class="mt-1 text-xs opacity-70">${escapeHtml(sc.facility)} · ${escapeHtml(sc.package)} · ${band}</div>` +
+    verdict +
+    chain
+  );
+}
+
+const shownSectors = shallowRef<NetworkSector[]>([]);
+
+async function drawSectors() {
+  const layer = sectorLayer.value;
+  if (!layer) return;
+  layer.clearLayers();
+  shownSectors.value = [];
+  if (!showSectors.value) return;
+
+  // **按包取，不是取全部再在浏览器里筛。** 包名就是 FIR 代号（ZBPE、RJJJ…），所以
+  // FIR 筛选条直接就是它的筛子；选了 FIR 只下那一个包，省掉 569 块里用不上的那些。
+  const key = activeFir.value ?? "*";
+  let list = sectorCache.get(key);
+  if (!list) {
+    loading.value = String(t("loadingSectors"));
+    const path =
+      key === "*"
+        ? "/api/v1/aip/sectors/network"
+        : `/api/v1/aip/sectors/network?package=${encodeURIComponent(key)}`;
+    const result = await api<NetworkSector[]>(path);
+    loading.value = null;
+    if (!result.ok) {
+      failed.value = result.message;
+      showSectors.value = false;
+      return;
+    }
+    list = result.data ?? [];
+    sectorCache.set(key, list);
+  }
+  shownSectors.value = list;
+
+  for (const sc of drawOrder(list)) {
+    const style = sectorPaint(
+      ownership.value?.get(sc.id),
+      firColor(sc.package),
+    );
+    const shape =
+      sc.shape === "circle"
+        ? sc.centreLat !== null && sc.centreLon !== null && sc.radiusNm !== null
+          ? L.circle([sc.centreLat, sc.centreLon], {
+              ...style,
+              radius: sc.radiusNm * NM_TO_M,
+            })
+          : null
+        : sc.vertices.length
+          ? L.polygon(sc.vertices as L.LatLngExpression[], style)
+          : null;
+    // 几何缺失不画，也不假装。can-db 那边 569 块是 0 失败，所以这里为 null 就是接口
+    // 变了或者数据坏了，不是常态。
+    if (!shape) continue;
+    shape.bindPopup(sectorPopup(sc)).addTo(layer);
+  }
+}
+
+/**
+ * 跑一次 top-down 解析。
+ *
+ * **是按钮不是 watch。** 每敲一个字符打一次接口，中间态（`ZBAA_CT`）是一个不存在的呼
+ * 号，图会在打字过程中闪成一片「没人管」—— 而「没人管」是这张图上最需要可信的那个状态。
+ */
+async function runResolve() {
+  const online = onlineText.value
+    .split(/[,\s]+/)
+    .map((x) => x.trim().toUpperCase())
+    .filter(Boolean);
+
+  loading.value = String(t("resolving"));
+  const result = await api<Resolution>(
+    `/api/v1/aip/sectors/network/resolve?online=${encodeURIComponent(online.join(","))}`,
+  );
+  loading.value = null;
+  if (!result.ok) {
+    failed.value = result.message;
+    return;
+  }
+  const list = result.data?.sectors ?? [];
+  ownership.value = new Map(list.map((o) => [o.id, o]));
+  const uncovered = list.filter((o) => o.uncovered).length;
+  resolveNote.value = String(
+    t("resolveSummary", {
+      owned: String(list.length - uncovered),
+      uncovered: String(uncovered),
+    }),
+  );
+  void drawSectors();
+}
+
+function clearResolve() {
+  ownership.value = null;
+  resolveNote.value = null;
+  onlineText.value = "";
+  void drawSectors();
+}
+
+/* ---------------------------------------------------------------------- *
  * 名字：视野内、够放大、有上限
  *
  * can-radar 的读法是「名字建在 marker 里，用缩放开关一个 class」—— 那是给**一条航
@@ -307,6 +485,8 @@ onMounted(() => {
   map.value = m;
   applyTiles(currentTheme());
 
+  // **扇区最先加，所以画在最下面。** 它是成片的填充，压在航路和航路点上面会把它们盖掉。
+  sectorLayer.value = L.layerGroup().addTo(m);
   airwayLayer.value = L.layerGroup().addTo(m);
   fixLayer.value = L.layerGroup().addTo(m);
   // 名字在点和线之上、机场之下。
@@ -336,9 +516,12 @@ watch(activeFir, () => {
   drawAirports();
   fitToShown();
   void drawFixes();
+  // 扇区按包取，所以换 FIR 要重取（缓存按包分开，来回切不会重下）。
+  void drawSectors();
 });
 watch(showAirways, () => void drawAirways());
 watch(showFixes, () => void drawFixes());
+watch(showSectors, () => void drawSectors());
 
 function pickFir(fir: string | null) {
   activeFir.value = activeFir.value === fir ? null : fir;
@@ -406,8 +589,45 @@ function pickFir(fir: string | null) {
         />
         {{ t("layerFixes") }}
       </label>
+      <label class="flex items-center gap-2">
+        <input v-model="showSectors" type="checkbox" class="accent-can" />
+        {{ t("layerSectors") }}
+      </label>
       <span v-if="loading" class="text-faint">{{ loading }}</span>
       <span v-if="failed" class="text-danger">{{ failed }}</span>
+    </div>
+
+    <!-- top-down 归属。**只在扇区图层开着时出现** —— 一个解析出来没地方画的输入框，
+         按下去看起来像没反应。 -->
+    <div
+      v-if="showSectors"
+      class="flex flex-wrap items-center gap-2 text-xs text-muted"
+    >
+      <label class="sr-only" for="online">{{ t("onlineLabel") }}</label>
+      <input
+        id="online"
+        v-model="onlineText"
+        type="text"
+        class="min-w-64 flex-1 rounded-lg border border-line bg-transparent px-2.5 py-1 font-mono text-xs"
+        :placeholder="String(t('onlineHint'))"
+        @keyup.enter="runResolve"
+      />
+      <button
+        type="button"
+        class="rounded-lg border border-can px-2.5 py-1 text-xs text-ink transition hover:bg-can/10"
+        @click="runResolve"
+      >
+        {{ t("resolveRun") }}
+      </button>
+      <button
+        v-if="ownership"
+        type="button"
+        class="rounded-lg border border-line px-2.5 py-1 text-xs transition hover:border-can/40"
+        @click="clearResolve"
+      >
+        {{ t("resolveClear") }}
+      </button>
+      <span v-if="resolveNote" class="text-faint">{{ resolveNote }}</span>
     </div>
 
     <div
@@ -418,7 +638,10 @@ function pickFir(fir: string | null) {
     />
 
     <p class="text-xs text-faint">
-      {{ t("shownCount", { n: String(shownAirports.length) }) }}
+      {{ t("shownCount", { n: String(shownAirports.length) })
+      }}<template v-if="showSectors">
+        · {{ t("sectorsCount", { n: String(shownSectors.length) }) }}</template
+      >
     </p>
   </div>
 </template>

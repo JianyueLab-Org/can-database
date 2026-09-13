@@ -87,7 +87,7 @@
   },
   "map": {
     "title": "Map",
-    "description": "All 233 airports coloured by FIR. Overlay the airway network, and a FIR's fixes once you pick one.",
+    "description": "233 airports coloured by FIR; overlay the network's 569 sectors, the airway graph, and — once a FIR is picked — its fixes.",
     "empty": "No active dataset, so there is nothing to draw.",
     "allFirs": "All",
     "layerAirways": "Airways",
@@ -98,7 +98,20 @@
     "open": "Open airport",
     "mapLabel": "Network airport map",
     "shownCount": "{n} airports shown",
-    "standsShort": "stands"
+    "standsShort": "stands",
+    "layerSectors": "Sectors",
+    "loadingSectors": "Loading sectors…",
+    "resolving": "Resolving ownership…",
+    "sectorsCount": "{n} sectors",
+    "sectorChain": "Top-down chain (rank 0 is highest)",
+    "sectorDangling": "This identifier resolves to no position in its own package — the row is kept because deleting it would leave a hole in the ranking",
+    "onlineLabel": "Online callsigns",
+    "onlineHint": "Online callsigns, comma separated: ZBAA_CTR, ZBAA_APP",
+    "resolveRun": "Resolve",
+    "resolveClear": "Clear",
+    "resolveSummary": "{owned} covered · {uncovered} uncovered",
+    "ownedBy": "Owned by",
+    "uncovered": "Uncovered — nobody on the chain is online"
   },
   "route": {
     "title": "Route planner",

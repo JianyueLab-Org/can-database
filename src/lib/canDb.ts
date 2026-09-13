@@ -356,6 +356,80 @@ export interface NetworkPosition {
   visibilityPoints: number;
 }
 
+/** top-down 链上的一环。`rank` 0 是优先级最高的那个。 */
+export interface SectorOwner {
+  rank: number;
+  identifier: string;
+  /**
+   * **可能是 null。** 那表示这个标识在它那个包里找不到对应席位（全库 46 处，6 个标识）。
+   * 行留着是因为删了 `rank` 会出现空洞，而 rank 就是 top-down 的全部意义 —— 所以画的
+   * 一方要把它显示成「这一环解析不到」，不是跳过。
+   */
+  callsign: string | null;
+}
+
+/**
+ * **我们实际划的**一个管制扇区，来自扇区包的 `[AIRSPACE]`。
+ *
+ * 和汇编那 594 个（`airspace` 上 `family='controlled'`）不是一回事：那边是官方怎么划的、
+ * 跟 NAIP 那期的 3 级门槛走；这边是我们自己划的，不设门槛。
+ *
+ * **形状有两种，不要假定是多边形。** `shape === "circle"` 时 `vertices` 是空的，圆心和
+ * 半径才是它的几何 —— 569 块里有 140 块是圆。圆**不离散化**，因为离散化会把弧拉成弦；
+ * 画的一方用 `L.circle`（半径是海里，乘 1852 换成米）。把圆当成「顶点还没导进来」，屏
+ * 幕上就会缺一块空域而没有任何报错。
+ */
+export interface NetworkSector {
+  id: number;
+  package: string;
+  name: string;
+  seq: number;
+  /** **英尺。** ESE 就是英尺，字段名带着单位。 */
+  floorFt: number;
+  ceilingFt: number;
+  /** TWR / APP / CTR / GND / FSS —— 但取值域比这五个大，别照着写穷举。 */
+  facility: string;
+  shape: "polygon" | "circle";
+  centreLat: number | null;
+  centreLon: number | null;
+  radiusNm: number | null;
+  /** 拼好的闭环，`[lat, lon]`；`shape === "circle"` 时是空的。 */
+  vertices: [number, number][];
+  /** 按 rank 排好的 top-down 链。 */
+  owners: SectorOwner[];
+  depAirports: string[];
+  arrAirports: string[];
+  activeRunways: string[];
+  alsoIn: string | null;
+}
+
+/** 一个扇区在某一份在线名单下归谁。 */
+export interface SectorOwnership {
+  id: number;
+  name: string;
+  package: string;
+  owner: string | null;
+  rank: number | null;
+  /**
+   * 链上一个都不在线。**必须当成一种显式状态画出来** —— 「没人管」和「没查过」在地图上
+   * 长得一样，而它们是两件事。
+   */
+  uncovered: boolean;
+}
+
+/** 一个席位管着哪些扇区、哪些机场。 */
+export interface PositionCoverage {
+  callsign: string;
+  sectors: number[];
+  airports: string[];
+}
+
+/** top-down 解析的两个方向。 */
+export interface Resolution {
+  sectors: SectorOwnership[];
+  positions: PositionCoverage[];
+}
+
 export interface Fix {
   ident: string;
   lat: number;

@@ -87,7 +87,7 @@
   },
   "map": {
     "title": "地图",
-    "description": "全网 233 个机场按 FIR 着色；可叠加航路网，选中一个 FIR 后可叠加它的航路点。",
+    "description": "全网 233 个机场按 FIR 着色；可叠加本网划的 569 块扇区、航路网，选中一个 FIR 后可叠加它的航路点。",
     "empty": "还没有生效的数据集，图上没有东西可画。",
     "allFirs": "全部",
     "layerAirways": "航路网",
@@ -98,7 +98,20 @@
     "open": "打开机场",
     "mapLabel": "全网机场地图",
     "shownCount": "图上 {n} 个机场",
-    "standsShort": "机位"
+    "standsShort": "机位",
+    "layerSectors": "扇区",
+    "loadingSectors": "正在取扇区…",
+    "resolving": "正在解析归属…",
+    "sectorsCount": "{n} 块扇区",
+    "sectorChain": "归属链（rank 0 最高）",
+    "sectorDangling": "这个标识在它那个包里找不到对应席位 —— 行留着是因为删了 rank 会出现空洞",
+    "onlineLabel": "在线呼号",
+    "onlineHint": "在线呼号，逗号分隔：ZBAA_CTR, ZBAA_APP",
+    "resolveRun": "解析归属",
+    "resolveClear": "清除",
+    "resolveSummary": "{owned} 块有人管 · {uncovered} 块没人管",
+    "ownedBy": "归",
+    "uncovered": "没人管（链上一个都不在线）"
   },
   "route": {
     "title": "航路生成器",
