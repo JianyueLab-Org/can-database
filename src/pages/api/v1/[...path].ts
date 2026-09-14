@@ -51,8 +51,15 @@ interface Allowed {
   who: string;
 }
 
-/** 精确匹配的路径。 */
-const ALLOW_LIST: Record<string, Allowed> = {
+/**
+ * 精确匹配的路径。
+ *
+ * **导出是为了给测试用**（`src/lib/allowList.test.ts`）：它扫岛屿里每一处
+ * `api("/api/v1/…")`，逐条对着这张表查。漏一条的症状很误导 —— 反代回 404，而岛屿把
+ * 404 当成「这一层没有数据」，于是屏幕上是一片空白而不是一个错误。扇区图层就是这么
+ * 上线之后才发现的。
+ */
+export const ALLOW_LIST: Record<string, Allowed> = {
   "aip/datasets": { methods: ["GET"], who: "Datasets.vue —— 周期与来源总览" },
   "aip/airports": { methods: ["GET"], who: "Airports.vue —— 机场清单" },
   "aip/fixes": {
@@ -67,6 +74,14 @@ const ALLOW_LIST: Record<string, Allowed> = {
     methods: ["GET"],
     who: "NetworkMap.vue —— 航路网图层（点开才取，取一次留着）",
   },
+  "aip/sectors/network": {
+    methods: ["GET"],
+    who: "NetworkMap.vue —— 扇区图层（按 ?package= 取，缓存按包分开）",
+  },
+  "aip/sectors/network/resolve": {
+    methods: ["GET"],
+    who: "NetworkMap.vue —— top-down 归属（?online= 一串在线呼号，按钮触发）",
+  },
 };
 
 /**
@@ -75,7 +90,7 @@ const ALLOW_LIST: Record<string, Allowed> = {
  * 正则是**收紧的**而不是 `.*`：四位字母数字，仅此而已。一个 `[^/]+` 就足以让
  * `aip/airports/../../datasets` 这类东西有讨论余地，而这里不给它机会。
  */
-const ALLOW_PATTERNS: Array<Allowed & { test: RegExp }> = [
+export const ALLOW_PATTERNS: Array<Allowed & { test: RegExp }> = [
   {
     test: /^aip\/airports\/[A-Za-z0-9]{4}$/,
     methods: ["GET"],
@@ -91,7 +106,7 @@ const ALLOW_PATTERNS: Array<Allowed & { test: RegExp }> = [
   },
 ];
 
-function lookup(path: string): Allowed | undefined {
+export function lookup(path: string): Allowed | undefined {
   return (
     ALLOW_LIST[path] ?? ALLOW_PATTERNS.find((entry) => entry.test.test(path))
   );
@@ -107,9 +122,21 @@ function lookup(path: string): Allowed | undefined {
  * 见。两个上游混在一张表里，靠一个 `upstream: "api"` 字段区分，是那种加第三条时
  * 会填错的形状 —— 而填错的后果是把一个带着会话 cookie 的请求送到错误的服务上。
  */
-const AUTH_PATHS: Record<string, Allowed> = {
+export const AUTH_PATHS: Record<string, Allowed> = {
   "auth/signout": { methods: ["POST"], who: "AppShell 退出登录" },
 };
+
+/**
+ * 一条路径到底放不放行 —— **handler 和测试用同一个函数**。
+ *
+ * 两张表（can-api 那条签退，和 can-db 那一堆）在这里合流，顺序和 handler 里从前那行
+ * `AUTH_PATHS[rest] ?? lookup(rest)` 一字不差。收成一个函数是为了让
+ * `src/lib/allowList.test.ts` 问的是**真的那个判断**：测试里重写一遍解析顺序，第三张
+ * 表加进来的那天它会安静地继续绿。
+ */
+export function allowed(path: string): Allowed | undefined {
+  return AUTH_PATHS[path] ?? lookup(path);
+}
 
 const UNSAFE = new Set(["POST", "PATCH", "PUT", "DELETE"]);
 
@@ -124,7 +151,7 @@ const PASS_THROUGH = ["content-type", "cache-control", "set-cookie"];
 const handler: APIRoute = async (context) => {
   const rest = context.params.path ?? "";
   const authEntry = AUTH_PATHS[rest];
-  const entry = authEntry ?? lookup(rest);
+  const entry = allowed(rest);
 
   if (!entry) {
     return Response.json(
