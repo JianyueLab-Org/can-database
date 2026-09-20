@@ -29,6 +29,8 @@ const props = defineProps<{
 
 const t = createTranslator(props.messages);
 const open = ref(false);
+// TABLES[props.resource] is an internal contract between pages and this
+// component; a resource with no entry must not throw on spec.value.columns.
 const spec = computed(() => TABLES[props.resource]);
 
 const columns = computed<Column<unknown>[]>(() =>
@@ -68,7 +70,7 @@ function run(format: string) {
 </script>
 
 <template>
-  <div class="relative inline-block">
+  <div v-if="spec" class="relative inline-block">
     <button
       type="button"
       class="badge badge-neutral cursor-pointer"
