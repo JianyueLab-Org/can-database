@@ -20,11 +20,14 @@
 import { computed, ref, watch } from "vue";
 import { createTranslator } from "@/lib/i18n";
 import { firColor } from "@/lib/mapBase";
-import { api, type Fix } from "@/lib/canDb";
+import { api, type Fix, type Licence } from "@/lib/canDb";
+import ExportButton from "@/components/ExportButton.vue";
 
 const props = defineProps<{
   messages: Record<string, unknown>;
   firs: string[];
+  licence: Licence | null;
+  exportMessages: Record<string, unknown>;
 }>();
 const t = createTranslator(props.messages);
 
@@ -102,6 +105,18 @@ const hidden = computed(() =>
       >
         {{ t("onMap") }} →
       </a>
+
+      <div class="ml-auto pb-0.5">
+        <!-- 导出跟随筛选之后、渲染上限（RENDER_CAP）之前的那份，也就是 matched
+             本身，不是 shown。 -->
+        <ExportButton
+          resource="fixes"
+          :scope="fir || null"
+          :rows="matched"
+          :licence="licence"
+          :messages="exportMessages"
+        />
+      </div>
     </div>
 
     <p v-if="loading" class="text-muted">…</p>

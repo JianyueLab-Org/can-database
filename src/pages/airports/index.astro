@@ -10,6 +10,16 @@ const locale = getLocale(Astro.cookies);
 const t = useTranslations(locale, "airports");
 const messages = getMessages(locale, "airports");
 
+/**
+ * 导出用的字典，只带 `airports` 列真正用到的命名空间：机场清单那几列大多在
+ * `airports` 里，`datasets.airac` 是例外——按命名空间嵌套，不往顶层 spread。
+ */
+const exportDict = {
+  airports: messages,
+  datasets: getMessages(locale, "datasets"),
+  export: getMessages(locale, "export"),
+};
+
 const result = await callDb<AirportSummary[]>(Astro, "/api/v1/aip/airports");
 const airports = result.ok ? (result.data ?? []) : [];
 ---
@@ -21,6 +31,12 @@ const airports = result.ok ? (result.data ?? []) : [];
       description={t("description", { count: airports.length })}
     />
 
-    <Airports messages={messages} airports={airports} client:load />
+    <Airports
+      messages={messages}
+      airports={airports}
+      licence={result.licence}
+      exportMessages={exportDict}
+      client:load
+    />
   </div>
 </AppLayout>

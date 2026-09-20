@@ -57,7 +57,7 @@
     "empty": "没有匹配的机场。",
     "icao": "ICAO",
     "fir": "FIR",
-    "elev": "场压",
+    "elev": "Elevation",
     "variation": "磁差",
     "airac": "周期",
     "coords": "坐标",
@@ -83,7 +83,12 @@
     "transAlt": "Transition alt",
     "transLevel": "Transition level",
     "speedLimit": "Speed limit",
-    "international": "International"
+    "international": "International",
+    "name": "Name",
+    "lat": "Latitude",
+    "lon": "Longitude",
+    "standName": "Stand",
+    "span": "Span"
   },
   "map": {
     "title": "Map",
@@ -183,7 +188,10 @@
       "aerodrome": "Aerodrome"
     },
     "taxiwayList": "Taxiway designators ({n})",
-    "refFromChart": "designator read off the chart"
+    "refFromChart": "designator read off the chart",
+    "runway": "Runway",
+    "opposite": "Opposite",
+    "hdg": "Heading"
   },
   "fixes": {
     "title": "航路点",
@@ -191,7 +199,7 @@
     "pick": "选一个 FIR",
     "count": "{count} 个航路点",
     "empty": "这个 FIR 没有航路点。",
-    "ident": "代号",
+    "ident": "Ident",
     "coords": "坐标",
     "search": "Search identifier…",
     "onMap": "See this FIR on the map",
@@ -202,12 +210,12 @@
   "datasets": {
     "title": "数据集",
     "description": "每一次导入都是一个数据集：一个来源、一个 AIRAC 周期，带着它自己的许可状态。",
-    "airac": "周期",
-    "state": "状态",
-    "airports": "机场",
-    "redistributable": "可再分发",
+    "airac": "AIRAC",
+    "state": "State",
+    "airports": "Airports",
+    "redistributable": "Redistributable",
     "created": "导入于",
-    "activated": "生效于",
+    "activated": "Activated",
     "empty": "还没有任何数据集。",
     "yes": "是",
     "no": "否",
@@ -249,7 +257,10 @@
     "alt": "Altitude",
     "speed": "Speed",
     "via": "Segment",
-    "altNote": "Altitude constraints are the published ARINC 424 encoding (e.g. 05910B03940A), left undecoded — decoding one wrong is worse than not decoding it. FO = flyover, MAP = missed approach point."
+    "altNote": "Altitude constraints are the published ARINC 424 encoding (e.g. 05910B03940A), left undecoded — decoding one wrong is worse than not decoding it. FO = flyover, MAP = missed approach point.",
+    "name": "Name",
+    "runways": "Runways",
+    "points": "Waypoints"
   },
   "positions": {
     "title": "ATC positions",
@@ -266,6 +277,13 @@
     "squawk": "Squawk range",
     "nFreqs": "{n} frequencies",
     "nSectors": "{n} sectors",
-    "alsoInHint": "Also defined in this many other packages (for reconciliation — the home package is authoritative)"
+    "alsoInHint": "Also defined in this many other packages (for reconciliation — the home package is authoritative)",
+    "callsign": "Callsign"
+  },
+  "export": {
+    "button": "Export",
+    "csv": "CSV",
+    "json": "JSON",
+    "geojson": "GeoJSON"
   }
 }

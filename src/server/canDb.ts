@@ -1,5 +1,6 @@
 import type { APIContext } from "astro";
 import { CAN_DB_ORIGIN } from "@/lib/config";
+import type { Licence } from "@/lib/canDb";
 
 /**
  * 服务端调用 can-db。
@@ -20,6 +21,8 @@ export interface ServerResult<T> {
   ok: boolean;
   status: number;
   data: T | null;
+  /** can-db 给的许可说明；老版本 can-db 没有这个字段，那就是 null。 */
+  licence: Licence | null;
   error?: string;
   message?: string;
 }
@@ -40,7 +43,13 @@ export async function callDb<T = unknown>(
     });
   } catch (error) {
     console.error(`can-db ${path} unreachable:`, error);
-    return { ok: false, status: 0, data: null, error: "unreachable" };
+    return {
+      ok: false,
+      status: 0,
+      data: null,
+      licence: null,
+      error: "unreachable",
+    };
   }
 
   const body = (await response.json().catch(() => ({}))) as Record<
@@ -53,15 +62,18 @@ export async function callDb<T = unknown>(
       ok: false,
       status: response.status,
       data: null,
+      licence: null,
       error: String(body.error ?? "http_error"),
       message: typeof body.message === "string" ? body.message : undefined,
     };
   }
 
   const data = "data" in body ? body.data : body;
+  const licence = (body.licence as Licence | undefined) ?? null;
   return {
     ok: true,
     status: response.status,
     data: (data ?? null) as T | null,
+    licence,
   };
 }

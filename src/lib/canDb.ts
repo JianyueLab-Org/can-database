@@ -12,13 +12,33 @@
  * 省得下一个人去猜哪个站用哪种。
  */
 
+/**
+ * 这批数据能拿它做什么。
+ *
+ * can-db 算的，不是这一页算的 —— 它描述的是**调用方能看见的那批活跃数据集**。
+ * 导出文件的抬头就印它。
+ *
+ * **`notice` 在可以再分发的时候是空字符串。** 不要在那种情况下自己补一句「本文件
+ * 可自由使用」：一份导出文件绝不该带一句鼓励人把它传出去的话。
+ *
+ * 字段名和 Go 那边 `aip.Licence` 的 json 标签逐字对应 —— 改一边要改两边。
+ */
+export interface Licence {
+  redistributable: boolean;
+  restricted: boolean;
+  airac: string[];
+  notice: string;
+  attributions: string[];
+}
+
 export interface ApiFailure {
   ok: false;
   status: number;
   error: string;
   message: string;
 }
-export type ApiResult<T> = { ok: true; data: T } | ApiFailure;
+export type ApiResult<T> =
+  { ok: true; data: T; licence: Licence | null } | ApiFailure;
 
 /**
  * 调 can-db。
@@ -64,7 +84,8 @@ export async function api<T = unknown>(
   }
 
   const data = "data" in body ? body.data : body;
-  return { ok: true, data: data as T };
+  const licence = (body.licence as Licence | undefined) ?? null;
+  return { ok: true, data: data as T, licence };
 }
 
 /* ---------------------------------------------------------------------------

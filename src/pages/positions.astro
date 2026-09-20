@@ -25,6 +25,18 @@ const locale = getLocale(Astro.cookies);
 const t = useTranslations(locale, "positions");
 const messages = getMessages(locale, "positions");
 
+/**
+ * 导出用的字典 —— `positions` 一张表列名全在自己的命名空间里，不用借别处的键。
+ *
+ * **这一份预期没有许可抬头。** `/positions/network` 刻意回 `licence: null`
+ * （席位不挂 dataset，见 can-db 的说明），所以这里导出的 CSV 不该出现任何
+ * `#` 开头的行。
+ */
+const exportDict = {
+  positions: messages,
+  export: getMessages(locale, "export"),
+};
+
 const ours = await callDb<NetworkPosition[]>(
   Astro,
   "/api/v1/aip/positions/network",
@@ -48,6 +60,12 @@ const callsigns = new Set(network.map((p) => p.callsign)).size;
       })}
     />
 
-    <NetworkPositions messages={messages} positions={network} client:load />
+    <NetworkPositions
+      messages={messages}
+      positions={network}
+      licence={ours.licence}
+      exportMessages={exportDict}
+      client:load
+    />
   </div>
 </AppLayout>

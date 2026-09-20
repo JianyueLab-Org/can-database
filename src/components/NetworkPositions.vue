@@ -13,11 +13,14 @@
  */
 import { computed, ref } from "vue";
 import { createTranslator } from "@/lib/i18n";
-import type { NetworkPosition } from "@/lib/canDb";
+import type { Licence, NetworkPosition } from "@/lib/canDb";
+import ExportButton from "@/components/ExportButton.vue";
 
 const props = defineProps<{
   messages: Record<string, unknown>;
   positions: NetworkPosition[];
+  licence: Licence | null;
+  exportMessages: Record<string, unknown>;
 }>();
 const t = createTranslator(props.messages);
 
@@ -54,16 +57,17 @@ const packages = computed(() =>
   [...new Set(props.positions.map((p) => p.package))].sort(),
 );
 
-/** 按呼号分组：一个呼号一行，下面挂它的标识。 */
-const groups = computed(() => {
+/**
+ * 筛选之后、按呼号分组**之前**的平铺数组 —— 导出用这一份，不是 `groups`。
+ * 分组是渲染，导出要平的。
+ */
+const filtered = computed(() => {
   const needle = query.value.trim().toUpperCase();
-  const byCallsign = new Map<string, NetworkPosition[]>();
-
-  for (const p of props.positions) {
-    if (facility.value && p.facility !== facility.value) continue;
+  return props.positions.filter((p) => {
+    if (facility.value && p.facility !== facility.value) return false;
     // **按归属包筛,不按 also_in。** 一个席位只由归属包定义为准,邻包的副本只是对账
     // 用的;把 also_in 也算进来,选 ZSHA 会筛出一批实际归 RKRR 的席位。
-    if (pkg.value && p.package !== pkg.value) continue;
+    if (pkg.value && p.package !== pkg.value) return false;
     if (
       needle &&
       !p.callsign.toUpperCase().includes(needle) &&
@@ -71,8 +75,17 @@ const groups = computed(() => {
       !(p.identifier ?? "").toUpperCase().includes(needle) &&
       !String(p.freqMhz ?? "").includes(needle)
     ) {
-      continue;
+      return false;
     }
+    return true;
+  });
+});
+
+/** 按呼号分组：一个呼号一行，下面挂它的标识。 */
+const groups = computed(() => {
+  const byCallsign = new Map<string, NetworkPosition[]>();
+
+  for (const p of filtered.value) {
     const list = byCallsign.get(p.callsign);
     if (list) list.push(p);
     else byCallsign.set(p.callsign, [p]);
@@ -137,6 +150,14 @@ function freqSummary(list: NetworkPosition[]): string {
           <option value="">{{ t("all") }}</option>
           <option v-for="p in packages" :key="p" :value="p">{{ p }}</option>
         </select>
+      </div>
+      <div class="ml-auto">
+        <ExportButton
+          resource="positions"
+          :rows="filtered"
+          :licence="licence"
+          :messages="exportMessages"
+        />
       </div>
     </div>
 

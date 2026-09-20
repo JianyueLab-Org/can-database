@@ -57,7 +57,7 @@
     "empty": "没有匹配的机场。",
     "icao": "ICAO",
     "fir": "FIR",
-    "elev": "场压",
+    "elev": "標高",
     "variation": "磁差",
     "airac": "周期",
     "coords": "坐标",
@@ -83,7 +83,12 @@
     "transAlt": "転移高度",
     "transLevel": "転移フライトレベル",
     "speedLimit": "速度制限",
-    "international": "国際"
+    "international": "国際",
+    "name": "名称",
+    "lat": "緯度",
+    "lon": "経度",
+    "standName": "スポット",
+    "span": "翼幅"
   },
   "map": {
     "title": "地図",
@@ -183,7 +188,10 @@
       "aerodrome": "空港境界"
     },
     "taxiwayList": "誘導路名（{n}）",
-    "refFromChart": "チャートの注記から取得"
+    "refFromChart": "チャートの注記から取得",
+    "runway": "滑走路",
+    "opposite": "反対側",
+    "hdg": "方位"
   },
   "fixes": {
     "title": "航路点",
@@ -191,7 +199,7 @@
     "pick": "选一个 FIR",
     "count": "{count} 个航路点",
     "empty": "这个 FIR 没有航路点。",
-    "ident": "代号",
+    "ident": "識別子",
     "coords": "坐标",
     "search": "識別子を検索…",
     "onMap": "この FIR を地図で見る",
@@ -202,12 +210,12 @@
   "datasets": {
     "title": "数据集",
     "description": "每一次导入都是一个数据集：一个来源、一个 AIRAC 周期，带着它自己的许可状态。",
-    "airac": "周期",
-    "state": "状态",
-    "airports": "机场",
-    "redistributable": "可再分发",
+    "airac": "サイクル",
+    "state": "状態",
+    "airports": "空港数",
+    "redistributable": "再配布可否",
     "created": "导入于",
-    "activated": "生效于",
+    "activated": "発効",
     "empty": "还没有任何数据集。",
     "yes": "是",
     "no": "否",
@@ -249,7 +257,10 @@
     "alt": "高度制限",
     "speed": "速度",
     "via": "区間",
-    "altNote": "高度制限は公示の ARINC 424 符号（例 05910B03940A）のままです —— 誤って解釈するより安全です。FO＝フライオーバー、MAP＝進入復行点。"
+    "altNote": "高度制限は公示の ARINC 424 符号（例 05910B03940A）のままです —— 誤って解釈するより安全です。FO＝フライオーバー、MAP＝進入復行点。",
+    "name": "名称",
+    "runways": "滑走路",
+    "points": "経由点"
   },
   "positions": {
     "title": "管制席",
@@ -266,6 +277,13 @@
     "squawk": "スコーク帯",
     "nFreqs": "周波数 {n} 件",
     "nSectors": "{n} セクター",
-    "alsoInHint": "他のパッケージでも定義されています（照合用。周波数と識別子は所属パッケージが正）"
+    "alsoInHint": "他のパッケージでも定義されています（照合用。周波数と識別子は所属パッケージが正）",
+    "callsign": "コールサイン"
+  },
+  "export": {
+    "button": "エクスポート",
+    "csv": "CSV",
+    "json": "JSON",
+    "geojson": "GeoJSON"
   }
 }
