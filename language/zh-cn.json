@@ -83,7 +83,14 @@
     "transAlt": "过渡高度",
     "transLevel": "过渡高度层",
     "speedLimit": "速度限制",
-    "international": "国际"
+    "international": "国际",
+    "name": "名称",
+    "lat": "纬度",
+    "lon": "经度",
+    "standName": "机位",
+    "span": "翼展",
+    "commType": "类型",
+    "commName": "呼号"
   },
   "map": {
     "title": "地图",
@@ -183,7 +190,10 @@
       "aerodrome": "场界"
     },
     "taxiwayList": "滑行道代号（{n}）",
-    "refFromChart": "编号自航图标注"
+    "refFromChart": "编号自航图标注",
+    "runway": "跑道",
+    "opposite": "对向跑道",
+    "hdg": "航向"
   },
   "fixes": {
     "title": "航路点",
@@ -249,7 +259,10 @@
     "alt": "高度限制",
     "speed": "速度",
     "via": "段",
-    "altNote": "高度限制是汇编的编码原文（如 05910B03940A），未做解码 —— 解错一个比不解更危险。FO＝飞越点，MAP＝复飞点。"
+    "altNote": "高度限制是汇编的编码原文（如 05910B03940A），未做解码 —— 解错一个比不解更危险。FO＝飞越点，MAP＝复飞点。",
+    "name": "名称",
+    "runways": "跑道",
+    "points": "航路点"
   },
   "positions": {
     "title": "管制席位",
@@ -266,6 +279,14 @@
     "squawk": "应答机码段",
     "nFreqs": "{n} 个频率",
     "nSectors": "{n} 个扇区",
-    "alsoInHint": "另有几个包也定义了这个席位（对账用，频率和标识以归属包为准）"
+    "alsoInHint": "另有几个包也定义了这个席位（对账用，频率和标识以归属包为准）",
+    "frequency": "频率",
+    "callsign": "呼号"
+  },
+  "export": {
+    "button": "导出",
+    "csv": "CSV 表格",
+    "json": "JSON",
+    "geojson": "GeoJSON"
   }
 }

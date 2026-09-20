@@ -83,7 +83,14 @@
     "transAlt": "Transition alt",
     "transLevel": "Transition level",
     "speedLimit": "Speed limit",
-    "international": "International"
+    "international": "International",
+    "name": "Name",
+    "lat": "Latitude",
+    "lon": "Longitude",
+    "standName": "Stand",
+    "span": "Span",
+    "commType": "Type",
+    "commName": "Callsign"
   },
   "map": {
     "title": "Map",
@@ -183,7 +190,10 @@
       "aerodrome": "Aerodrome"
     },
     "taxiwayList": "Taxiway designators ({n})",
-    "refFromChart": "designator read off the chart"
+    "refFromChart": "designator read off the chart",
+    "runway": "Runway",
+    "opposite": "Opposite",
+    "hdg": "Heading"
   },
   "fixes": {
     "title": "航路点",
@@ -249,7 +259,10 @@
     "alt": "Altitude",
     "speed": "Speed",
     "via": "Segment",
-    "altNote": "Altitude constraints are the published ARINC 424 encoding (e.g. 05910B03940A), left undecoded — decoding one wrong is worse than not decoding it. FO = flyover, MAP = missed approach point."
+    "altNote": "Altitude constraints are the published ARINC 424 encoding (e.g. 05910B03940A), left undecoded — decoding one wrong is worse than not decoding it. FO = flyover, MAP = missed approach point.",
+    "name": "Name",
+    "runways": "Runways",
+    "points": "Waypoints"
   },
   "positions": {
     "title": "ATC positions",
@@ -266,6 +279,14 @@
     "squawk": "Squawk range",
     "nFreqs": "{n} frequencies",
     "nSectors": "{n} sectors",
-    "alsoInHint": "Also defined in this many other packages (for reconciliation — the home package is authoritative)"
+    "alsoInHint": "Also defined in this many other packages (for reconciliation — the home package is authoritative)",
+    "frequency": "Frequency",
+    "callsign": "Callsign"
+  },
+  "export": {
+    "button": "Export",
+    "csv": "CSV",
+    "json": "JSON",
+    "geojson": "GeoJSON"
   }
 }
