@@ -24,14 +24,17 @@ interface Props {
 const { title, count, note } = Astro.props;
 ---
 
-<div class="mb-3">
-  <h2 class="text-title-3 text-ink">
-    {title}
-    {
-      count !== undefined && (
-        <span class="tnum ml-1.5 font-normal text-faint">{count}</span>
-      )
-    }
-  </h2>
-  {note && <p class="mt-1 max-w-2xl text-xs text-faint">{note}</p>}
+<div class="mb-3 flex items-start justify-between gap-3">
+  <div>
+    <h2 class="text-title-3 text-ink">
+      {title}
+      {
+        count !== undefined && (
+          <span class="tnum ml-1.5 font-normal text-faint">{count}</span>
+        )
+      }
+    </h2>
+    {note && <p class="mt-1 max-w-2xl text-xs text-faint">{note}</p>}
+  </div>
+  <slot name="actions" />
 </div>

@@ -23,13 +23,18 @@
  */
 import { computed, ref } from "vue";
 import { createTranslator } from "@/lib/i18n";
-import type { Procedure } from "@/lib/canDb";
+import type { Licence, Procedure } from "@/lib/canDb";
+import ExportButton from "@/components/ExportButton.vue";
 
 const props = defineProps<{
   messages: Record<string, unknown>;
   procedures: Procedure[];
   /** 这个机场的跑道代号，用来出跑道筛选。 */
   runways: string[];
+  /** 这个机场的代号，进导出文件名。 */
+  icao: string;
+  licence: Licence | null;
+  exportMessages: Record<string, unknown>;
 }>();
 const t = createTranslator(props.messages);
 
@@ -121,6 +126,15 @@ function summary(p: Procedure): string {
           <option value="">{{ t("runwayAll") }}</option>
           <option v-for="r in runways" :key="r" :value="r">{{ r }}</option>
         </select>
+      </div>
+      <div class="ml-auto">
+        <ExportButton
+          resource="procedures"
+          :scope="icao"
+          :rows="matched"
+          :licence="licence"
+          :messages="exportMessages"
+        />
       </div>
     </div>
 

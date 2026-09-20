@@ -14,11 +14,14 @@
 import { computed, ref } from "vue";
 import { createTranslator } from "@/lib/i18n";
 import { firColor } from "@/lib/mapBase";
-import type { AirportSummary } from "@/lib/canDb";
+import type { AirportSummary, Licence } from "@/lib/canDb";
+import ExportButton from "@/components/ExportButton.vue";
 
 const props = defineProps<{
   messages: Record<string, unknown>;
   airports: AirportSummary[];
+  licence: Licence | null;
+  exportMessages: Record<string, unknown>;
 }>();
 const t = createTranslator(props.messages);
 
@@ -66,6 +69,14 @@ function pickFir(fir: string) {
         autocomplete="off"
       />
       <a href="/map" class="link text-sm">{{ t("onMap") }} →</a>
+      <div class="ml-auto">
+        <ExportButton
+          resource="airports"
+          :rows="shown"
+          :licence="licence"
+          :messages="exportMessages"
+        />
+      </div>
     </div>
 
     <div class="mb-4 flex flex-wrap items-center gap-1.5">

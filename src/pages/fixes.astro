@@ -9,6 +9,16 @@ const locale = getLocale(Astro.cookies);
 const t = useTranslations(locale, "fixes");
 const messages = getMessages(locale, "fixes");
 
+/**
+ * 导出用的字典：`fixes` 列的表头键是 `fixes.ident`，坐标和 FIR 两列复用
+ * `airports.*` 的键——按命名空间嵌套，不往顶层 spread。
+ */
+const exportDict = {
+  fixes: messages,
+  airports: getMessages(locale, "airports"),
+  export: getMessages(locale, "export"),
+};
+
 // FIR 清单是 can-db 直接给的。
 //
 // 从前这里取整个机场索引再去重 —— 那份注释说「为一个控件单独开一条路由不值得」。
@@ -22,6 +32,12 @@ const firs = result.ok ? (result.data ?? []) : [];
   <div class="mx-auto w-full max-w-6xl">
     <PageHeader title={t("title")} description={t("description")} />
 
-    <Fixes messages={messages} firs={firs} client:load />
+    <Fixes
+      messages={messages}
+      firs={firs}
+      licence={result.licence}
+      exportMessages={exportDict}
+      client:load
+    />
   </div>
 </AppLayout>

@@ -2,17 +2,18 @@
  * 七张表各自导出哪些列。
  *
  * `headerKey` 是 i18n 键，**复用各页面命名空间里已有的表头键**，不另建一本
- * `export.columns` 字典 —— 同一个列名两处译文迟早不一致。这也是为什么 `comms` 和
- * `positions` 的频率列共用同一个键 `positions.freq`（`NetworkPositions.vue` 已经在
- * 用），而不是各建一个：两处说的都是「频率」，两个键迟早会有一份译错。
+ * `export.columns` 字典 —— 同一个列名两处译文迟早不一致。
  *
  * `get` 取的是 can-db 给的字段，字段名和 `src/lib/canDb.ts` 的类型逐字对应。
  *
- * **`comms` 和 `positions` 两处不是照抄计划里的字段名**：`AirportComm`
- * （can-db `internal/aip/facilities.go`）没有 `freq`/`name`，只有 `freqMhz`/
- * `callsign`；`NetworkPosition`（`src/lib/canDb.ts`）没有 `frequency`/`squawk`，
- * 只有 `freqMhz`/`squawkStart`/`squawkEnd`。按计划原文写会让这两列在运行时静默
+ * **`positions` 那一列不是照抄计划里的字段名**：`NetworkPosition`
+ * （`src/lib/canDb.ts`）没有 `frequency`/`squawk`，只有
+ * `freqMhz`/`squawkStart`/`squawkEnd`。按计划原文写会让这一列在运行时静默
  * 输出 `undefined`——这个站反复踩过的那类不报错的坏法，这里不重蹈。
+ *
+ * **没有 `comms`。** 机场详情页只有跑道、机位、程序三节，没有频率表 ——
+ * `AirportDetail` 也没有 `comms` 字段。一条没有任何页面用的列定义就是一个指向不
+ * 存在功能的入口，这里不留。
  */
 import type { Geometry } from "@/lib/export/serialize";
 
@@ -91,13 +92,6 @@ export const TABLES: Record<string, TableSpec<any>> = {
       { headerKey: "airports.span", get: (r) => r.span },
     ],
     geometry: { kind: "point", at: (r) => [r.lon, r.lat] },
-  },
-  comms: {
-    columns: [
-      { headerKey: "airports.commType", get: (r) => r.type },
-      { headerKey: "positions.freq", get: (r) => r.freqMhz },
-      { headerKey: "airports.commName", get: (r) => r.callsign },
-    ],
   },
   procedures: {
     columns: [
