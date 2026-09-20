@@ -96,3 +96,100 @@ describe("toCSV", () => {
     expect(csv.split("\r\n")[0]).toBe("代号,名称,纬度");
   });
 });
+
+import { toJSON, toGeoJSON, type Geometry } from "@/lib/export/serialize";
+
+describe("toJSON", () => {
+  // 保留 can-db 的英文键：这一份是给脚本吃的，CSV 那一份才是给人看的。
+  test("原样保留行的键名，licence 在顶层", () => {
+    const text = toJSON([{ icao: "ZBAA", lat: 40.08 }], RESTRICTED);
+    const parsed = JSON.parse(text);
+    expect(parsed.data[0].icao).toBe("ZBAA");
+    expect(parsed.licence.redistributable).toBe(false);
+  });
+
+  test("licence 为 null 时顶层是 null 而不是缺键", () => {
+    const parsed = JSON.parse(toJSON([], null));
+    expect("licence" in parsed).toBe(true);
+    expect(parsed.licence).toBeNull();
+  });
+});
+
+describe("toGeoJSON", () => {
+  const point: Geometry<Row> = { kind: "point", at: (r) => [116.58, r.lat] };
+
+  // GeoJSON 的坐标是 [经度, 纬度]。反过来写是这一类代码最经典的一个错。
+  test("坐标是 [lon, lat]", () => {
+    const fc = JSON.parse(
+      toGeoJSON(
+        [{ icao: "ZBAA", name: null, lat: 40.08 }],
+        point,
+        COLUMNS,
+        null,
+      ),
+    );
+    expect(fc.type).toBe("FeatureCollection");
+    expect(fc.features[0].geometry.coordinates).toEqual([116.58, 40.08]);
+  });
+
+  test("属性用列定义，licence 在 FeatureCollection 顶层", () => {
+    const fc = JSON.parse(
+      toGeoJSON(
+        [{ icao: "ZBAA", name: "首都", lat: 40.08 }],
+        point,
+        COLUMNS,
+        RESTRICTED,
+      ),
+    );
+    expect(fc.features[0].properties["代号"]).toBe("ZBAA");
+    expect(fc.licence.notice).toContain("不得再分发");
+  });
+
+  // 没有几何的行跳过，而不是写一个 null geometry —— 后者会让 QGIS 报错。
+  test("取不到几何的行被跳过", () => {
+    const nothing: Geometry<Row> = { kind: "point", at: () => null };
+    const fc = JSON.parse(
+      toGeoJSON(
+        [{ icao: "ZBAA", name: null, lat: 40.08 }],
+        nothing,
+        COLUMNS,
+        null,
+      ),
+    );
+    expect(fc.features).toEqual([]);
+  });
+
+  test("线几何写成 LineString", () => {
+    const line: Geometry<Row> = {
+      kind: "line",
+      path: () => [
+        [116.5, 40.0],
+        [116.6, 40.1],
+      ],
+    };
+    const fc = JSON.parse(
+      toGeoJSON(
+        [{ icao: "ZBAA", name: null, lat: 40.08 }],
+        line,
+        COLUMNS,
+        null,
+      ),
+    );
+    expect(fc.features[0].geometry.type).toBe("LineString");
+    expect(fc.features[0].geometry.coordinates).toHaveLength(2);
+  });
+
+  // 少于两个点画不成线。
+  test("线几何点数不足两个时跳过", () => {
+    const line: Geometry<Row> = { kind: "line", path: () => [[116.5, 40.0]] };
+    const fc = JSON.parse(
+      toGeoJSON(
+        [{ icao: "ZBAA", name: null, lat: 40.08 }],
+        line,
+        COLUMNS,
+        null,
+      ),
+    );
+    expect(fc.features).toEqual([]);
+  });
+});

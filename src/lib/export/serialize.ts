@@ -53,3 +53,57 @@ export function toCSV<T>(
   ];
   return BOM + lines.join(EOL) + EOL;
 }
+
+/**
+ * 给脚本吃的那一份。
+ *
+ * **键名原样保留 can-db 给的英文。** CSV 那一份的中文列名是给 Excel 看的；同一个
+ * 字段两种名字是有意的分工，不是不一致。
+ */
+export function toJSON<T>(rows: T[], licence: Licence | null): string {
+  return JSON.stringify({ licence, data: rows }, null, 2) + "\n";
+}
+
+/** 一行的几何怎么取。取不到就返回 null，那一行会被跳过。 */
+export type Geometry<T> =
+  | { kind: "point"; at: (row: T) => [number, number] | null }
+  | { kind: "line"; path: (row: T) => Array<[number, number]> | null };
+
+/**
+ * 带坐标的那几张表另出一份。
+ *
+ * **坐标顺序是 [经度, 纬度]**，GeoJSON 规范如此，和页面上「纬度在前」的读法相反。
+ *
+ * **取不到几何的行跳过，不写 null geometry。** 规范允许 null，但 QGIS 和
+ * geojson.io 对它的处理各不相同，而一个静默少了几行的图层比一个报错的图层更难发现。
+ *
+ * licence 挂在 FeatureCollection 顶层 —— 规范允许 foreign member。
+ */
+export function toGeoJSON<T>(
+  rows: T[],
+  geometry: Geometry<T>,
+  columns: Column<T>[],
+  licence: Licence | null,
+): string {
+  const features = [];
+  for (const row of rows) {
+    let shape: { type: string; coordinates: unknown } | null = null;
+    if (geometry.kind === "point") {
+      const at = geometry.at(row);
+      if (at) shape = { type: "Point", coordinates: at };
+    } else {
+      const path = geometry.path(row);
+      if (path && path.length >= 2)
+        shape = { type: "LineString", coordinates: path };
+    }
+    if (!shape) continue;
+
+    const properties: Record<string, unknown> = {};
+    for (const c of columns) properties[c.header] = c.get(row) ?? null;
+    features.push({ type: "Feature", geometry: shape, properties });
+  }
+  return (
+    JSON.stringify({ type: "FeatureCollection", licence, features }, null, 2) +
+    "\n"
+  );
+}
