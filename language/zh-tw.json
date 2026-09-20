@@ -88,9 +88,7 @@
     "lat": "緯度",
     "lon": "經度",
     "standName": "機位",
-    "span": "翼展",
-    "commType": "類型",
-    "commName": "呼號"
+    "span": "翼展"
   },
   "map": {
     "title": "地圖",

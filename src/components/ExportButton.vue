@@ -63,7 +63,7 @@ function run(format: string) {
     download(
       name("geojson"),
       "application/geo+json",
-      toGeoJSON(props.rows, spec.value.geometry!, columns.value, props.licence),
+      toGeoJSON(props.rows, spec.value.geometry!, props.licence),
     );
   }
 }

@@ -4,7 +4,10 @@
  * `headerKey` 是 i18n 键，**复用各页面命名空间里已有的表头键**，不另建一本
  * `export.columns` 字典 —— 同一个列名两处译文迟早不一致。
  *
- * `get` 取的是 can-db 给的字段，字段名和 `src/lib/canDb.ts` 的类型逐字对应。
+ * `get` 取的是 can-db 给的字段，字段名和 `src/lib/canDb.ts` 的类型逐字对应 ——
+ * **`runways` 是唯一的例外**，它读的是 `[icao].astro` 里几何表和物理表合并出来
+ * 的行，字段名和字段本身（有没有对端坐标）都和 `canDb.ts` 的 `Runway` 不同，
+ * 下面那张表的注释单独说了。
  *
  * **`positions` 那一列不是照抄计划里的字段名**：`NetworkPosition`
  * （`src/lib/canDb.ts`）没有 `frequency`/`squawk`，只有
@@ -67,21 +70,22 @@ export const TABLES: Record<string, TableSpec<any>> = {
     ],
     geometry: { kind: "point", at: (r) => [r.lon, r.lat] },
   },
+  /**
+   * **没有几何。** `[icao].astro` 里 `runwayRows` 是几何表和物理表按代号合并
+   * 出来的行 —— 字段是 `ident`/`opposite`/`hdg`/`lat`/`lon`/`lengthM`/…，
+   * `lat`/`lon` 只是**入口**那一个点的坐标，合并行里没有对端坐标（没有
+   * `endLat`/`endLon`，`canDb.ts` 的 `Runway.endLat/endLon` 从未进入这份合并
+   * 结果）。画不出线就不给这一档 —— 下拉里不出现 GeoJSON，而不是导出一条
+   * `[[lon,lat],[null,null]]`。
+   */
   runways: {
     columns: [
-      { headerKey: "airportMap.runway", get: (r) => r.id },
+      { headerKey: "airportMap.runway", get: (r) => r.ident },
       { headerKey: "airportMap.opposite", get: (r) => r.opposite },
       { headerKey: "airportMap.hdg", get: (r) => r.hdg },
       { headerKey: "airports.lat", get: (r) => r.lat },
       { headerKey: "airports.lon", get: (r) => r.lon },
     ],
-    geometry: {
-      kind: "line",
-      path: (r) => [
-        [r.lon, r.lat],
-        [r.endLon, r.endLat],
-      ],
-    },
   },
   stands: {
     columns: [

@@ -30,6 +30,14 @@ const OPEN: Licence = {
   attributions: [],
 };
 
+const OPEN_WITH_ATTRIBUTION: Licence = {
+  redistributable: true,
+  restricted: false,
+  airac: ["2609"],
+  notice: "",
+  attributions: ["地面线画部分来自 © OpenStreetMap contributors，ODbL 许可。"],
+};
+
 describe("toCSV", () => {
   // Windows 的 Excel 不看 BOM 就按本地代码页解，中文列名直接变乱码。
   test("以 UTF-8 BOM 开头", () => {
@@ -83,10 +91,30 @@ describe("toCSV", () => {
     );
   });
 
-  // 可以再分发的时候什么都不印。绝不补一句「本文件可自由使用」。
-  test("可再分发时不印任何许可正面表述", () => {
+  // 可以再分发的时候不印警示——但周期是事实，不是许可表述，仍然要印。
+  test("可再分发时只印周期，不印任何许可警示", () => {
     const csv = toCSV([], COLUMNS, OPEN).replace("﻿", "");
-    expect(csv.split("\r\n")[0]).toBe("代号,名称,纬度");
+    const lines = csv.split("\r\n");
+    expect(lines[0]).toBe("# AIRAC 2609");
+    expect(csv).not.toContain("不得再分发");
+    expect(lines[lines.findIndex((l) => !l.startsWith("#"))]).toBe(
+      "代号,名称,纬度",
+    );
+  });
+
+  // 警示和署名各判各的：可再分发（notice 空）时署名依然要印——ODbL/CC BY-SA
+  // 的模式就是「可以传，但必须署名」，而这恰恰是署名最该出现的时候。
+  test("可再分发且有署名时，署名照印，警示仍然不印", () => {
+    const csv = toCSV([], COLUMNS, OPEN_WITH_ATTRIBUTION).replace("﻿", "");
+    const lines = csv.split("\r\n");
+    expect(lines).toContain(
+      "# 地面线画部分来自 © OpenStreetMap contributors，ODbL 许可。",
+    );
+    expect(lines).toContain("# AIRAC 2609");
+    expect(csv).not.toContain("不得再分发");
+    expect(lines[lines.findIndex((l) => !l.startsWith("#"))]).toBe(
+      "代号,名称,纬度",
+    );
   });
 
   // licence 为 null 是「不知道」。最保守的做法是**不做任何表述** —— 编一句具体的
@@ -121,27 +149,27 @@ describe("toGeoJSON", () => {
   // GeoJSON 的坐标是 [经度, 纬度]。反过来写是这一类代码最经典的一个错。
   test("坐标是 [lon, lat]", () => {
     const fc = JSON.parse(
-      toGeoJSON(
-        [{ icao: "ZBAA", name: null, lat: 40.08 }],
-        point,
-        COLUMNS,
-        null,
-      ),
+      toGeoJSON([{ icao: "ZBAA", name: null, lat: 40.08 }], point, null),
     );
     expect(fc.type).toBe("FeatureCollection");
     expect(fc.features[0].geometry.coordinates).toEqual([116.58, 40.08]);
   });
 
-  test("属性用列定义，licence 在 FeatureCollection 顶层", () => {
+  // properties 用原始行的英文键，不用调用方 i18n 过的列名——GeoJSON 是给脚本吃
+  // 的，键名随界面语言漂移会让同一份导出换个人（换个语言）跑就对不上字段。
+  test("属性用原始行的键，licence 在 FeatureCollection 顶层", () => {
     const fc = JSON.parse(
       toGeoJSON(
         [{ icao: "ZBAA", name: "首都", lat: 40.08 }],
         point,
-        COLUMNS,
         RESTRICTED,
       ),
     );
-    expect(fc.features[0].properties["代号"]).toBe("ZBAA");
+    expect(fc.features[0].properties).toEqual({
+      icao: "ZBAA",
+      name: "首都",
+      lat: 40.08,
+    });
     expect(fc.licence.notice).toContain("不得再分发");
   });
 
@@ -149,46 +177,29 @@ describe("toGeoJSON", () => {
   test("取不到几何的行被跳过", () => {
     const nothing: Geometry<Row> = { kind: "point", at: () => null };
     const fc = JSON.parse(
-      toGeoJSON(
-        [{ icao: "ZBAA", name: null, lat: 40.08 }],
-        nothing,
-        COLUMNS,
-        null,
-      ),
+      toGeoJSON([{ icao: "ZBAA", name: null, lat: 40.08 }], nothing, null),
     );
     expect(fc.features).toEqual([]);
   });
 
-  test("线几何写成 LineString", () => {
-    const line: Geometry<Row> = {
-      kind: "line",
-      path: () => [
-        [116.5, 40.0],
-        [116.6, 40.1],
-      ],
-    };
+  test("线几何写成 LineString，坐标逐点比对", () => {
+    const linePath: Array<[number, number]> = [
+      [116.5, 40.0],
+      [116.6, 40.1],
+    ];
+    const line: Geometry<Row> = { kind: "line", path: () => linePath };
     const fc = JSON.parse(
-      toGeoJSON(
-        [{ icao: "ZBAA", name: null, lat: 40.08 }],
-        line,
-        COLUMNS,
-        null,
-      ),
+      toGeoJSON([{ icao: "ZBAA", name: null, lat: 40.08 }], line, null),
     );
     expect(fc.features[0].geometry.type).toBe("LineString");
-    expect(fc.features[0].geometry.coordinates).toHaveLength(2);
+    expect(fc.features[0].geometry.coordinates).toEqual(linePath);
   });
 
   // 少于两个点画不成线。
   test("线几何点数不足两个时跳过", () => {
     const line: Geometry<Row> = { kind: "line", path: () => [[116.5, 40.0]] };
     const fc = JSON.parse(
-      toGeoJSON(
-        [{ icao: "ZBAA", name: null, lat: 40.08 }],
-        line,
-        COLUMNS,
-        null,
-      ),
+      toGeoJSON([{ icao: "ZBAA", name: null, lat: 40.08 }], line, null),
     );
     expect(fc.features).toEqual([]);
   });
@@ -210,12 +221,7 @@ describe("toGeoJSON", () => {
       ],
     };
     const fc = JSON.parse(
-      toGeoJSON(
-        [{ icao: "ZBAA", name: null, lat: 40.08 }],
-        multiline,
-        COLUMNS,
-        null,
-      ),
+      toGeoJSON([{ icao: "ZBAA", name: null, lat: 40.08 }], multiline, null),
     );
     expect(fc.features[0].geometry.type).toBe("MultiLineString");
     expect(fc.features[0].geometry.coordinates).toHaveLength(2);
@@ -238,12 +244,7 @@ describe("toGeoJSON", () => {
       ],
     };
     const fc = JSON.parse(
-      toGeoJSON(
-        [{ icao: "ZBAA", name: null, lat: 40.08 }],
-        multiline,
-        COLUMNS,
-        null,
-      ),
+      toGeoJSON([{ icao: "ZBAA", name: null, lat: 40.08 }], multiline, null),
     );
     expect(fc.features[0].geometry.coordinates).toHaveLength(1);
   });
@@ -255,12 +256,7 @@ describe("toGeoJSON", () => {
       paths: () => [[[116.5, 40.0]], [[116.7, 40.2]]],
     };
     const fc = JSON.parse(
-      toGeoJSON(
-        [{ icao: "ZBAA", name: null, lat: 40.08 }],
-        multiline,
-        COLUMNS,
-        null,
-      ),
+      toGeoJSON([{ icao: "ZBAA", name: null, lat: 40.08 }], multiline, null),
     );
     expect(fc.features).toEqual([]);
   });
