@@ -280,7 +280,6 @@
     "nFreqs": "{n} frequencies",
     "nSectors": "{n} sectors",
     "alsoInHint": "Also defined in this many other packages (for reconciliation — the home package is authoritative)",
-    "frequency": "Frequency",
     "callsign": "Callsign"
   },
   "export": {

@@ -280,7 +280,6 @@
     "nFreqs": "周波数 {n} 件",
     "nSectors": "{n} セクター",
     "alsoInHint": "他のパッケージでも定義されています（照合用。周波数と識別子は所属パッケージが正）",
-    "frequency": "周波数",
     "callsign": "コールサイン"
   },
   "export": {

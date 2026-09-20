@@ -280,7 +280,6 @@
     "nFreqs": "{n} 個頻率",
     "nSectors": "{n} 個扇區",
     "alsoInHint": "另有幾個包也定義了這個席位（對帳用，頻率和標識以歸屬包為準）",
-    "frequency": "頻率",
     "callsign": "呼號"
   },
   "export": {

@@ -192,4 +192,76 @@ describe("toGeoJSON", () => {
     );
     expect(fc.features).toEqual([]);
   });
+
+  // 断口处断开：一条程序在没有坐标的点上被切成两段，而不是连过去画出一条假线。
+  test("多段线写成 MultiLineString", () => {
+    const multiline: Geometry<Row> = {
+      kind: "multiline",
+      paths: () => [
+        [
+          [116.5, 40.0],
+          [116.6, 40.1],
+        ],
+        [
+          [116.7, 40.2],
+          [116.8, 40.3],
+          [116.9, 40.4],
+        ],
+      ],
+    };
+    const fc = JSON.parse(
+      toGeoJSON(
+        [{ icao: "ZBAA", name: null, lat: 40.08 }],
+        multiline,
+        COLUMNS,
+        null,
+      ),
+    );
+    expect(fc.features[0].geometry.type).toBe("MultiLineString");
+    expect(fc.features[0].geometry.coordinates).toHaveLength(2);
+    expect(fc.features[0].geometry.coordinates[0]).toEqual([
+      [116.5, 40.0],
+      [116.6, 40.1],
+    ]);
+  });
+
+  // 不足两点的段本身画不成线，被丢掉——其余段照常画。
+  test("多段线里不足两点的段被丢弃", () => {
+    const multiline: Geometry<Row> = {
+      kind: "multiline",
+      paths: () => [
+        [[116.5, 40.0]],
+        [
+          [116.7, 40.2],
+          [116.8, 40.3],
+        ],
+      ],
+    };
+    const fc = JSON.parse(
+      toGeoJSON(
+        [{ icao: "ZBAA", name: null, lat: 40.08 }],
+        multiline,
+        COLUMNS,
+        null,
+      ),
+    );
+    expect(fc.features[0].geometry.coordinates).toHaveLength(1);
+  });
+
+  // 一段也不剩：整行跳过，不是写一个空的 MultiLineString。
+  test("多段线一段都不剩时整行被跳过", () => {
+    const multiline: Geometry<Row> = {
+      kind: "multiline",
+      paths: () => [[[116.5, 40.0]], [[116.7, 40.2]]],
+    };
+    const fc = JSON.parse(
+      toGeoJSON(
+        [{ icao: "ZBAA", name: null, lat: 40.08 }],
+        multiline,
+        COLUMNS,
+        null,
+      ),
+    );
+    expect(fc.features).toEqual([]);
+  });
 });

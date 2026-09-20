@@ -67,7 +67,11 @@ export function toJSON<T>(rows: T[], licence: Licence | null): string {
 /** 一行的几何怎么取。取不到就返回 null，那一行会被跳过。 */
 export type Geometry<T> =
   | { kind: "point"; at: (row: T) => [number, number] | null }
-  | { kind: "line"; path: (row: T) => Array<[number, number]> | null };
+  | { kind: "line"; path: (row: T) => Array<[number, number]> | null }
+  | {
+      kind: "multiline";
+      paths: (row: T) => Array<Array<[number, number]>> | null;
+    };
 
 /**
  * 带坐标的那几张表另出一份。
@@ -91,10 +95,17 @@ export function toGeoJSON<T>(
     if (geometry.kind === "point") {
       const at = geometry.at(row);
       if (at) shape = { type: "Point", coordinates: at };
-    } else {
+    } else if (geometry.kind === "line") {
       const path = geometry.path(row);
       if (path && path.length >= 2)
         shape = { type: "LineString", coordinates: path };
+    } else {
+      /* 断口处断开 —— 少于两个点的段画不成线，直接丢。一段也不剩就跳过这一行。 */
+      const paths = (geometry.paths(row) ?? []).filter(
+        (seg) => seg.length >= 2,
+      );
+      if (paths.length > 0)
+        shape = { type: "MultiLineString", coordinates: paths };
     }
     if (!shape) continue;
 

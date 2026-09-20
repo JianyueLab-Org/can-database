@@ -1,8 +1,10 @@
 /**
- * 八张表各自导出哪些列。
+ * 七张表各自导出哪些列。
  *
  * `headerKey` 是 i18n 键，**复用各页面命名空间里已有的表头键**，不另建一本
- * `export.columns` 字典 —— 同一个列名两处译文迟早不一致。
+ * `export.columns` 字典 —— 同一个列名两处译文迟早不一致。这也是为什么 `comms` 和
+ * `positions` 的频率列共用同一个键 `positions.freq`（`NetworkPositions.vue` 已经在
+ * 用），而不是各建一个：两处说的都是「频率」，两个键迟早会有一份译错。
  *
  * `get` 取的是 can-db 给的字段，字段名和 `src/lib/canDb.ts` 的类型逐字对应。
  *
@@ -25,7 +27,31 @@ export interface TableSpec<T> {
   geometry?: Geometry<T>;
 }
 
-/* 八张表的行类型各异，消费方按 resource 取用 —— 这里的 any 是那个分派点的代价，
+/**
+ * 把程序点切成若干段，在没有坐标的点处断开。
+ *
+ * **无坐标的程序点是断口，不是 0,0**，也不是可以跳过的噪声 —— 全网 311 个点解析不出
+ * 坐标（`canDb.ts` 的 `ProcedurePoint`）。跳过它们会画出一条穿过缺口的假线。
+ * `AirportMap.vue:522-535` 对同一件事的处理就是断开，这里照做。
+ */
+export function splitAtGaps(
+  points: Array<{ lat: number | null; lon: number | null }>,
+): Array<Array<[number, number]>> {
+  const segments: Array<Array<[number, number]>> = [];
+  let current: Array<[number, number]> = [];
+  for (const p of points) {
+    if (p.lat === null || p.lon === null) {
+      if (current.length > 0) segments.push(current);
+      current = [];
+      continue;
+    }
+    current.push([p.lon, p.lat]);
+  }
+  if (current.length > 0) segments.push(current);
+  return segments;
+}
+
+/* 七张表的行类型各异，消费方按 resource 取用 —— 这里的 any 是那个分派点的代价，
    换成联合类型只会把同一个 switch 搬到每个调用点去。 */
 export const TABLES: Record<string, TableSpec<any>> = {
   airports: {
@@ -69,7 +95,7 @@ export const TABLES: Record<string, TableSpec<any>> = {
   comms: {
     columns: [
       { headerKey: "airports.commType", get: (r) => r.type },
-      { headerKey: "positions.frequency", get: (r) => r.freqMhz },
+      { headerKey: "positions.freq", get: (r) => r.freqMhz },
       { headerKey: "airports.commName", get: (r) => r.callsign },
     ],
   },
@@ -83,10 +109,7 @@ export const TABLES: Record<string, TableSpec<any>> = {
         get: (r) => (r.points ?? []).join(" "),
       },
     ],
-    geometry: {
-      kind: "line",
-      path: (r) => (r.path ?? []).map((p: any) => [p.lon, p.lat]),
-    },
+    geometry: { kind: "multiline", paths: (r) => splitAtGaps(r.path ?? []) },
   },
   fixes: {
     columns: [
@@ -101,7 +124,7 @@ export const TABLES: Record<string, TableSpec<any>> = {
     columns: [
       { headerKey: "positions.callsign", get: (r) => r.callsign },
       { headerKey: "positions.identifier", get: (r) => r.identifier },
-      { headerKey: "positions.frequency", get: (r) => r.freqMhz },
+      { headerKey: "positions.freq", get: (r) => r.freqMhz },
       {
         headerKey: "positions.squawk",
         get: (r) => (r.squawkStart ? `${r.squawkStart}-${r.squawkEnd}` : null),
