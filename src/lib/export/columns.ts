@@ -6,8 +6,9 @@
  *
  * `get` 取的是 can-db 给的字段，字段名和 `src/lib/canDb.ts` 的类型逐字对应 ——
  * **`runways` 是唯一的例外**，它读的是 `[icao].astro` 里几何表和物理表合并出来
- * 的行，字段名和字段本身（有没有对端坐标）都和 `canDb.ts` 的 `Runway` 不同，
- * 下面那张表的注释单独说了。
+ * 的行：字段名和 `canDb.ts` 的 `Runway` 不同（`ident` 不是 `id`），但字段本身
+ * 齐全——合并对象把 `Runway.endLat`/`endLon` 也带了进来，下面那张表的注释单独
+ * 说了。
  *
  * **`positions` 那一列不是照抄计划里的字段名**：`NetworkPosition`
  * （`src/lib/canDb.ts`）没有 `frequency`/`squawk`，只有
@@ -71,12 +72,11 @@ export const TABLES: Record<string, TableSpec<any>> = {
     geometry: { kind: "point", at: (r) => [r.lon, r.lat] },
   },
   /**
-   * **没有几何。** `[icao].astro` 里 `runwayRows` 是几何表和物理表按代号合并
-   * 出来的行 —— 字段是 `ident`/`opposite`/`hdg`/`lat`/`lon`/`lengthM`/…，
-   * `lat`/`lon` 只是**入口**那一个点的坐标，合并行里没有对端坐标（没有
-   * `endLat`/`endLon`，`canDb.ts` 的 `Runway.endLat/endLon` 从未进入这份合并
-   * 结果）。画不出线就不给这一档 —— 下拉里不出现 GeoJSON，而不是导出一条
-   * `[[lon,lat],[null,null]]`。
+   * `[icao].astro` 里 `runwayRows` 是几何表和物理表按代号合并出来的行。几何那
+   * 一半（`canDb.ts` 的 `Runway`）本来就带对端坐标 —— `endLat`/`endLon` 非
+   * 空；合并对象现在把它们带进来了。**只有物理数据、没有几何数据的那种跑道**
+   * （`g` 未命中）拿到的是显式 `null`，不是 `undefined`——两者在 JSON 里不一
+   * 样，下面 `path` 的 null 守卫认的是前者。
    */
   runways: {
     columns: [
@@ -86,6 +86,16 @@ export const TABLES: Record<string, TableSpec<any>> = {
       { headerKey: "airports.lat", get: (r) => r.lat },
       { headerKey: "airports.lon", get: (r) => r.lon },
     ],
+    geometry: {
+      kind: "line",
+      path: (r) =>
+        r.lat == null || r.lon == null || r.endLat == null || r.endLon == null
+          ? null
+          : [
+              [r.lon, r.lat],
+              [r.endLon, r.endLat],
+            ],
+    },
   },
   stands: {
     columns: [

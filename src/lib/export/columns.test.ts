@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { splitAtGaps, TABLES } from "@/lib/export/columns";
+import { toGeoJSON } from "@/lib/export/serialize";
 
 describe("splitAtGaps", () => {
   // 中间断口把一条程序切成两段，而不是连过去画出一条穿过缺口的假线。
@@ -63,9 +64,10 @@ describe("splitAtGaps", () => {
  *
  * 字段名照着 `src/lib/canDb.ts` 的类型写——**runways 是例外**：那张表的列定义读
  * 的不是 `canDb.ts` 的 `Runway`，是 `[icao].astro` 里几何表和物理表按代号合并
- * 出来的行（`ident`/`opposite`/`hdg`/`lat`/`lon`/`lengthM`/…），这里照那份合并
- * 行的真实形状写，不是照 `Runway`。这条注释本身就是 FIX 1 的教训：字段名要查实
- * 际消费者，不能照抄类型名或照抄计划文字。
+ * 出来的行（`ident`/`opposite`/`hdg`/`lat`/`lon`/`endLat`/`endLon`/`lengthM`/
+ * …），这里照那份合并行的真实形状写，不是照 `Runway`。这条注释本身就是 FIX 1
+ * 的教训：字段名要查实际消费者，不能照抄类型名或照抄计划文字——`endLat`/
+ * `endLon` 确实存在，第一版漏掉它们是没查 `Runway` 接口，不是它们真的不存在。
  */
 const SAMPLE_ROWS: Record<string, unknown> = {
   airports: {
@@ -84,6 +86,8 @@ const SAMPLE_ROWS: Record<string, unknown> = {
     hdg: 184,
     lat: 40.08,
     lon: 116.58,
+    endLat: 40.12,
+    endLon: 116.6,
     lengthM: 3800,
     widthM: 60,
     surface: "沥青",
@@ -212,4 +216,41 @@ describe("TABLES", () => {
       });
     }
   }
+});
+
+/**
+ * 跑道几何补回来之后的两个边界，各自钉一条测试。
+ *
+ * 用 `toGeoJSON` 而不是直接调 `geometry.path`：要验证的是「缺对端坐标的行被整
+ * 行跳过」这个 `toGeoJSON` 里的行为，不是几何回调本身——回调返回 `null` 只是
+ * 半句话，`toGeoJSON` 拿到 `null` 之后真的把这一行丢掉才是 FIX 1/这次改正一起
+ * 要的效果。
+ */
+describe("runways 几何", () => {
+  const geometry = TABLES.runways.geometry!;
+
+  test("四个坐标齐全时出 LineString，坐标深比对", () => {
+    const row = SAMPLE_ROWS.runways as Record<string, unknown>;
+    const fc = JSON.parse(toGeoJSON([row], geometry, null));
+    expect(fc.features).toHaveLength(1);
+    expect(fc.features[0].geometry).toEqual({
+      type: "LineString",
+      coordinates: [
+        [row.lon, row.lat],
+        [row.endLon, row.endLat],
+      ],
+    });
+  });
+
+  test("只有物理数据（四个坐标全 null）时整行被跳过", () => {
+    const physicalOnly = {
+      ...(SAMPLE_ROWS.runways as Record<string, unknown>),
+      lat: null,
+      lon: null,
+      endLat: null,
+      endLon: null,
+    };
+    const fc = JSON.parse(toGeoJSON([physicalOnly], geometry, null));
+    expect(fc.features).toEqual([]);
+  });
 });
