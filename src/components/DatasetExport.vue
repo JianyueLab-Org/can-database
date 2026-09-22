@@ -13,6 +13,7 @@ import {
   createDefaultSelection,
   normalizeAirportCodes,
   normalizeSelection,
+  parseAirportScope,
   toggleGroupFormat,
 } from "@/lib/export/selection";
 
@@ -30,6 +31,7 @@ const selectedAirports = shallowRef(new Set<string>());
 const airportOptions = shallowRef(props.airports);
 const airportListFailed = ref(props.airportListFailed);
 const airportLoading = ref(false);
+const invalidAirportScope = ref(false);
 const loading = ref(true);
 const optionsError = ref(false);
 const submitting = ref(false);
@@ -44,8 +46,9 @@ const unresolvedAirports = computed(() => {
 });
 const airportScopeBlocked = computed(
   () =>
-    selectedAirports.value.size > 0 &&
-    (airportListFailed.value || unresolvedAirports.value.length > 0),
+    airportListFailed.value ||
+    invalidAirportScope.value ||
+    (selectedAirports.value.size > 0 && unresolvedAirports.value.length > 0),
 );
 const controlsDisabled = computed(
   () =>
@@ -136,6 +139,11 @@ function resetSubmitting() {
   submitting.value = false;
 }
 
+function clearAirportScope() {
+  selectedAirports.value = new Set();
+  invalidAirportScope.value = false;
+}
+
 async function loadAirports() {
   airportLoading.value = true;
   const result = await api<AirportSummary[]>("/api/v1/aip/airports");
@@ -158,11 +166,12 @@ function onSubmit(event: Event) {
 }
 
 onMounted(() => {
-  selectedAirports.value = new Set(
-    normalizeAirportCodes(
-      new URL(window.location.href).searchParams.getAll("airport"),
-    ),
+  const requestedAirports = new URL(window.location.href).searchParams.getAll(
+    "airport",
   );
+  const airportScope = parseAirportScope(requestedAirports);
+  invalidAirportScope.value = airportScope.hasInvalidBlank;
+  selectedAirports.value = new Set(airportScope.airports);
   window.addEventListener("pageshow", resetSubmitting);
   void loadOptions();
 });
@@ -204,8 +213,11 @@ onBeforeUnmount(() => {
       :scope-error="airportScopeBlocked"
       :unresolved="unresolvedAirports"
       :loading="airportLoading"
+      :list-failed="airportListFailed"
+      :invalid-blank="invalidAirportScope"
       @update:selected="selectedAirports = $event"
       @retry="loadAirports"
+      @clear="clearAirportScope"
     />
     <p class="text-sm text-muted">{{ t("globalResources") }}</p>
 

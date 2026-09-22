@@ -218,6 +218,46 @@ describe("dataset export page", () => {
     ).toEqual(["ZSPD"]);
   });
 
+  test("blocks an explicit blank airport parameter until it is cleared to all airports", async () => {
+    browser.history.replaceState({}, "", "/export?airport=%20%20");
+    succeed();
+    const host = mount();
+    await settle();
+
+    expect(host.querySelector('[role="alert"]')?.textContent).toContain(
+      "Airport selection is invalid",
+    );
+    expect(
+      host.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled,
+    ).toBe(true);
+    [...host.querySelectorAll("button")]
+      .find((button) => button.textContent === "Clear airports")!
+      .click();
+    await nextTick();
+    expect(host.querySelector('[role="alert"]')).toBeNull();
+    expect(
+      host.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled,
+    ).toBe(false);
+  });
+
+  test("shows a blocking airport-list retry when the list fails without preselection", async () => {
+    succeed();
+    const host = mount({ airports: [], airportListFailed: true });
+    await settle();
+
+    expect(host.querySelector('[role="alert"]')?.textContent).toContain(
+      "Airport list could not be loaded",
+    );
+    expect(
+      host.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled,
+    ).toBe(true);
+    expect(
+      [...host.querySelectorAll("button")].some(
+        (button) => button.textContent === "Retry airports",
+      ),
+    ).toBe(true);
+  });
+
   test("blocks an explicit airport code absent from a successful caller-visible list", async () => {
     browser.history.replaceState({}, "", "/export?airport=ZZZZ");
     succeed();

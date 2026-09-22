@@ -8,6 +8,8 @@
     "airportSearch": "Search airports",
     "airportNoResults": "No airports match this search.",
     "airportScopeError": "Airport selection could not be verified: {airports}. Retry before downloading.",
+    "airportScopeInvalid": "Airport selection is invalid. Clear it before downloading all airports.",
+    "airportListError": "Airport list could not be loaded. Retry before downloading.",
     "retryAirports": "Retry airports",
     "airportsSelected": "{count} airports selected.",
     "allAirports": "All current airports are included.",

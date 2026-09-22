@@ -8,6 +8,8 @@
     "airportSearch": "搜索机场",
     "airportNoResults": "没有匹配的机场。",
     "airportScopeError": "无法确认机场选择：{airports}。请在下载前重试。",
+    "airportScopeInvalid": "机场选择无效。导出全部机场前请清除它。",
+    "airportListError": "无法加载机场列表。请在下载前重试。",
     "retryAirports": "重试加载机场",
     "airportsSelected": "已选择 {count} 个机场。",
     "allAirports": "包含全部当前机场。",

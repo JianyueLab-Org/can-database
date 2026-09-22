@@ -5,6 +5,7 @@ import {
   buildExportSearch,
   createDefaultSelection,
   normalizeSelection,
+  parseAirportScope,
   toggleGroupFormat,
 } from "@/lib/export/selection";
 
@@ -127,5 +128,12 @@ describe("export selection helpers", () => {
       "airport",
       "locale",
     ]);
+  });
+
+  test("retains an explicit blank airport parameter as invalid while normalizing valid codes", () => {
+    expect(parseAirportScope([" zspd ", "", "ZBAA"])).toEqual({
+      airports: ["ZBAA", "ZSPD"],
+      hasInvalidBlank: true,
+    });
   });
 });

@@ -19,6 +19,17 @@ export function normalizeAirportCodes(airports: Iterable<string>): string[] {
   ].sort();
 }
 
+export function parseAirportScope(airports: Iterable<string>): {
+  airports: string[];
+  hasInvalidBlank: boolean;
+} {
+  const values = [...airports];
+  return {
+    airports: normalizeAirportCodes(values),
+    hasInvalidBlank: values.some((airport) => !airport.trim()),
+  };
+}
+
 function resourcePairs(resource: ExportResourceOption): string[] {
   return resource.formats.map((format) => includeFor(resource.id, format));
 }

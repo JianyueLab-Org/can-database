@@ -10,10 +10,13 @@ const props = defineProps<{
   scopeError: boolean;
   unresolved: string[];
   loading: boolean;
+  listFailed: boolean;
+  invalidBlank: boolean;
 }>();
 const emit = defineEmits<{
   "update:selected": [selected: Set<string>];
   retry: [];
+  clear: [];
 }>();
 const t = createTranslator(props.messages);
 const query = ref("");
@@ -63,8 +66,8 @@ function toggle(icao: string, event: Event) {
       <button
         type="button"
         class="btn btn-secondary"
-        :disabled="!selected.size"
-        @click="emit('update:selected', new Set())"
+        :disabled="!selected.size && !invalidBlank"
+        @click="emit('clear')"
       >
         {{ t("clearAirports") }}
       </button>
@@ -82,7 +85,11 @@ function toggle(icao: string, event: Event) {
       }}
     </p>
     <div v-if="scopeError" role="alert" class="space-y-2 text-sm text-danger">
-      <p>{{ t("airportScopeError", { airports: unresolved.join(", ") }) }}</p>
+      <p v-if="listFailed && !selected.size">{{ t("airportListError") }}</p>
+      <p v-else-if="invalidBlank">{{ t("airportScopeInvalid") }}</p>
+      <p v-else>
+        {{ t("airportScopeError", { airports: unresolved.join(", ") }) }}
+      </p>
       <button
         type="button"
         class="btn btn-secondary"

@@ -11,6 +11,8 @@ const keys = [
   "airportSearch",
   "airportNoResults",
   "airportScopeError",
+  "airportScopeInvalid",
+  "airportListError",
   "retryAirports",
   "airportsSelected",
   "allAirports",
