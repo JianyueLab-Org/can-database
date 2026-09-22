@@ -61,6 +61,10 @@ interface Allowed {
  */
 export const ALLOW_LIST: Record<string, Allowed> = {
   "aip/datasets": { methods: ["GET"], who: "Datasets.vue —— 周期与来源总览" },
+  // Export.vue —— 导出选项
+  "aip/export/options": { methods: ["GET"], who: "Export.vue —— 导出选项" },
+  // Export.vue —— ZIP 资料包下载
+  "aip/export": { methods: ["GET"], who: "Export.vue —— ZIP 资料包下载" },
   "aip/airports": { methods: ["GET"], who: "Airports.vue —— 机场清单" },
   "aip/fixes": {
     methods: ["GET"],
@@ -146,7 +150,33 @@ const UNSAFE = new Set(["POST", "PATCH", "PUT", "DELETE"]);
  * `set-cookie` **必须**在里面：退出登录是 can-api 用一个 Set-Cookie 清掉会话
  * 的，漏掉它成员就永远登不出去 —— 按钮有反应、页面跳转、然后他还是登录着。
  */
-const PASS_THROUGH = ["content-type", "cache-control", "set-cookie"];
+const PASS_THROUGH = [
+  "content-type",
+  "content-disposition",
+  "cache-control",
+  "set-cookie",
+];
+
+export function upstreamTimeout(rest: string): number {
+  return rest === "aip/export" ? 120_000 : 15_000;
+}
+
+export function upstreamTarget(
+  upstreamOrigin: string,
+  rest: string,
+  search: string,
+): string {
+  return upstreamOrigin + "/api/v1/" + rest + search;
+}
+
+export function passThroughHeaders(upstreamHeaders: Headers): Headers {
+  const out = new Headers();
+  for (const name of PASS_THROUGH) {
+    const value = upstreamHeaders.get(name);
+    if (value) out.set(name, value);
+  }
+  return out;
+}
 
 const handler: APIRoute = async (context) => {
   const rest = context.params.path ?? "";
@@ -200,7 +230,7 @@ const handler: APIRoute = async (context) => {
   // 两个上游在这里交汇，而这是**唯一**一行在它们之间做选择的代码。这个文件其余
   // 部分都和上游无关，是刻意的。
   const upstreamOrigin = authEntry ? CAN_API_ORIGIN : CAN_DB_ORIGIN;
-  const target = upstreamOrigin + "/api/v1/" + rest + context.url.search;
+  const target = upstreamTarget(upstreamOrigin, rest, context.url.search);
 
   // cookie 一定要带：can-db 靠它去 can-api 认人，没有它每一条都是 401。
   const headers = new Headers();
@@ -234,7 +264,7 @@ const handler: APIRoute = async (context) => {
           ? undefined
           : context.request.body,
       ...(method === "GET" || method === "HEAD" ? {} : { duplex: "half" }),
-      signal: AbortSignal.timeout(15_000),
+      signal: AbortSignal.timeout(upstreamTimeout(rest)),
     } as RequestInit);
   } catch (error) {
     console.error(
@@ -247,11 +277,7 @@ const handler: APIRoute = async (context) => {
     );
   }
 
-  const out = new Headers();
-  for (const name of PASS_THROUGH) {
-    const value = upstream.headers.get(name);
-    if (value) out.set(name, value);
-  }
+  const out = passThroughHeaders(upstream.headers);
 
   return new Response(upstream.body, { status: upstream.status, headers: out });
 };

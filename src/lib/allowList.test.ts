@@ -91,6 +91,12 @@ describe("反代白名单", () => {
 });
 
 describe("白名单自己", () => {
+  test("export page paths permit GET only", () => {
+    expect(lookup("aip/export")).toMatchObject({ methods: ["GET"] });
+    expect(lookup("aip/export/options")).toMatchObject({ methods: ["GET"] });
+    expect(lookup("aip/export/preview")).toBeUndefined();
+  });
+
   test("扇区那两条在（图层和 top-down 各一条）", () => {
     expect(lookup("aip/sectors/network")).toBeDefined();
     expect(lookup("aip/sectors/network/resolve")).toBeDefined();
