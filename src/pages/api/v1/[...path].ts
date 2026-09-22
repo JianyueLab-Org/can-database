@@ -264,7 +264,10 @@ const handler: APIRoute = async (context) => {
           ? undefined
           : context.request.body,
       ...(method === "GET" || method === "HEAD" ? {} : { duplex: "half" }),
-      signal: AbortSignal.timeout(upstreamTimeout(rest)),
+      signal: AbortSignal.any([
+        context.request.signal,
+        AbortSignal.timeout(upstreamTimeout(rest)),
+      ]),
     } as RequestInit);
   } catch (error) {
     console.error(
