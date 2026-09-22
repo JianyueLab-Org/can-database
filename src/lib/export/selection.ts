@@ -9,6 +9,27 @@ function includeFor(resource: string, format: ExportFormat): string {
   return `${resource}.${format}`;
 }
 
+export function normalizeAirportCodes(airports: Iterable<string>): string[] {
+  return [
+    ...new Set(
+      [...airports]
+        .map((airport) => airport.trim().toUpperCase())
+        .filter(Boolean),
+    ),
+  ].sort();
+}
+
+export function parseAirportScope(airports: Iterable<string>): {
+  airports: string[];
+  hasInvalidBlank: boolean;
+} {
+  const values = [...airports];
+  return {
+    airports: normalizeAirportCodes(values),
+    hasInvalidBlank: values.some((airport) => !airport.trim()),
+  };
+}
+
 function resourcePairs(resource: ExportResourceOption): string[] {
   return resource.formats.map((format) => includeFor(resource.id, format));
 }
@@ -62,10 +83,14 @@ export function toggleGroupFormat(
 export function buildExportSearch(
   selected: ReadonlySet<string>,
   locale: Locale,
+  airports: Iterable<string> = [],
 ): URLSearchParams {
   const params = new URLSearchParams();
   for (const include of [...selected].sort()) {
     params.append("include", include);
+  }
+  for (const airport of normalizeAirportCodes(airports)) {
+    params.append("airport", airport);
   }
   params.set("locale", locale);
   return params;

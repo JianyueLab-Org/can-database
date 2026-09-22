@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
 import { api } from "@/lib/canDb";
+import type { AirportSummary } from "@/lib/canDb";
 import { createTranslator, type Locale } from "@/lib/i18n";
+import AirportExportScope from "@/components/AirportExportScope.vue";
 import type {
   ExportFormat,
   ExportGroupOption,
@@ -9,24 +11,51 @@ import type {
 } from "@/lib/export/options";
 import {
   createDefaultSelection,
+  normalizeAirportCodes,
   normalizeSelection,
+  parseAirportScope,
   toggleGroupFormat,
 } from "@/lib/export/selection";
 
 const props = defineProps<{
   messages: Record<string, unknown>;
   locale: Locale;
+  airports: AirportSummary[];
+  airportListFailed: boolean;
 }>();
 const t = createTranslator(props.messages);
 const formats: ExportFormat[] = ["json", "csv", "geojson", "osm"];
 const options = shallowRef<ExportOptions | null>(null);
 const selected = shallowRef(new Set<string>());
+const selectedAirports = shallowRef(new Set<string>());
+const airportOptions = shallowRef(props.airports);
+const airportListFailed = ref(props.airportListFailed);
+const airportLoading = ref(false);
+const invalidAirportScope = ref(false);
 const loading = ref(true);
 const optionsError = ref(false);
 const submitting = ref(false);
 const sortedSelection = computed(() => [...selected.value].sort());
+const unresolvedAirports = computed(() => {
+  const available = new Set(
+    airportOptions.value.map((airport) => airport.icao),
+  );
+  return normalizeAirportCodes(selectedAirports.value).filter(
+    (airport) => !available.has(airport),
+  );
+});
+const airportScopeBlocked = computed(
+  () =>
+    airportListFailed.value ||
+    invalidAirportScope.value ||
+    (selectedAirports.value.size > 0 && unresolvedAirports.value.length > 0),
+);
 const controlsDisabled = computed(
-  () => loading.value || submitting.value || !options.value,
+  () =>
+    loading.value ||
+    submitting.value ||
+    !options.value ||
+    airportScopeBlocked.value,
 );
 const status = computed(() => {
   if (loading.value) return t("loading");
@@ -110,6 +139,23 @@ function resetSubmitting() {
   submitting.value = false;
 }
 
+function clearAirportScope() {
+  selectedAirports.value = new Set();
+  invalidAirportScope.value = false;
+}
+
+async function loadAirports() {
+  airportLoading.value = true;
+  const result = await api<AirportSummary[]>("/api/v1/aip/airports");
+  airportLoading.value = false;
+  if (!result.ok) {
+    airportListFailed.value = true;
+    return;
+  }
+  airportOptions.value = result.data ?? [];
+  airportListFailed.value = false;
+}
+
 function onSubmit(event: Event) {
   if (controlsDisabled.value || !selected.value.size) {
     event.preventDefault();
@@ -120,6 +166,12 @@ function onSubmit(event: Event) {
 }
 
 onMounted(() => {
+  const requestedAirports = new URL(window.location.href).searchParams.getAll(
+    "airport",
+  );
+  const airportScope = parseAirportScope(requestedAirports);
+  invalidAirportScope.value = airportScope.hasInvalidBlank;
+  selectedAirports.value = new Set(airportScope.airports);
   window.addEventListener("pageshow", resetSubmitting);
   void loadOptions();
 });
@@ -145,7 +197,29 @@ onBeforeUnmount(() => {
       name="include"
       :value="include"
     />
+    <input
+      v-for="airport in normalizeAirportCodes(selectedAirports)"
+      :key="airport"
+      type="hidden"
+      name="airport"
+      :value="airport"
+    />
     <input type="hidden" name="locale" :value="locale" />
+
+    <AirportExportScope
+      :airports="airportOptions"
+      :selected="selectedAirports"
+      :messages="messages"
+      :scope-error="airportScopeBlocked"
+      :unresolved="unresolvedAirports"
+      :loading="airportLoading"
+      :list-failed="airportListFailed"
+      :invalid-blank="invalidAirportScope"
+      @update:selected="selectedAirports = $event"
+      @retry="loadAirports"
+      @clear="clearAirportScope"
+    />
+    <p class="text-sm text-muted">{{ t("globalResources") }}</p>
 
     <div class="flex flex-wrap items-center gap-3">
       <button
@@ -247,7 +321,15 @@ onBeforeUnmount(() => {
           <tbody>
             <tr v-for="resource in group.resources" :key="resource.id">
               <th scope="row" class="text-left font-medium">
-                {{ t(`resources.${resource.id}`) }}
+                <span :id="`export-resource-${resource.id}`">
+                  {{ t(`resources.${resource.id}`) }}
+                  <span
+                    v-if="resource.airportScoped"
+                    class="badge badge-neutral ml-2"
+                  >
+                    {{ t("airportScoped") }}
+                  </span>
+                </span>
               </th>
               <td v-for="format in formats" :key="format">
                 <label

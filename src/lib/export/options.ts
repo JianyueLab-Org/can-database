@@ -4,6 +4,8 @@ export type ExportFormat = "json" | "csv" | "geojson" | "osm";
 export interface ExportResourceOption {
   id: string;
   formats: ExportFormat[];
+  /** The backend applies repeated airport query values to this resource. */
+  airportScoped: boolean;
 }
 
 export interface ExportGroupOption {
