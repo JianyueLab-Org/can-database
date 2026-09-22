@@ -1,4 +1,56 @@
 {
+  "exportPage": {
+    "scrollHint": "横にスクロールすると、すべての形式を確認できます。表の領域にフォーカスがあるときは、左右の矢印キーでもスクロールできます。",
+    "title": "現行データのエクスポート",
+    "description": "リソースと形式を選択すると、アカウントで利用できる現行データを一つのZIPファイルにまとめてダウンロードできます。",
+    "selectAll": "すべてのJSONを選択（初期設定）",
+    "clear": "選択を解除",
+    "unsupported": "このリソースはこの形式に対応していません。",
+    "loading": "エクスポートの選択肢を読み込み中…",
+    "optionsError": "エクスポートの選択肢を読み込めませんでした。もう一度お試しください。",
+    "empty": "ダウンロードするリソースと形式を一つ以上選択してください。",
+    "download": "ZIPをダウンロード（{count}件）",
+    "retry": "再試行",
+    "submitting": "ダウンロードを開始中（{count}件）…",
+    "selected": "リソースと形式の組み合わせを{count}件選択しています。",
+    "resource": "リソース",
+    "selectGroupFormat": "{group}の{format}をすべて選択",
+    "formats": {
+      "json": "JSON形式",
+      "csv": "CSV形式",
+      "geojson": "GeoJSON形式",
+      "osm": "OSM形式"
+    },
+    "groups": {
+      "airport": "空港データ",
+      "navigation": "航法",
+      "ground": "地上データ",
+      "airspace": "空域",
+      "network": "ネットワーク"
+    },
+    "resources": {
+      "airports": "空港",
+      "runways": "滑走路",
+      "stands": "駐機位置",
+      "procedures": "飛行方式",
+      "terminal-waypoints": "ターミナル経由点",
+      "terminal-holdings": "ターミナル待機経路",
+      "comms": "通信周波数",
+      "ils": "計器着陸装置",
+      "fixes": "航空路上の位置通報点",
+      "airways": "航空路",
+      "navaids": "航行援助施設",
+      "mora": "経路外最低高度",
+      "flight-routes": "公示飛行経路",
+      "route-restrictions": "経路制限",
+      "enroute-holdings": "航空路上の待機経路",
+      "ground-features": "地上地物",
+      "ground-lines": "地上線画",
+      "airspaces": "空域",
+      "network-positions": "ネットワーク管制席",
+      "network-sectors": "ネットワーク管制セクター"
+    }
+  },
   "frame": {
     "signOut": "ログアウト",
     "search": {
@@ -18,6 +70,7 @@
     "openSidebar": "ナビゲーションを開く"
   },
   "nav": {
+    "export": "エクスポート",
     "overview": "总览",
     "airports": "机场",
     "fixes": "航路点",
