@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
 import { api } from "@/lib/canDb";
+import type { AirportSummary } from "@/lib/canDb";
 import { createTranslator, type Locale } from "@/lib/i18n";
+import AirportExportScope from "@/components/AirportExportScope.vue";
 import type {
   ExportFormat,
   ExportGroupOption,
@@ -16,11 +18,13 @@ import {
 const props = defineProps<{
   messages: Record<string, unknown>;
   locale: Locale;
+  airports: AirportSummary[];
 }>();
 const t = createTranslator(props.messages);
 const formats: ExportFormat[] = ["json", "csv", "geojson", "osm"];
 const options = shallowRef<ExportOptions | null>(null);
 const selected = shallowRef(new Set<string>());
+const selectedAirports = shallowRef(new Set<string>());
 const loading = ref(true);
 const optionsError = ref(false);
 const submitting = ref(false);
@@ -120,6 +124,13 @@ function onSubmit(event: Event) {
 }
 
 onMounted(() => {
+  const available = new Set(props.airports.map((airport) => airport.icao));
+  selectedAirports.value = new Set(
+    new URL(window.location.href).searchParams
+      .getAll("airport")
+      .map((airport) => airport.toUpperCase())
+      .filter((airport) => available.has(airport)),
+  );
   window.addEventListener("pageshow", resetSubmitting);
   void loadOptions();
 });
@@ -145,7 +156,22 @@ onBeforeUnmount(() => {
       name="include"
       :value="include"
     />
+    <input
+      v-for="airport in [...selectedAirports].sort()"
+      :key="airport"
+      type="hidden"
+      name="airport"
+      :value="airport"
+    />
     <input type="hidden" name="locale" :value="locale" />
+
+    <AirportExportScope
+      :airports="airports"
+      :selected="selectedAirports"
+      :messages="messages"
+      @update:selected="selectedAirports = $event"
+    />
+    <p class="text-sm text-muted">{{ t("globalResources") }}</p>
 
     <div class="flex flex-wrap items-center gap-3">
       <button
@@ -247,7 +273,15 @@ onBeforeUnmount(() => {
           <tbody>
             <tr v-for="resource in group.resources" :key="resource.id">
               <th scope="row" class="text-left font-medium">
-                {{ t(`resources.${resource.id}`) }}
+                <span :id="`export-resource-${resource.id}`">
+                  {{ t(`resources.${resource.id}`) }}
+                  <span
+                    v-if="resource.airportScoped"
+                    class="badge badge-neutral ml-2"
+                  >
+                    {{ t("airportScoped") }}
+                  </span>
+                </span>
               </th>
               <td v-for="format in formats" :key="format">
                 <label

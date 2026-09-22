@@ -7,6 +7,7 @@ import {
   type HTMLInputElement,
 } from "happy-dom";
 import { getMessages } from "@/lib/i18n";
+import type { AirportSummary } from "@/lib/canDb";
 import type { ExportOptions } from "./options";
 
 const browser = new Window({ url: "https://database.ceruleanavi.net/export" });
@@ -29,18 +30,21 @@ for (const key of [
 plugin({
   name: "vue-export-test",
   setup(build) {
-    build.onLoad({ filter: /DatasetExport\.vue$/ }, async ({ path }) => {
-      const { descriptor } = parse(await Bun.file(path).text(), {
-        filename: path,
-      });
-      return {
-        contents: compileScript(descriptor, {
-          id: "export-test",
-          inlineTemplate: true,
-        }).content,
-        loader: "ts",
-      };
-    });
+    build.onLoad(
+      { filter: /(DatasetExport|AirportExportScope)\.vue$/ },
+      async ({ path }) => {
+        const { descriptor } = parse(await Bun.file(path).text(), {
+          filename: path,
+        });
+        return {
+          contents: compileScript(descriptor, {
+            id: "export-test",
+            inlineTemplate: true,
+          }).content,
+          loader: "ts",
+        };
+      },
+    );
   },
 });
 
@@ -52,13 +56,23 @@ const options: ExportOptions = {
     {
       id: "airport",
       resources: [
-        { id: "airports", formats: ["json", "csv", "osm"] },
-        { id: "procedures", formats: ["json"] },
+        {
+          id: "airports",
+          formats: ["json", "csv", "osm"],
+          airportScoped: true,
+        },
+        { id: "procedures", formats: ["json"], airportScoped: true },
       ],
     },
     {
       id: "ground",
-      resources: [{ id: "ground-features", formats: ["json", "osm"] }],
+      resources: [
+        {
+          id: "ground-features",
+          formats: ["json", "osm"],
+          airportScoped: false,
+        },
+      ],
     },
   ],
   locales: ["en-us", "ja-jp", "zh-cn", "zh-tw"],
@@ -70,6 +84,30 @@ const options: ExportOptions = {
     archiveEntries: 512,
   },
 };
+const airports: AirportSummary[] = [
+  {
+    icao: "ZBAA",
+    name: "Beijing Capital",
+    fir: "ZBPE",
+    lat: 40.08,
+    lon: 116.58,
+    elev: 116,
+    variation: -7,
+    airac: "2610",
+    stands: 190,
+  },
+  {
+    icao: "ZSPD",
+    name: "Shanghai Pudong",
+    fir: "ZSHA",
+    lat: 31.14,
+    lon: 121.79,
+    elev: 13,
+    variation: -5,
+    airac: "2610",
+    stands: 216,
+  },
+];
 
 let app: ReturnType<typeof createApp> | undefined;
 const fetchSpy = spyOn(
@@ -88,6 +126,7 @@ function mount() {
   app = createApp(DatasetExport, {
     messages: getMessages("en-us", "exportPage"),
     locale: "en-us",
+    airports,
   });
   app.mount(host as unknown as HTMLElement);
   return host;
@@ -118,6 +157,72 @@ afterAll(() => {
 });
 
 describe("dataset export page", () => {
+  test("preselects airports from the URL and emits sorted native query fields", async () => {
+    browser.history.replaceState(
+      {},
+      "",
+      "/export?airport=ZSPD&airport=ZBAA&airport=ZSPD",
+    );
+    succeed();
+    const host = mount();
+    await settle();
+
+    expect(
+      host.querySelector<HTMLInputElement>("#export-airport-search"),
+    ).toBeTruthy();
+    expect(host.querySelector("#export-airport-status")?.textContent).toContain(
+      "2 airports selected",
+    );
+    expect(
+      new browser.FormData(host.querySelector("form")!).getAll("airport"),
+    ).toEqual(["ZBAA", "ZSPD"]);
+  });
+
+  test("filters airport choices, supports multiple selections and clear means all airports", async () => {
+    browser.history.replaceState({}, "", "/export");
+    succeed();
+    const host = mount();
+    await settle();
+    const search = host.querySelector<HTMLInputElement>(
+      "#export-airport-search",
+    )!;
+    search.value = "shanghai";
+    search.dispatchEvent(new browser.Event("input", { bubbles: true }));
+    await nextTick();
+    expect(host.textContent).toContain("Shanghai Pudong");
+    expect(host.textContent).not.toContain("Beijing Capital");
+
+    host.querySelector<HTMLInputElement>("#export-airport-ZSPD")!.click();
+    await nextTick();
+    expect(host.querySelector("#export-airport-status")?.textContent).toContain(
+      "1 airports selected",
+    );
+    [...host.querySelectorAll("button")]
+      .find((button) => button.textContent === "Clear airports")!
+      .click();
+    await nextTick();
+    expect(host.querySelector("#export-airport-status")?.textContent).toContain(
+      "All current airports",
+    );
+    expect(
+      new browser.FormData(host.querySelector("form")!).getAll("airport"),
+    ).toEqual([]);
+  });
+
+  test("labels airport-scoped resources and explains unscoped resources stay complete", async () => {
+    browser.history.replaceState({}, "", "/export");
+    succeed();
+    const host = mount();
+    await settle();
+    expect(
+      host.querySelector("#export-resource-airports")?.textContent,
+    ).toContain("Airport scoped");
+    expect(
+      host.querySelector("#export-resource-ground-features")?.textContent,
+    ).not.toContain("Airport scoped");
+    expect(host.textContent).toContain("Global resources remain complete");
+  });
+
   test("preserves format headers and bulk controls in labelled keyboard-scrollable matrices", async () => {
     succeed();
     const host = mount();
@@ -179,7 +284,7 @@ describe("dataset export page", () => {
     );
     const host = mount();
     expect(
-      host.querySelector('[aria-live="polite"]')?.textContent ?? "",
+      host.querySelector('form > p[role="status"]')?.textContent ?? "",
     ).toContain("Loading export options");
     expect(
       host.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled,
@@ -188,7 +293,7 @@ describe("dataset export page", () => {
     await settle();
     expect(
       [...host.querySelectorAll("fieldset > legend")].map((n) => n.textContent),
-    ).toEqual(["Airport data", "Ground data"]);
+    ).toEqual(["Airport scope", "Airport data", "Ground data"]);
     expect(host.querySelectorAll('tbody input[type="checkbox"]').length).toBe(
       12,
     );
@@ -208,9 +313,9 @@ describe("dataset export page", () => {
         host.querySelector(`label[for="${input.id}"]`)?.textContent?.trim(),
       ).toBeTruthy();
     }
-    expect(host.querySelector('[aria-live="polite"]')?.textContent).toContain(
-      "3 resource and format pairs selected",
-    );
+    expect(
+      host.querySelector('form > p[role="status"]')?.textContent,
+    ).toContain("3 resource and format pairs selected");
   });
 
   test("refetches failed options when retry is activated", async () => {
@@ -220,17 +325,17 @@ describe("dataset export page", () => {
     const host = mount();
     await settle();
     expect(
-      host.querySelector('[aria-live="polite"]')?.textContent ?? "",
+      host.querySelector('form > p[role="status"]')?.textContent ?? "",
     ).toContain("could not be loaded");
     succeed();
     [...host.querySelectorAll("button")]
       .find((button) => button.textContent === "Retry")!
       .click();
     await settle();
-    expect(host.querySelectorAll("fieldset").length).toBe(2);
-    expect(host.querySelector('[aria-live="polite"]')?.textContent).toContain(
-      "3 resource",
-    );
+    expect(host.querySelectorAll("fieldset").length).toBe(3);
+    expect(
+      host.querySelector('form > p[role="status"]')?.textContent,
+    ).toContain("3 resource");
   });
 
   test("bulk selection respects compatibility and native form emits sorted repeated includes and locale", async () => {
@@ -287,9 +392,9 @@ describe("dataset export page", () => {
     expect(clear).toBeTruthy();
     clear!.click();
     await nextTick();
-    expect(host.querySelector('[aria-live="polite"]')?.textContent).toContain(
-      "Select at least one",
-    );
+    expect(
+      host.querySelector('form > p[role="status"]')?.textContent,
+    ).toContain("Select at least one");
     expect(
       host.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled,
     ).toBe(true);

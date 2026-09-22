@@ -62,10 +62,16 @@ export function toggleGroupFormat(
 export function buildExportSearch(
   selected: ReadonlySet<string>,
   locale: Locale,
+  airports: Iterable<string> = [],
 ): URLSearchParams {
   const params = new URLSearchParams();
   for (const include of [...selected].sort()) {
     params.append("include", include);
+  }
+  for (const airport of [
+    ...new Set([...airports].map((value) => value.toUpperCase())),
+  ].sort()) {
+    params.append("airport", airport);
   }
   params.set("locale", locale);
   return params;

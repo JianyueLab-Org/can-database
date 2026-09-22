@@ -13,15 +13,23 @@ const optionsFixture: ExportOptions = {
     {
       id: "airport",
       resources: [
-        { id: "airports", formats: ["json", "csv", "osm"] },
-        { id: "procedures", formats: ["json", "csv"] },
+        {
+          id: "airports",
+          formats: ["json", "csv", "osm"],
+          airportScoped: true,
+        },
+        { id: "procedures", formats: ["json", "csv"], airportScoped: true },
       ],
     },
     {
       id: "ground",
       resources: [
-        { id: "ground-features", formats: ["json", "osm"] },
-        { id: "ground-lines", formats: ["csv"] },
+        {
+          id: "ground-features",
+          formats: ["json", "osm"],
+          airportScoped: true,
+        },
+        { id: "ground-lines", formats: ["csv"], airportScoped: true },
       ],
     },
   ],
@@ -103,6 +111,7 @@ describe("export selection helpers", () => {
     const query = buildExportSearch(
       new Set(["ground-features.osm", "airports.json"]),
       "zh-cn" as Locale,
+      ["ZSPD", "ZBAA", "ZSPD"],
     );
 
     expect(query.getAll("include")).toEqual([
@@ -110,6 +119,13 @@ describe("export selection helpers", () => {
       "ground-features.osm",
     ]);
     expect(query.get("locale")).toBe("zh-cn");
-    expect([...query.keys()]).toEqual(["include", "include", "locale"]);
+    expect(query.getAll("airport")).toEqual(["ZBAA", "ZSPD"]);
+    expect([...query.keys()]).toEqual([
+      "include",
+      "include",
+      "airport",
+      "airport",
+      "locale",
+    ]);
   });
 });

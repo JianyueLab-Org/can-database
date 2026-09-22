@@ -5,10 +5,10 @@ import RichText from "@/components/RichText.astro";
 import SectionTitle from "@/components/SectionTitle.astro";
 import AirportMap from "@/components/AirportMap.vue";
 import Procedures from "@/components/Procedures.vue";
-import ExportButton from "@/components/ExportButton.vue";
 import { getLocale, getMessages, useTranslations } from "@/lib/i18n";
 import { callDb } from "@/server/canDb";
 import type { AirportDetail } from "@/lib/canDb";
+import { airportExportHref } from "@/lib/export/airportLink";
 
 /**
  * 一个机场的全部：跑道、机位、进离场程序。
@@ -22,24 +22,6 @@ const locale = getLocale(Astro.cookies);
 const t = useTranslations(locale, "airports");
 const mapMessages = getMessages(locale, "airportMap");
 const procMessages = getMessages(locale, "procedures");
-
-/**
- * 导出按钮共用的字典 —— **只用命名空间嵌套的形式，不再往顶层 spread 一份。**
- * `createTranslator` 解的是点路径，而 `TABLES` 里每个 `headerKey` 都带命名空间
- * 前缀；顶层那一份既用不上，又会让两个命名空间里的同名键互相盖掉。
- *
- * 六个命名空间一个都不能少，`fixes` 尤其容易漏 —— 这一页用不到它，但
- * `Fixes.vue` 的列名键是 `fixes.ident`，少了它那一列的表头会渲染成键名本身。
- */
-const exportDict = {
-  airports: getMessages(locale, "airports"),
-  airportMap: getMessages(locale, "airportMap"),
-  datasets: getMessages(locale, "datasets"),
-  fixes: getMessages(locale, "fixes"),
-  positions: getMessages(locale, "positions"),
-  procedures: getMessages(locale, "procedures"),
-  export: getMessages(locale, "export"),
-};
 
 const result = await callDb<AirportDetail>(
   Astro,
@@ -176,6 +158,12 @@ const facts: Fact[] = !airport
             {/* 分类属性排在右边当标签 —— 它们没有「值」，和下面那张有单位有数字的
                 事实表不是一类东西。 */}
             <Fragment slot="actions">
+              <a
+                href={airportExportHref(airport.icao)}
+                class="btn btn-secondary"
+              >
+                {t("exportAirport")}
+              </a>
               {airport.isInternational && (
                 <span class="badge badge-info">{t("international")}</span>
               )}
@@ -234,17 +222,7 @@ const facts: Fact[] = !airport
               title={t("runways")}
               count={runwayRows.length}
               note={t("runwayNote")}
-            >
-              <ExportButton
-                slot="actions"
-                client:idle
-                resource="runways"
-                scope={icao}
-                rows={runwayRows}
-                licence={result.licence}
-                messages={exportDict}
-              />
-            </SectionTitle>
+            />
             <div
               class="scroll-shadow-x overflow-x-auto"
               style="--scroll-shadow-bg: var(--surface)"
@@ -303,19 +281,7 @@ const facts: Fact[] = !airport
             <SectionTitle
               title={t("standsTitle")}
               count={airport.stands.length}
-            >
-              {/* 传全量，不是下面渲染截断的前 60 条 —— 导出一个只有 60 个机位
-                  的 ZGGG 是个陷阱。 */}
-              <ExportButton
-                slot="actions"
-                client:idle
-                resource="stands"
-                scope={icao}
-                rows={airport.stands ?? []}
-                licence={result.licence}
-                messages={exportDict}
-              />
-            </SectionTitle>
+            />
             {/* Capped at 60 rendered rows. ZGGG has 520 stands and a wall of
                 them helps nobody read this page; the count above is the honest
                 number and the cap says so rather than silently truncating. */}
@@ -345,9 +311,6 @@ const facts: Fact[] = !airport
               messages={procMessages}
               procedures={airport.procedures}
               runways={runwayIdents}
-              icao={icao}
-              licence={result.licence}
-              exportMessages={exportDict}
               client:load
             />
           </section>
