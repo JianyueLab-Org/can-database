@@ -1,4 +1,55 @@
 {
+  "exportPage": {
+    "title": "Export current data",
+    "description": "Choose resources and formats to download the current data available to your account in one ZIP archive.",
+    "selectAll": "Select all JSON (default)",
+    "clear": "Clear selection",
+    "unsupported": "This resource is not available in this format.",
+    "loading": "Loading export options…",
+    "optionsError": "Export options could not be loaded. Please try again.",
+    "empty": "Select at least one resource and format to download.",
+    "download": "Download ZIP ({count})",
+    "retry": "Retry",
+    "submitting": "Starting download ({count})…",
+    "selected": "{count} resource and format pairs selected.",
+    "resource": "Resource",
+    "selectGroupFormat": "Select all {format} in {group}",
+    "formats": {
+      "json": "JSON",
+      "csv": "CSV",
+      "geojson": "GeoJSON",
+      "osm": "OSM"
+    },
+    "groups": {
+      "airport": "Airport data",
+      "navigation": "Navigation",
+      "ground": "Ground data",
+      "airspace": "Airspace",
+      "network": "Network"
+    },
+    "resources": {
+      "airports": "Airports",
+      "runways": "Runways",
+      "stands": "Stands",
+      "procedures": "Procedures",
+      "terminal-waypoints": "Terminal waypoints",
+      "terminal-holdings": "Terminal holding patterns",
+      "comms": "Communications",
+      "ils": "Instrument landing systems",
+      "fixes": "En-route fixes",
+      "airways": "Airways",
+      "navaids": "Navigation aids",
+      "mora": "Minimum off-route altitudes",
+      "flight-routes": "Published flight routes",
+      "route-restrictions": "Route restrictions",
+      "enroute-holdings": "En-route holding patterns",
+      "ground-features": "Ground features",
+      "ground-lines": "Ground linework",
+      "airspaces": "Airspaces",
+      "network-positions": "Network positions",
+      "network-sectors": "Network sectors"
+    }
+  },
   "frame": {
     "signOut": "Sign Out",
     "search": {
@@ -18,6 +69,7 @@
     "openSidebar": "Open navigation"
   },
   "nav": {
+    "export": "Export",
     "overview": "总览",
     "airports": "机场",
     "fixes": "航路点",
