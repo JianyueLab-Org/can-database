@@ -18,6 +18,7 @@ const keys = [
   "selected",
   "resource",
   "selectGroupFormat",
+  "scrollHint",
   ...["airport", "navigation", "ground", "airspace", "network"].map(
     (id) => `groups.${id}`,
   ),

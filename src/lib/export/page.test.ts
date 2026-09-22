@@ -118,6 +118,57 @@ afterAll(() => {
 });
 
 describe("dataset export page", () => {
+  test("preserves format headers and bulk controls in labelled keyboard-scrollable matrices", async () => {
+    succeed();
+    const host = mount();
+    await settle();
+    const tables = [...host.querySelectorAll("table")];
+    expect(tables).toHaveLength(2);
+    for (const table of tables) {
+      expect(table.classList.contains("data-table")).toBe(false);
+      expect(table.classList.contains("export-matrix")).toBe(true);
+      expect(table.classList.contains("min-w-[40rem]")).toBe(true);
+      const region = table.closest('[role="region"]');
+      expect(region).toBeTruthy();
+      expect(region!.classList.contains("overflow-x-auto")).toBe(true);
+      expect(region!.getAttribute("tabindex")).toBe("0");
+      const legend = table.closest("fieldset")!.querySelector("legend")!;
+      expect(region!.getAttribute("aria-labelledby")).toBe(legend.id);
+      expect(legend.id).not.toBe("");
+      const instruction = host.querySelector(
+        `#${region!.getAttribute("aria-describedby")}`,
+      );
+      expect(instruction?.textContent).toContain("Scroll horizontally");
+      expect(instruction?.textContent).toContain("Left and Right arrow keys");
+      expect(
+        [...table.querySelectorAll("thead label > span[aria-hidden]")].map(
+          (label) => label.textContent,
+        ),
+      ).toEqual(["JSON", "CSV", "GeoJSON", "OSM"]);
+      expect(
+        table.querySelectorAll('thead input[type="checkbox"]'),
+      ).toHaveLength(4);
+      const scrollRegion = region as InstanceType<typeof browser.HTMLElement>;
+      scrollRegion.focus();
+      expect(browser.document.activeElement).toBe(scrollRegion);
+    }
+    const bulkToggle = host.querySelector<HTMLInputElement>(
+      "#export-group-airport-osm",
+    )!;
+    bulkToggle.focus();
+    expect(browser.document.activeElement).toBe(bulkToggle);
+    bulkToggle.click();
+    await nextTick();
+    expect(
+      new browser.FormData(host.querySelector("form")!).getAll("include"),
+    ).toEqual([
+      "airports.json",
+      "airports.osm",
+      "ground-features.json",
+      "procedures.json",
+    ]);
+  });
+
   test("announces loading, then renders backend compatibility with accessible disabled cells", async () => {
     let release!: (value: Response) => void;
     fetchSpy.mockImplementation(

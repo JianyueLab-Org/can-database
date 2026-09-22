@@ -1,5 +1,6 @@
 {
   "exportPage": {
+    "scrollHint": "Scroll horizontally to view every format. With the table region focused, use the Left and Right arrow keys.",
     "title": "Export current data",
     "description": "Choose resources and formats to download the current data available to your account in one ZIP archive.",
     "selectAll": "Select all JSON (default)",

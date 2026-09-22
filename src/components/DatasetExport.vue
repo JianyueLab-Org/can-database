@@ -169,6 +169,9 @@ onBeforeUnmount(() => {
     <p id="export-unsupported" class="text-sm text-muted">
       {{ t("unsupported") }}
     </p>
+    <p id="export-scroll-hint" class="text-sm text-muted">
+      {{ t("scrollHint") }}
+    </p>
     <p
       role="status"
       aria-live="polite"
@@ -193,11 +196,22 @@ onBeforeUnmount(() => {
       class="card min-w-0 p-4"
       :disabled="controlsDisabled"
     >
-      <legend class="text-title-3 px-2 text-ink">
+      <legend
+        :id="`export-group-${group.id}`"
+        class="text-title-3 px-2 text-ink"
+      >
         {{ t(`groups.${group.id}`) }}
       </legend>
-      <div class="scroll-shadow-x overflow-x-auto">
-        <table class="data-table w-full text-sm">
+      <div
+        role="region"
+        tabindex="0"
+        :aria-labelledby="`export-group-${group.id}`"
+        aria-describedby="export-scroll-hint"
+        class="scroll-shadow-x overflow-x-auto focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-can"
+      >
+        <table
+          class="export-matrix w-full min-w-[40rem] border-collapse text-left text-sm [&_td]:px-3 [&_td]:py-2 [&_th]:px-3 [&_th]:py-2 [&_tbody_tr]:border-t [&_tbody_tr]:border-[var(--border-subtle)]"
+        >
           <thead>
             <tr>
               <th scope="col">{{ t("resource") }}</th>
