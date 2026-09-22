@@ -10,6 +10,8 @@ const keys = [
   "airportScopeHint",
   "airportSearch",
   "airportNoResults",
+  "airportScopeError",
+  "retryAirports",
   "airportsSelected",
   "allAirports",
   "clearAirports",

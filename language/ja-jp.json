@@ -7,6 +7,8 @@
     "airportScopeHint": "空港に紐づくリソースを絞り込むには、一つ以上の空港を選択します。選択しない場合は、すべての現行空港を含めます。",
     "airportSearch": "空港を検索",
     "airportNoResults": "一致する空港はありません。",
+    "airportScopeError": "空港の選択を確認できませんでした: {airports}。ダウンロード前に再試行してください。",
+    "retryAirports": "空港を再試行",
     "airportsSelected": "{count}空港を選択しています。",
     "allAirports": "すべての現行空港を含めます。",
     "clearAirports": "空港の選択を解除",

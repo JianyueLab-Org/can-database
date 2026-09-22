@@ -7,6 +7,8 @@
     "airportScopeHint": "Select one or more airports to limit airport-scoped resources. Leave the selection empty to include all current airports.",
     "airportSearch": "Search airports",
     "airportNoResults": "No airports match this search.",
+    "airportScopeError": "Airport selection could not be verified: {airports}. Retry before downloading.",
+    "retryAirports": "Retry airports",
     "airportsSelected": "{count} airports selected.",
     "allAirports": "All current airports are included.",
     "clearAirports": "Clear airports",

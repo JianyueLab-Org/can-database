@@ -111,7 +111,7 @@ describe("export selection helpers", () => {
     const query = buildExportSearch(
       new Set(["ground-features.osm", "airports.json"]),
       "zh-cn" as Locale,
-      ["ZSPD", "ZBAA", "ZSPD"],
+      [" zspd ", "zbaa", "ZSPD", ""],
     );
 
     expect(query.getAll("include")).toEqual([

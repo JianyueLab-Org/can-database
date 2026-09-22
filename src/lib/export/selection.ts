@@ -9,6 +9,16 @@ function includeFor(resource: string, format: ExportFormat): string {
   return `${resource}.${format}`;
 }
 
+export function normalizeAirportCodes(airports: Iterable<string>): string[] {
+  return [
+    ...new Set(
+      [...airports]
+        .map((airport) => airport.trim().toUpperCase())
+        .filter(Boolean),
+    ),
+  ].sort();
+}
+
 function resourcePairs(resource: ExportResourceOption): string[] {
   return resource.formats.map((format) => includeFor(resource.id, format));
 }
@@ -68,9 +78,7 @@ export function buildExportSearch(
   for (const include of [...selected].sort()) {
     params.append("include", include);
   }
-  for (const airport of [
-    ...new Set([...airports].map((value) => value.toUpperCase())),
-  ].sort()) {
+  for (const airport of normalizeAirportCodes(airports)) {
     params.append("airport", airport);
   }
   params.set("locale", locale);

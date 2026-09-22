@@ -7,6 +7,8 @@
     "airportScopeHint": "選擇一個或多個機場以限制按機場範圍匯出的資源。留空則包含全部目前機場。",
     "airportSearch": "搜尋機場",
     "airportNoResults": "沒有相符的機場。",
+    "airportScopeError": "無法確認機場選取：{airports}。請在下載前重試。",
+    "retryAirports": "重試載入機場",
     "airportsSelected": "已選擇 {count} 個機場。",
     "allAirports": "包含全部目前機場。",
     "clearAirports": "清除機場選擇",

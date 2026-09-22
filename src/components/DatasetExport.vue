@@ -11,6 +11,7 @@ import type {
 } from "@/lib/export/options";
 import {
   createDefaultSelection,
+  normalizeAirportCodes,
   normalizeSelection,
   toggleGroupFormat,
 } from "@/lib/export/selection";
@@ -19,18 +20,39 @@ const props = defineProps<{
   messages: Record<string, unknown>;
   locale: Locale;
   airports: AirportSummary[];
+  airportListFailed: boolean;
 }>();
 const t = createTranslator(props.messages);
 const formats: ExportFormat[] = ["json", "csv", "geojson", "osm"];
 const options = shallowRef<ExportOptions | null>(null);
 const selected = shallowRef(new Set<string>());
 const selectedAirports = shallowRef(new Set<string>());
+const airportOptions = shallowRef(props.airports);
+const airportListFailed = ref(props.airportListFailed);
+const airportLoading = ref(false);
 const loading = ref(true);
 const optionsError = ref(false);
 const submitting = ref(false);
 const sortedSelection = computed(() => [...selected.value].sort());
+const unresolvedAirports = computed(() => {
+  const available = new Set(
+    airportOptions.value.map((airport) => airport.icao),
+  );
+  return normalizeAirportCodes(selectedAirports.value).filter(
+    (airport) => !available.has(airport),
+  );
+});
+const airportScopeBlocked = computed(
+  () =>
+    selectedAirports.value.size > 0 &&
+    (airportListFailed.value || unresolvedAirports.value.length > 0),
+);
 const controlsDisabled = computed(
-  () => loading.value || submitting.value || !options.value,
+  () =>
+    loading.value ||
+    submitting.value ||
+    !options.value ||
+    airportScopeBlocked.value,
 );
 const status = computed(() => {
   if (loading.value) return t("loading");
@@ -114,6 +136,18 @@ function resetSubmitting() {
   submitting.value = false;
 }
 
+async function loadAirports() {
+  airportLoading.value = true;
+  const result = await api<AirportSummary[]>("/api/v1/aip/airports");
+  airportLoading.value = false;
+  if (!result.ok) {
+    airportListFailed.value = true;
+    return;
+  }
+  airportOptions.value = result.data ?? [];
+  airportListFailed.value = false;
+}
+
 function onSubmit(event: Event) {
   if (controlsDisabled.value || !selected.value.size) {
     event.preventDefault();
@@ -124,12 +158,10 @@ function onSubmit(event: Event) {
 }
 
 onMounted(() => {
-  const available = new Set(props.airports.map((airport) => airport.icao));
   selectedAirports.value = new Set(
-    new URL(window.location.href).searchParams
-      .getAll("airport")
-      .map((airport) => airport.toUpperCase())
-      .filter((airport) => available.has(airport)),
+    normalizeAirportCodes(
+      new URL(window.location.href).searchParams.getAll("airport"),
+    ),
   );
   window.addEventListener("pageshow", resetSubmitting);
   void loadOptions();
@@ -157,7 +189,7 @@ onBeforeUnmount(() => {
       :value="include"
     />
     <input
-      v-for="airport in [...selectedAirports].sort()"
+      v-for="airport in normalizeAirportCodes(selectedAirports)"
       :key="airport"
       type="hidden"
       name="airport"
@@ -166,10 +198,14 @@ onBeforeUnmount(() => {
     <input type="hidden" name="locale" :value="locale" />
 
     <AirportExportScope
-      :airports="airports"
+      :airports="airportOptions"
       :selected="selectedAirports"
       :messages="messages"
+      :scope-error="airportScopeBlocked"
+      :unresolved="unresolvedAirports"
+      :loading="airportLoading"
       @update:selected="selectedAirports = $event"
+      @retry="loadAirports"
     />
     <p class="text-sm text-muted">{{ t("globalResources") }}</p>
 

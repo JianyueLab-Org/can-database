@@ -120,13 +120,19 @@ async function settle() {
   await new Promise((resolve) => setTimeout(resolve, 0));
   await nextTick();
 }
-function mount() {
+function mount(
+  overrides: Partial<{
+    airports: AirportSummary[];
+    airportListFailed: boolean;
+  }> = {},
+) {
   const host = browser.document.createElement("div");
   browser.document.body.append(host);
   app = createApp(DatasetExport, {
     messages: getMessages("en-us", "exportPage"),
     locale: "en-us",
-    airports,
+    airports: overrides.airports ?? airports,
+    airportListFailed: overrides.airportListFailed ?? false,
   });
   app.mount(host as unknown as HTMLElement);
   return host;
@@ -146,6 +152,7 @@ afterEach(() => {
   app = undefined;
   browser.document.body.replaceChildren();
   fetchSpy.mockReset();
+  browser.history.replaceState({}, "", "/export");
 });
 afterAll(() => {
   fetchSpy.mockRestore();
@@ -161,7 +168,7 @@ describe("dataset export page", () => {
     browser.history.replaceState(
       {},
       "",
-      "/export?airport=ZSPD&airport=ZBAA&airport=ZSPD",
+      "/export?airport=%20zspd%20&airport=zbaa&airport=ZSPD",
     );
     succeed();
     const host = mount();
@@ -176,6 +183,54 @@ describe("dataset export page", () => {
     expect(
       new browser.FormData(host.querySelector("form")!).getAll("airport"),
     ).toEqual(["ZBAA", "ZSPD"]);
+  });
+
+  test("keeps an explicit airport scope blocked until a failed airport list retry resolves it", async () => {
+    browser.history.replaceState({}, "", "/export?airport=ZSPD");
+    fetchSpy.mockImplementation(async (input) => {
+      if (input === "/api/v1/aip/export/options") {
+        return Response.json({ data: options });
+      }
+      expect(input).toBe("/api/v1/aip/airports");
+      return Response.json({ data: airports });
+    });
+    const host = mount({ airports: [], airportListFailed: true });
+    await settle();
+
+    expect(
+      new browser.FormData(host.querySelector("form")!).getAll("airport"),
+    ).toEqual(["ZSPD"]);
+    expect(host.textContent).toContain(
+      "Airport selection could not be verified",
+    );
+    expect(
+      host.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled,
+    ).toBe(true);
+    [...host.querySelectorAll("button")]
+      .find((button) => button.textContent === "Retry airports")!
+      .click();
+    await settle();
+    expect(
+      host.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled,
+    ).toBe(false);
+    expect(
+      new browser.FormData(host.querySelector("form")!).getAll("airport"),
+    ).toEqual(["ZSPD"]);
+  });
+
+  test("blocks an explicit airport code absent from a successful caller-visible list", async () => {
+    browser.history.replaceState({}, "", "/export?airport=ZZZZ");
+    succeed();
+    const host = mount();
+    await settle();
+
+    expect(
+      new browser.FormData(host.querySelector("form")!).getAll("airport"),
+    ).toEqual(["ZZZZ"]);
+    expect(host.querySelector('[role="alert"]')?.textContent).toContain("ZZZZ");
+    expect(
+      host.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled,
+    ).toBe(true);
   });
 
   test("filters airport choices, supports multiple selections and clear means all airports", async () => {
@@ -197,6 +252,25 @@ describe("dataset export page", () => {
     expect(host.querySelector("#export-airport-status")?.textContent).toContain(
       "1 airports selected",
     );
+    search.value = "beijing";
+    search.dispatchEvent(new browser.Event("input", { bubbles: true }));
+    await nextTick();
+    host.querySelector<HTMLInputElement>("#export-airport-ZBAA")!.click();
+    await nextTick();
+    expect(
+      new browser.FormData(host.querySelector("form")!).getAll("airport"),
+    ).toEqual(["ZBAA", "ZSPD"]);
+    search.value = "not-a-real-airport";
+    search.dispatchEvent(new browser.Event("input", { bubbles: true }));
+    await nextTick();
+    expect(host.textContent).toContain("No airports match this search.");
+    const enter = new browser.KeyboardEvent("keydown", {
+      key: "Enter",
+      cancelable: true,
+      bubbles: true,
+    });
+    search.dispatchEvent(enter);
+    expect(enter.defaultPrevented).toBe(true);
     [...host.querySelectorAll("button")]
       .find((button) => button.textContent === "Clear airports")!
       .click();

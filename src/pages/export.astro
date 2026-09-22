@@ -23,6 +23,7 @@ const airports = airportResult.ok ? (airportResult.data ?? []) : [];
       messages={messages}
       locale={locale}
       airports={airports}
+      airportListFailed={!airportResult.ok}
       client:load
     />
   </div>

@@ -7,8 +7,14 @@ const props = defineProps<{
   airports: AirportSummary[];
   selected: ReadonlySet<string>;
   messages: Record<string, unknown>;
+  scopeError: boolean;
+  unresolved: string[];
+  loading: boolean;
 }>();
-const emit = defineEmits<{ "update:selected": [selected: Set<string>] }>();
+const emit = defineEmits<{
+  "update:selected": [selected: Set<string>];
+  retry: [];
+}>();
 const t = createTranslator(props.messages);
 const query = ref("");
 
@@ -51,6 +57,7 @@ function toggle(icao: string, event: Event) {
           class="input w-full"
           autocomplete="off"
           :placeholder="t('airportSearch')"
+          @keydown.enter.prevent
         />
       </div>
       <button
@@ -74,6 +81,17 @@ function toggle(icao: string, event: Event) {
           : t("allAirports")
       }}
     </p>
+    <div v-if="scopeError" role="alert" class="space-y-2 text-sm text-danger">
+      <p>{{ t("airportScopeError", { airports: unresolved.join(", ") }) }}</p>
+      <button
+        type="button"
+        class="btn btn-secondary"
+        :disabled="loading"
+        @click="emit('retry')"
+      >
+        {{ t("retryAirports") }}
+      </button>
+    </div>
     <p v-if="!shown.length" class="text-sm text-muted">
       {{ t("airportNoResults") }}
     </p>
