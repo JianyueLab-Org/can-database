@@ -90,65 +90,71 @@ export function webUrl(path: string): string {
 }
 
 /**
- * 资料库访问级别，和 can-api 的 `store.AIPNone/AIPRead/AIPWrite` 对齐。
+ * 资料库访问级别，和 can-api 的 `aipAccess` 列对齐。
  *
  * 抄一份而不是共享，理由和 can-db 的 `internal/session` 里那份一样：两个仓库各自
  * 发布，共享模块会把它们的发布节奏绑在一起。can-api 的 `aipaccess_test.go` 专门
  * 把这几个数字钉死，就是为了让这些副本敢依赖它们。
  *
- * ## 一个数字，两条轴
+ * ## 一个数字，两条轴，外加一档管理
  *
- * | 级别 | 许可轴（哪一批数据） | 用途轴（怎么用）       |
- * | ---- | -------------------- | ---------------------- |
- * | 0    | ——                   | ——                     |
- * | 1    | 公开数据             | **调用** —— 接口取数   |
- * | 2    | 公开数据             | **访问** —— 进资料库翻 |
- * | 3    | 公开 + 官方汇编      | 调用                   |
- * | 4    | 公开 + 官方汇编      | 访问                   |
+ * | 级别 | 名称       | 许可轴（哪一批数据） | 用途轴（怎么用）       |
+ * | ---- | ---------- | -------------------- | ---------------------- |
+ * | 0    | 无权访问   | ——                   | ——                     |
+ * | 1    | 可调用     | 公开数据             | **调用** —— 接口取数   |
+ * | 2    | 可阅读     | 公开数据             | 调用 + **进控制台**    |
+ * | 3    | 受限可调用 | 公开 + 官方汇编      | 调用                   |
+ * | 4    | 受限可阅读 | 公开 + 官方汇编      | 调用 + 进控制台        |
+ * | 5    | 管理/编辑  | 全部                 | 全部，包括所有写操作   |
  *
- * **许可轴累积，用途轴看奇偶。** 前者让 can-db 那边 `min_access <= can_access()`
- * 一条比较成立：3 级看得到门槛 1 和门槛 3 的东西。后者不是 —— **3 比 2 大，但 3
- * 是「调用」而 2 是「访问」**。
+ * **许可轴累积，1–4 的用途轴看奇偶。** 前者让 can-db 那边 `min_access <= can_access()`
+ * 一条比较成立：3 级看得到门槛 1 和门槛 3 的东西，5 级看得到一切。后者不是 ——
+ * **3 比 2 大，但 3 只能调用而 2 进得了控制台**。
  *
- * **这里没有「写权限」那一档。**「调用」是别的服务替成员取数（can-portal 的
- * SweatBox 生成器、EFB、雷达都走接口）；「访问」是这个人自己打开这个站翻。
+ * **5 级在奇偶规则之外。** 它是奇数，却进得了控制台；它也是唯一的写权限档。
+ *
+ * 「调用」是别的服务替成员取数（can-portal 的 SweatBox 生成器、EFB、雷达都走接口）；
+ * 「阅读」是这个人自己打开这个站翻。
  */
 export const ACCESS_NONE = 0;
-export const ACCESS_READ = 1;
-export const ACCESS_WRITE = 2;
-export const ACCESS_RESTRICTED_READ = 3;
-export const ACCESS_RESTRICTED_WRITE = 4;
+export const ACCESS_CALL = 1;
+export const ACCESS_BROWSE = 2;
+export const ACCESS_RESTRICTED_CALL = 3;
+export const ACCESS_RESTRICTED_BROWSE = 4;
+export const ACCESS_MANAGE = 5;
 
 /**
- * 这个人能不能打开资料库本身。
+ * 这个人能不能打开资料库本身：2、4、5 级。
  *
- * **必须列举，不能比大小。** 写成 `aipAccess >= ACCESS_WRITE` 会把 3 级放进来，
- * 而 3 是「调用」那一档 —— 它的数字比 2 大（许可轴上它确实在 2 之上，看得到官方
+ * **必须列举，不能比大小。** 写成 `aipAccess >= ACCESS_BROWSE` 会把 3 级放进来，
+ * 而 3 是「受限可调用」—— 它的数字比 2 大（许可轴上它确实在 2 之上，看得到官方
  * 汇编），用途轴上却在 2 之下。这不是笔误，是一个数字编码两件事的必然结果。
  *
- * 这一条从前就是错的：中间件拦的是 `aipAccess < ACCESS_READ`，也就是 `>= 1` 就放
- * 进来，于是 1 级（只该**调用**）打得开整个站。
+ * 这一条从前就是错的：中间件拦的是 `aipAccess < 1`，也就是 `>= 1` 就放进来，于是
+ * 1 级（只该**调用**）打得开整个站。
  *
- * **上游没有这条规则的权威副本，别去找。** 这里从前写着「权威的那一份在 can-db：
- * `GET /api/v1/aip/session` 的 `canUseConsole`，`TestTheSessionRouteAnswersBothAxes`
- * 把五种人的答案逐个钉住」—— 那条路由、那个函数、那个测试**一个都不存在**（can-db
- * 的路由表在 `internal/httpx/server.go`，从头到尾没有 session 那一条）。
- *
- * 会话实际上是这么解的：can-db 把成员的 cookie **原样转给 can-api** 的
- * `GET /api/v1/auth/session`，拿回 `rating` 和 `aipAccess`（`internal/session`）。它
- * 自己只有两条判断，都不是这一条：`CanRead()` 放 `aipAccess >= 1` **或**评级 >= 8 的
- * 人过（教员要让 can-portal 的 SweatBox 生成器替他们取数），`CanWrite()` 是
- * `aipAccess >= 2`。
- *
- * 所以这一条是**这个站自己的门槛，没有上游可对**，而且和上游的两条都不重合：它比
- * `CanRead` 严（不放教员、不放 1 级），也和 `CanWrite` 的 `>= 2` 划不到一起 —— 3 级
- * 过得了 `CanWrite`，过不了这里。**两边不一致是真的，但怎么收敛是一个产品决定，不
- * 要顺手在这里改**：改这个函数就是改谁能打开这个站，而进得来的人拿到的是渲染在
- * HTML 里的航行资料，不是几个 403 链接。
+ * **上游没有这条规则的权威副本。** can-db 没有 session 路由；它把成员的 cookie
+ * **原样转给 can-api** 的 `GET /api/v1/auth/session`，拿回 `rating` 和 `aipAccess`
+ * （`internal/session`），自己只判 `CanRead()`（调用那一侧，教员评级也放）和
+ * `CanWrite()`（`withWrite` 用的写门槛）。所以这一条是**这个站自己的门槛**，改它就是
+ * 改谁能打开这个站，而进得来的人拿到的是渲染在 HTML 里的航行资料。
  *
  * 这里抄一份是因为中间件手上**已经有** `aipAccess` 了，而这条规则是它的纯函数 ——
  * 为了算一个已经拿得到的东西给每个页面请求加一次网络往返，不划算。
  */
 export function canUseConsole(aipAccess: number): boolean {
-  return aipAccess === ACCESS_WRITE || aipAccess === ACCESS_RESTRICTED_WRITE;
+  return (
+    aipAccess === ACCESS_BROWSE ||
+    aipAccess === ACCESS_RESTRICTED_BROWSE ||
+    aipAccess === ACCESS_MANAGE
+  );
+}
+
+/**
+ * 这个人能不能用写界面：只有 5 级「管理/编辑」。
+ *
+ * 用于页面 frontmatter 和侧栏/按钮的显隐。真正的写权限由 can-db 的 `withWrite` 判。
+ */
+export function canManage(aipAccess: number): boolean {
+  return aipAccess === ACCESS_MANAGE;
 }

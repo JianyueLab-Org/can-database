@@ -1,7 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { ALLOW_LIST, allowed, lookup } from "../pages/api/v1/[...path]";
+import {
+  ALLOW_LIST,
+  ALLOW_PATTERNS,
+  allowed,
+  lookup,
+} from "../pages/api/v1/[...path]";
 
 /**
  * 岛屿里每一条打给反代的路径，都必须在白名单上。
@@ -46,13 +51,20 @@ function sources(): Array<{ file: string; text: string }> {
 /**
  * 从一处字面量里取出反代路径。
  *
- * `${…}` 换成 `ZBAA`：模板里那一段是 ICAO 或者包名，而 `ALLOW_PATTERNS` 正是拿四位
- * 字母数字去卡它。换成别的（比如空串）会让 `airports/${icao}/ground` 塌成
- * `airports//ground`，测试就会为了一个不存在的形状而红。
+ * `${…}` 按表达式换成一个能过 `ALLOW_PATTERNS` 的样例值：名字里带 `table` 的换成
+ * `airport`，带 `id` 的换成 `1`（数据集 id），其余换成 `ZBAA`（ICAO 或包名）。换成空串
+ * 会让 `airports/${icao}/ground` 塌成 `airports//ground`，测试就会为了一个不存在的形状
+ * 而红。
  */
+function sample(expr: string): string {
+  if (/table/i.test(expr)) return "airport";
+  if (/id\b/i.test(expr) || /Id\b/.test(expr)) return "1";
+  return "ZBAA";
+}
+
 function normalise(raw: string): string {
   return raw
-    .replace(/\$\{[^}]*\}/g, "ZBAA")
+    .replace(/\$\{([^}]*)\}/g, (_, expr: string) => sample(expr))
     .replace(/[?#].*$/, "")
     .replace(/^\/api\/v1\//, "");
 }
@@ -102,18 +114,41 @@ describe("白名单自己", () => {
     expect(lookup("aip/sectors/network/resolve")).toBeDefined();
   });
 
-  test("转给 can-db 的一条写路径都没有", () => {
-    /* AGENTS.md 写着这一句，而它是有后果的：can-db 已经有三条改数据集生命周期的路由
-     * （activate / supersede / 改门槛，走 `withConsole`），这个站只是还没有调它们的
-     * 界面。哪天加，**连同页面一起加**，并且改掉这条测试 —— 让它变红正是提醒你去改
-     * 那句文档。
-     *
-     * 签退那条（POST）不在这张表里，它走 `AUTH_PATHS`、转给 can-api。两张表分开正是
-     * 为了让「这条转去哪」一眼可见。 */
+  test("精确路径表里没有写方法", () => {
+    /* 写方法只在 `ALLOW_PATTERNS` 里 `aip/datasets/{id}…` 那几条上（5 级写界面）。
+     * 签退那条（POST）不在这张表里，它走 `AUTH_PATHS`、转给 can-api。 */
     const writes = Object.entries(ALLOW_LIST).filter(([, a]) =>
       a.methods.some((m) => m !== "GET"),
     );
     expect(writes.map(([p]) => p)).toEqual([]);
+  });
+
+  test("写方法只放行 5 级写界面的那几条", () => {
+    expect(lookup("aip/datasets/12")?.methods).toEqual(["PATCH"]);
+    for (const op of ["activate", "supersede", "clone"]) {
+      expect(lookup(`aip/datasets/12/${op}`)?.methods).toEqual(["POST"]);
+    }
+    // 修订记录、登记表、AIRAC 日历由页面 frontmatter 经 `callDb` 取，不走反代。
+    expect(lookup("aip/datasets/12/revisions")).toBeUndefined();
+    expect(lookup("aip/tables")).toBeUndefined();
+    expect(lookup("aip/datasets/12/tables/runway/rows")?.methods).toEqual([
+      "GET",
+      "POST",
+      "PATCH",
+      "DELETE",
+    ]);
+    const writable = ALLOW_PATTERNS.filter((a) =>
+      a.methods.some((m) => m !== "GET"),
+    );
+    expect(writable).toHaveLength(3);
+  });
+
+  test("写路径的动态段收得紧", () => {
+    expect(lookup("aip/datasets/abc")).toBeUndefined();
+    expect(lookup("aip/datasets/12/delete")).toBeUndefined();
+    expect(lookup("aip/datasets/12/tables/Runway/rows")).toBeUndefined();
+    expect(lookup("aip/datasets/12/tables/../rows")).toBeUndefined();
+    expect(lookup("aip/datasets/12/tables/runway/rows/1")).toBeUndefined();
   });
 
   test("路径里带 .. 的过不去", () => {

@@ -108,6 +108,23 @@ export const ALLOW_PATTERNS: Array<Allowed & { test: RegExp }> = [
     methods: ["GET"],
     who: "AirportMap.vue —— 地面要素与线画（勾上才取，一个大场一兆多）",
   },
+  // 以下是 5 级「管理/编辑」的写界面。这一层只转发；级别由 can-db 的 `withWrite` 判。
+  // 数据集 id 是 1–10 位数字，表名是小写字母加下划线 —— 和 can-db 登记表里的名字同形。
+  {
+    test: /^aip\/datasets\/[0-9]{1,10}$/,
+    methods: ["PATCH"],
+    who: "DatasetActions.vue —— 修改门槛（minAccess 0–4）",
+  },
+  {
+    test: /^aip\/datasets\/[0-9]{1,10}\/(activate|supersede|clone)$/,
+    methods: ["POST"],
+    who: "DatasetActions.vue —— 生效 / 停用 / 复制为新一期",
+  },
+  {
+    test: /^aip\/datasets\/[0-9]{1,10}\/tables\/[a-z_]{1,40}\/rows$/,
+    methods: ["GET", "POST", "PATCH", "DELETE"],
+    who: "DataEditor.vue —— 逐行列出 / 新增 / 修改 / 删除",
+  },
 ];
 
 export function lookup(path: string): Allowed | undefined {
@@ -213,10 +230,9 @@ const handler: APIRoute = async (context) => {
   // 源 GET 通常**不**带 Origin，要是这道检查也套在它们头上，整站每一次取数都是 403。
   // 所以 `UNSAFE` 这个集合不是修饰，它是这条检查能收紧的前提。
   //
-  // 今天走到这里的写操作只有一条：`POST auth/signout`（转给 can-api）。can-db 那边
-  // 已经有三条改数据集生命周期的路由（`POST /aip/datasets/{id}/activate` 一类，走
-  // `withWrite`，也就是 `aipAccess >= 2`），这个站只是还没有调它们的界面 —— 加那天记
-  // 得两样一起加：白名单条目的 methods，和一个真的会用它的页面。
+  // 走到这里的写操作：`POST auth/signout`（转给 can-api），和 5 级写界面的那几条
+  // （`ALLOW_PATTERNS` 里 `aip/datasets/{id}…` 开头的条目，转给 can-db，级别由它的
+  // `withWrite` 判）。
   if (UNSAFE.has(method)) {
     const sent = context.request.headers.get("origin");
     if (sent !== origin()) {
@@ -287,3 +303,5 @@ const handler: APIRoute = async (context) => {
 
 export const GET = handler;
 export const POST = handler;
+export const PATCH = handler;
+export const DELETE = handler;

@@ -18,7 +18,10 @@ export interface SessionUser {
   name: string;
   email: string;
   rating: number;
-  /** 资料库访问级别：0 无 / 1 只读 / 2 可编辑。由 ADM 授予。 */
+  /**
+   * 资料库访问级别：0 无权访问 / 1 可调用 / 2 可阅读 / 3 受限可调用 / 4 受限可阅读 /
+   * 5 管理/编辑。由 ADM 授予，见 `lib/config.ts`。
+   */
   aipAccess: number;
 }
 

@@ -2,14 +2,22 @@
 import AppLayout from "@/layouts/AppLayout.astro";
 import PageHeader from "@/components/PageHeader.astro";
 import ExportButton from "@/components/ExportButton.vue";
+import DatasetActions from "@/components/DatasetActions.vue";
 import { getLocale, getMessages, useTranslations } from "@/lib/i18n";
 import { callDb } from "@/server/canDb";
-import { isRestricted, type Dataset } from "@/lib/canDb";
+import { canManage } from "@/lib/config";
+import { isRestricted, type AiracCalendar, type Dataset } from "@/lib/canDb";
 
 const locale = getLocale(Astro.cookies);
 const t = useTranslations(locale, "datasets");
 
-const result = await callDb<Dataset[]>(Astro, "/api/v1/aip/datasets");
+const [result, airacResult] = await Promise.all([
+  callDb<Dataset[]>(Astro, "/api/v1/aip/datasets"),
+  callDb<AiracCalendar>(Astro, "/api/v1/aip/airac"),
+]);
+const airac = airacResult.ok ? airacResult.data : null;
+/** 管理列和它的岛屿只对 5 级渲染；写权限本身由 can-db 的 `withWrite` 判。 */
+const manage = canManage(Astro.locals.user?.aipAccess ?? 0);
 const datasets = result.ok ? (result.data ?? []) : [];
 const licence = result.licence;
 const messages = getMessages(locale, "datasets");
@@ -27,6 +35,31 @@ const fmt = (iso: string | null) =>
 <AppLayout title={t("title")}>
   <div class="mx-auto w-full max-w-6xl">
     <PageHeader title={t("title")} description={t("description")} />
+
+    {
+      airac && (
+        <dl class="mb-6 flex flex-wrap gap-x-10 gap-y-3 text-sm">
+          <div>
+            <dt class="text-xs text-muted">{t("airacCurrent")}</dt>
+            <dd class="tnum mt-0.5">
+              <span class="font-mono text-ink">{airac.current.ident}</span>
+              <span class="ml-2 text-faint">
+                {t("effective", { date: airac.current.effective })}
+              </span>
+            </dd>
+          </div>
+          <div>
+            <dt class="text-xs text-muted">{t("airacNext")}</dt>
+            <dd class="tnum mt-0.5">
+              <span class="font-mono text-ink">{airac.next.ident}</span>
+              <span class="ml-2 text-faint">
+                {t("effective", { date: airac.next.effective })}
+              </span>
+            </dd>
+          </div>
+        </dl>
+      )
+    }
 
     <div class="mb-3 flex justify-end">
       <ExportButton
@@ -57,6 +90,7 @@ const fmt = (iso: string | null) =>
                 <th>{t("redistributable")}</th>
                 <th>{t("airports")}</th>
                 <th>{t("activated")}</th>
+                {manage && <th>{t("manage")}</th>}
               </tr>
             </thead>
             <tbody>
@@ -64,6 +98,11 @@ const fmt = (iso: string | null) =>
                 <tr>
                   <td data-label={t("airac")} class="tnum font-mono">
                     {d.airac}
+                    {d.manual && (
+                      <span class="badge badge-info ml-2 font-sans">
+                        {t("manual")}
+                      </span>
+                    )}
                   </td>
                   {/* 受限的那几批要一眼看得出来 —— 一个校对数据的人应该分得清手上
                       这条是官方汇编还是面向模拟的派生物。 */}
@@ -88,6 +127,21 @@ const fmt = (iso: string | null) =>
                   <td data-label={t("activated")} class="tnum">
                     {fmt(d.activatedAt)}
                   </td>
+                  {manage && (
+                    <td data-label={t("manage")}>
+                      <DatasetActions
+                        client:visible
+                        dataset={{
+                          id: d.id,
+                          airac: d.airac,
+                          state: d.state,
+                          minAccess: d.minAccess,
+                        }}
+                        airac={airac}
+                        messages={messages}
+                      />
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>

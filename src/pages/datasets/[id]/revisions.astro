@@ -1,0 +1,208 @@
+---
+import AppLayout from "@/layouts/AppLayout.astro";
+import PageHeader from "@/components/PageHeader.astro";
+import { getLocale, useTranslations } from "@/lib/i18n";
+import { callDb } from "@/server/canDb";
+import { canManage } from "@/lib/config";
+import type { Dataset, Revision, RevisionPage } from "@/lib/canDb";
+
+/**
+ * 一期数据的修订记录 —— 只给 5 级「管理/编辑」，别的级别拿到 404 页。
+ *
+ * 服务端渲染，按 can-db 给的 `next` 游标翻页（`?before=`）。改动按列列出：新增只有改后，
+ * 删除只有改前，修改只列值变了的那几列。
+ */
+if (!canManage(Astro.locals.user?.aipAccess ?? 0)) {
+  return Astro.rewrite("/404");
+}
+
+const id = Number(Astro.params.id);
+if (!Number.isInteger(id) || id <= 0) return Astro.rewrite("/404");
+
+const before = Number(Astro.url.searchParams.get("before"));
+const cursor = Number.isInteger(before) && before > 0 ? before : 0;
+
+const [datasets, result] = await Promise.all([
+  callDb<Dataset[]>(Astro, "/api/v1/aip/datasets"),
+  callDb<RevisionPage>(
+    Astro,
+    `/api/v1/aip/datasets/${id}/revisions?limit=50${cursor ? `&before=${cursor}` : ""}`,
+  ),
+]);
+const dataset = (datasets.data ?? []).find((d) => d.id === id);
+if (!dataset) return Astro.rewrite("/404");
+
+const locale = getLocale(Astro.cookies);
+const t = useTranslations(locale, "revisions");
+
+const revisions = result.data?.revisions ?? [];
+const next = result.data?.next ?? null;
+
+const OP_LABEL: Record<string, string> = {
+  insert: "opInsert",
+  update: "opUpdate",
+  delete: "opDelete",
+  clone: "opClone",
+};
+const OP_BADGE: Record<string, string> = {
+  insert: "badge badge-success",
+  update: "badge badge-info",
+  delete: "badge badge-danger",
+  clone: "badge badge-neutral",
+};
+
+const show = (value: unknown): string => {
+  if (value === undefined) return "";
+  if (value === null) return "null";
+  return typeof value === "string" ? value : JSON.stringify(value);
+};
+
+const keyText = (r: Revision) =>
+  r.key
+    ? Object.entries(r.key)
+        .map(([k, v]) => `${k}=${show(v)}`)
+        .join(" ")
+    : "";
+
+/** 列级改动：两边都有的列只列值不同的；只有一边的整列列出。 */
+function diff(r: Revision) {
+  const b = r.before ?? {};
+  const a = r.after ?? {};
+  const names = [...new Set([...Object.keys(b), ...Object.keys(a)])];
+  return names
+    .filter(
+      (n) =>
+        !(n in b && n in a) || JSON.stringify(b[n]) !== JSON.stringify(a[n]),
+    )
+    .map((n) => ({
+      name: n,
+      before: n in b ? show(b[n]) : "",
+      after: n in a ? show(a[n]) : "",
+    }));
+}
+
+const fmt = (iso: string) =>
+  new Date(iso).toISOString().slice(0, 19).replace("T", " ");
+---
+
+<AppLayout title={t("title", { airac: dataset.airac })}>
+  <div class="mx-auto w-full max-w-6xl">
+    <PageHeader
+      title={t("title", { airac: dataset.airac })}
+      description={t("description")}
+    >
+      <Fragment slot="actions">
+        <a href="/datasets" class="link text-sm">{t("back")}</a>
+        <a href={`/datasets/${id}/edit`} class="link text-sm">{t("edit")}</a>
+      </Fragment>
+    </PageHeader>
+
+    {
+      !result.ok ? (
+        <p class="badge badge-danger">
+          {t("error", { message: result.message ?? result.error ?? "" })}
+        </p>
+      ) : revisions.length === 0 ? (
+        <div class="card p-10 text-center">
+          <p class="text-muted">{t("empty")}</p>
+        </div>
+      ) : (
+        <div
+          class="scroll-shadow-x overflow-x-auto"
+          style="--scroll-shadow-bg: var(--surface)"
+        >
+          <table class="data-table w-full text-sm">
+            <thead>
+              <tr>
+                <th>{t("op")}</th>
+                <th>{t("table")}</th>
+                <th>{t("key")}</th>
+                <th>{t("actor")}</th>
+                <th>{t("at")}</th>
+                <th>{t("diff")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {revisions.map((r) => {
+                const changes = diff(r);
+                return (
+                  <tr class="align-top">
+                    <td data-label={t("op")}>
+                      <span class={OP_BADGE[r.op] ?? "badge badge-neutral"}>
+                        {OP_LABEL[r.op] ? t(OP_LABEL[r.op]) : r.op}
+                      </span>
+                    </td>
+                    <td data-label={t("table")} class="font-mono">
+                      {r.table}
+                    </td>
+                    <td data-label={t("key")} class="font-mono text-ink">
+                      {keyText(r)}
+                    </td>
+                    <td data-label={t("actor")}>{r.actor}</td>
+                    <td data-label={t("at")} class="tnum whitespace-nowrap">
+                      {fmt(r.at)}
+                    </td>
+                    <td data-label={t("diff")}>
+                      {changes.length === 0 ? (
+                        <span class="text-faint">{t("noDiff")}</span>
+                      ) : (
+                        <details>
+                          <summary class="link cursor-pointer">
+                            {t("showDiff", { n: changes.length })}
+                          </summary>
+                          <table class="mt-2 w-full text-xs">
+                            <thead>
+                              <tr class="text-left text-muted">
+                                <th class="pr-3 font-normal">{t("field")}</th>
+                                <th class="pr-3 font-normal">{t("before")}</th>
+                                <th class="font-normal">{t("after")}</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {changes.map((c) => (
+                                <tr class="border-t border-subtle">
+                                  <td class="py-1 pr-3 font-mono text-ink">
+                                    {c.name}
+                                  </td>
+                                  <td class="max-w-64 break-all py-1 pr-3 font-mono text-danger">
+                                    {c.before}
+                                  </td>
+                                  <td class="max-w-64 break-all py-1 font-mono text-success">
+                                    {c.after}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </details>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )
+    }
+
+    {
+      (cursor > 0 || next) && (
+        <nav class="mt-4 flex justify-between text-sm">
+          {cursor > 0 ? (
+            <a href={`/datasets/${id}/revisions`} class="link">
+              {t("newest")}
+            </a>
+          ) : (
+            <span />
+          )}
+          {next && (
+            <a href={`/datasets/${id}/revisions?before=${next}`} class="link">
+              {t("older")}
+            </a>
+          )}
+        </nav>
+      )
+    }
+  </div>
+</AppLayout>

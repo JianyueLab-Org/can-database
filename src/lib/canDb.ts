@@ -36,6 +36,10 @@ export interface ApiFailure {
   status: number;
   error: string;
   message: string;
+  /** 写路由违反约束时（`error: "constraint"`）can-db 给的约束名。 */
+  constraint?: string;
+  /** 同上，违反约束的列；数据库没给时为空串。 */
+  column?: string;
 }
 export type ApiResult<T> =
   { ok: true; data: T; licence: Licence | null } | ApiFailure;
@@ -80,6 +84,10 @@ export async function api<T = unknown>(
       status: response.status,
       error: String(body.error ?? "http_error"),
       message: String(body.message ?? `请求失败（${response.status}）`),
+      ...(typeof body.constraint === "string"
+        ? { constraint: body.constraint }
+        : {}),
+      ...(typeof body.column === "string" ? { column: body.column } : {}),
     };
   }
 
@@ -96,6 +104,8 @@ export async function api<T = unknown>(
 
 export interface Dataset {
   id: number;
+  /** 经控制台复制、手工编辑的一期（can-db 的 `source = manual`）。 */
+  manual?: boolean;
   airac: string;
   state: "loading" | "active" | "superseded";
   redistributable: boolean;
@@ -123,7 +133,89 @@ export interface Dataset {
   minAccess: number;
 }
 
-/** 受限数据的门槛，和 can-api 的 AIPRestrictedRead 对齐。 */
+/** AIRAC 一期：周期号和生效日（UTC 日期，`YYYY-MM-DD`）。 */
+export interface AiracCycle {
+  ident: string;
+  effective: string;
+}
+
+/** `GET /aip/airac`：今天生效的一期和下一期。can-db 按日历算，不读库。 */
+export interface AiracCalendar {
+  current: AiracCycle;
+  next: AiracCycle;
+}
+
+/* ---------------------------------------------------------------------------
+   5 级写界面的形状。字段名和 can-db `internal/aip/registry.go`、`edit.go`、
+   `revision.go` 的 json 标签逐字对应。
+--------------------------------------------------------------------------- */
+
+export type ColumnType =
+  | "text"
+  | "integer"
+  | "smallint"
+  | "bigint"
+  | "double"
+  | "boolean"
+  | "double[]"
+  | "enum";
+
+export interface TableColumn {
+  name: string;
+  type: ColumnType;
+  enumType?: string;
+  /** 枚举或带 CHECK (… IN …) 的文本列可取的值。 */
+  values?: string[];
+  nullable: boolean;
+  /** 新增时可以省略。 */
+  hasDefault: boolean;
+  /** 自动生成，不可写。 */
+  identity: boolean;
+}
+
+export interface TableSpec {
+  name: string;
+  /** 在一个数据集内唯一确定一行的列。 */
+  key: string[];
+  /** 子表：挂在哪张表上、哪一列指向它的 id。 */
+  parent?: { table: string; column: string };
+  /** 删除墓碑按哪几列记（视图的实体键）。 */
+  entity?: string[];
+  /** 按 (dataset_id, icao) 挂在 airport 上、随它级联的表。 */
+  onAirport?: boolean;
+  columns: TableColumn[];
+}
+
+export type RowValue = string | number | boolean | number[] | null;
+export type Row = Record<string, RowValue>;
+
+export interface RowPage {
+  table: string;
+  rows: Row[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface Revision {
+  id: number;
+  datasetId: number;
+  table: string;
+  key: Record<string, RowValue> | null;
+  op: "insert" | "update" | "delete" | "clone" | string;
+  before: Record<string, unknown> | null;
+  after: Record<string, unknown> | null;
+  actor: string;
+  at: string;
+}
+
+export interface RevisionPage {
+  revisions: Revision[];
+  /** 下一页的 `before` 游标；没有更早的记录时为 null。 */
+  next: number | null;
+}
+
+/** 受限数据的门槛，即 3 级「受限可调用」（`ACCESS_RESTRICTED_CALL`）。4、5 级也满足。 */
 export const RESTRICTED_ACCESS = 3;
 
 /** 这批数据是不是受限的。 */

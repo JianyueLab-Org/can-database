@@ -43,8 +43,8 @@ const props = defineProps<{
    * 成员的 `aipAccess`，**只用来决定勾选框出不出**，不是权限判断。
    *
    * can-db 那边 `?unrestricted=1` 是把级别往下压（`min(自己的, 2)`），所以这里判错也只
-   * 会少看到而不会多看到。1–2 级的人本来就在档下，给他们一个永远无效的开关只会让人以为
-   * 自己错过了什么。
+   * 会少看到而不会多看到。3/4/5 级看得到受限汇编；1–2 级的人本来就在档下，给他们
+   * 一个永远无效的开关只会让人以为自己错过了什么。
    */
   aipAccess: number;
 }>();
@@ -125,7 +125,7 @@ const from = ref("");
 const to = ref("");
 const level = ref("");
 const unrestricted = ref(false);
-/** 勾选框对谁可见。档下的人不显示 —— 对他们这个开关恒为空转。 */
+/** 勾选框对谁可见：3/4/5 级。档下的人不显示 —— 对他们这个开关恒为空转。 */
 const canChooseTier = computed(() => props.aipAccess >= 3);
 const plan = ref<RoutePlan | null>(null);
 const loading = ref(false);
@@ -439,7 +439,7 @@ onBeforeUnmount(() => {
       </button>
     </form>
 
-    <!-- 3–4 级才有的开关：把规划压到 1–2 级的数据上，也就是不用 NAIP 汇编。
+    <!-- 3–5 级才有的开关：把规划压到 1–2 级的数据上，也就是不用 NAIP 汇编。
          档下的人不显示 —— 对他们这个开关恒为空转，摆出来只会让人以为自己错过了什么。 -->
     <label
       v-if="canChooseTier"
