@@ -95,7 +95,7 @@
     "closeSidebar": "关闭导航",
     "openSidebar": "打开导航",
     "hideNaip": "隐藏 NAIP 数据",
-    "hideNaipHint": "整个控制台只显示 1–2 级的数据，不显示 NAIP。只影响你自己的浏览器。"
+    "hideNaipHint": "默认开启。整个控制台只显示 1–2 级的数据，不显示 NAIP。只影响你自己的浏览器。"
   },
   "nav": {
     "export": "导出",

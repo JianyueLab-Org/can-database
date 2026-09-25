@@ -125,8 +125,9 @@ test("handler preserves export query, cookies, status, headers, and stream bytes
         }),
       ),
     );
+    // 「隐藏 NAIP 数据」默认开着：没有 `can_hide_naip` cookie 就带 `unrestricted=1`。
     expect(new URL(target).pathname + new URL(target).search).toBe(
-      "/api/v1/aip/export" + query,
+      "/api/v1/aip/export" + query + "&unrestricted=1",
     );
     expect(new Headers(forwarded?.headers).get("cookie")).toBe(
       "session=current",

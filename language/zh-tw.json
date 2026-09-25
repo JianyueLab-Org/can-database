@@ -95,7 +95,7 @@
     "closeSidebar": "關閉導覽",
     "openSidebar": "開啟導覽",
     "hideNaip": "隱藏 NAIP 資料",
-    "hideNaipHint": "整個控制台只顯示 1–2 級的資料，不顯示 NAIP。只影響你自己的瀏覽器。"
+    "hideNaipHint": "預設開啟。整個控制台只顯示 1–2 級的資料，不顯示 NAIP。只影響你自己的瀏覽器。"
   },
   "nav": {
     "export": "匯出",

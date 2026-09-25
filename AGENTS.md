@@ -409,7 +409,8 @@ EuroScope 靠标识把扇区归属解析回呼号。一行一个呼号，只有�
 ## 隐藏 NAIP 数据：整站一个开关
 
 - 在账户菜单里，只给 `aipAccess >= 3` 的成员显示（`HIDE_NAIP_MIN_ACCESS`）。
-- 值存在本站主机的 cookie `can_hide_naip=1` 里。服务端渲染读不到 localStorage，所以不用它。
+- **默认开着**，和 can-portal 一致。没有 cookie 就是开着；只有 `can_hide_naip=0` 才显示 NAIP。
+- 值存在本站主机的 cookie `can_hide_naip`（`1` 或 `0`）里。服务端渲染读不到 localStorage，所以不用它。
 - 打开时，发往 can-db 的每一条读请求都带 `unrestricted=1`。can-db 对 3 级及以上把级别压到 2，3 级以下空转。
 - 加参数的只有 `src/lib/hideNaip.ts` 的 `applyHideNaip`，调用它的只有两处：`src/server/canDb.ts`（服务端渲染）和反代 `src/pages/api/v1/[...path].ts`（岛屿的 GET，包括导出的 ZIP）。
 - 调用处不要自己带 `unrestricted`。

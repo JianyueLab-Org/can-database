@@ -52,7 +52,7 @@ const shellProps = computed(() => {
  * 岛屿里取过的也各有缓存，刷新是唯一一种让每一处都按新值重新取的办法。
  * 写不进去（浏览器禁了 cookie）就把开关弹回去，不刷新。
  */
-const hideNaip = ref(props.hideNaip ?? false);
+const hideNaip = ref(props.hideNaip ?? true);
 function setHideNaip(on: boolean) {
   hideNaip.value = on;
   if (writeHideNaip(on)) window.location.reload();

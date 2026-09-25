@@ -4,11 +4,16 @@ import { applyHideNaip, hideNaipFromCookie, isEditorPage } from "./hideNaip";
 const DB = "http://can-db.test";
 
 describe("hideNaipFromCookie", () => {
-  test("reads the flag among other cookies", () => {
-    expect(hideNaipFromCookie("a=1; can_hide_naip=1; b=2")).toBe(true);
-    expect(hideNaipFromCookie("can_hide_naip=0")).toBe(false);
-    expect(hideNaipFromCookie("xcan_hide_naip=1")).toBe(false);
-    expect(hideNaipFromCookie(null)).toBe(false);
+  test("is on by default", () => {
+    expect(hideNaipFromCookie(null)).toBe(true);
+    expect(hideNaipFromCookie("")).toBe(true);
+    expect(hideNaipFromCookie("a=1; b=2")).toBe(true);
+    expect(hideNaipFromCookie("xcan_hide_naip=0")).toBe(true);
+  });
+
+  test("is off only for an explicit 0", () => {
+    expect(hideNaipFromCookie("a=1; can_hide_naip=0; b=2")).toBe(false);
+    expect(hideNaipFromCookie("can_hide_naip=1")).toBe(true);
   });
 });
 

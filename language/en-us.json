@@ -95,7 +95,7 @@
     "closeSidebar": "Close navigation",
     "openSidebar": "Open navigation",
     "hideNaip": "Hide NAIP data",
-    "hideNaipHint": "Show only tier 1–2 data across the whole console, leaving out NAIP. Applies to this browser only."
+    "hideNaipHint": "On by default. Shows only tier 1–2 data across the whole console, leaving out NAIP. Applies to this browser only."
   },
   "nav": {
     "export": "Export",
