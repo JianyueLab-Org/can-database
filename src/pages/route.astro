@@ -10,7 +10,8 @@ import type { AirportSummary } from "@/lib/canDb";
  * 航路生成器。
  *
  * **规划在 can-db，不在这里。** 这一页只把机场清单交给岛屿（用来在提交前判断代号是否在
- * 库里），其余全部走 `/aip/route`。
+ * 库里），其余全部走 `/aip/route`。`?from=&to=&level=` 由岛屿自己读：带着链接进来就直
+ * 接跑一次。
  */
 const locale = getLocale(Astro.cookies);
 const t = useTranslations(locale, "route");
@@ -39,6 +40,10 @@ const aipAccess = Astro.locals.user?.aipAccess ?? 0;
       airports={airports}
       aipAccess={aipAccess}
       client:only="vue"
-    />
+    >
+      {/* client:only 在水合前什么都不渲染 —— 先占住表单那一行的位置。 */}
+      <div slot="fallback" class="skeleton h-[4.75rem] w-full rounded-card">
+      </div>
+    </RoutePlanner>
   </div>
 </AppLayout>

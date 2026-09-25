@@ -1,25 +1,38 @@
 ---
 import AppLayout from "@/layouts/AppLayout.astro";
+import Icon from "@jianyuelab-org/can-ui/components/Icon.vue";
 import { getLocale, useTranslations } from "@/lib/i18n";
 
+/**
+ * 找不到的页面 —— 也是 5 级以外的人打开编辑页、修订记录时看到的那一页（那两页在
+ * frontmatter 里 `rewrite("/404")`），所以这里不说「你没有权限」，只说页面不在。
+ *
+ * 下一步给两个：回总览，或者直接去机场清单 —— 走到这里的人多半是拼错了一个机场的
+ * 地址。
+ */
 const locale = getLocale(Astro.cookies);
 const t = useTranslations(locale, "notFound");
 ---
 
 <AppLayout title={t("code")}>
-  <div class="flex min-h-[60vh] items-center justify-center px-4 py-16">
+  <div class="flex min-h-[60vh] items-center justify-center py-12">
     <div class="mx-auto max-w-md text-center">
       <p
-        class="text-[6rem] font-bold leading-none tracking-tighter text-can/20"
+        class="tnum font-mono text-[5rem] font-bold leading-none tracking-tighter text-can/25"
       >
         {t("code")}
       </p>
-      <h1 class="-mt-4 text-2xl font-bold tracking-tight text-ink">
-        {t("title")}
-      </h1>
-      <p class="mx-auto mt-4 text-muted">{t("description")}</p>
-      <div class="mt-8">
-        <a href="/" class="btn btn-primary px-5 py-2.5">{t("home")}</a>
+      <h1 class="text-title-2 mt-2 text-ink">{t("title")}</h1>
+      <p class="mx-auto mt-3 text-muted">{t("description")}</p>
+      <div class="mt-8 flex flex-wrap justify-center gap-3">
+        <a href="/" class="btn btn-primary">
+          <Icon name="home" class="size-4" />
+          {t("home")}
+        </a>
+        <a href="/airports" class="btn btn-secondary">
+          <Icon name="mapPin" class="size-4" />
+          {t("airports")}
+        </a>
       </div>
     </div>
   </div>

@@ -25,8 +25,12 @@ import {
   watch,
 } from "vue";
 import L from "leaflet";
+import { AlertBox, Icon, Spinner, Toggle } from "@jianyuelab-org/can-ui";
 import { createTranslator } from "@/lib/i18n";
 import { api } from "@/lib/canDb";
+import FilterChips from "@/components/ui/FilterChips.vue";
+import SectorLegend from "@/components/map/SectorLegend.vue";
+import { useQueryState } from "@/composables/useQueryState";
 import type {
   AirportSummary,
   AirwayGraph,
@@ -69,11 +73,43 @@ const sectorLayer = shallowRef<L.LayerGroup | null>(null);
 /** 名字单独一层：它按视野重建，而点和线不用。 */
 const labelLayer = shallowRef<L.LayerGroup | null>(null);
 
-/** null = 全部 FIR。 */
-const activeFir = ref<string | null>(props.initialFir ?? null);
-const showAirways = ref(false);
-const showFixes = ref(false);
-const showSectors = ref(false);
+/* ---------------------------------------------------------------------- *
+ * 筛选和图层写在地址栏上：`?fir=ZGZU&layers=airways,sectors`
+ *
+ * 于是「把这一屏发给别人」「刷新之后还在原处」不需要额外代码。FIR 的初值是服务端对着
+ * firs 校验过的那一个，先放进去，免得挂载前先画一遍全网再跳过去；挂载后 useQueryState
+ * 读到的原值不认识就清掉 —— 和服务端「不认识就当没传」是同一条。
+ * ---------------------------------------------------------------------- */
+const firParam = useQueryState("fir", "");
+firParam.value = props.initialFir ?? "";
+/** null = 全部 FIR。只认 firs 里有的 —— 一个乱填的值会筛出一张空图，看起来像数据没了。 */
+const activeFir = computed<string | null>(() =>
+  props.firs.includes(firParam.value) ? firParam.value : null,
+);
+
+const LAYERS = ["airways", "fixes", "sectors"] as const;
+type LayerName = (typeof LAYERS)[number];
+const layersParam = useQueryState("layers", "");
+const layersOn = computed(() => new Set(layersParam.value.split(",")));
+
+function setLayer(name: LayerName, on: boolean) {
+  layersParam.value = LAYERS.filter((l) =>
+    l === name ? on : layersOn.value.has(l),
+  ).join(",");
+}
+function layerToggle(name: LayerName, needsFir = false) {
+  return computed<boolean>({
+    // 航路点不选 FIR 不画 —— 地址栏里带着 `fixes` 而没有 FIR，也当它是关的。
+    get: () => layersOn.value.has(name) && (!needsFir || !!activeFir.value),
+    set: (on) => setLayer(name, on),
+  });
+}
+const showAirways = layerToggle("airways");
+const showFixes = layerToggle("fixes", true);
+const showSectors = layerToggle("sectors");
+
+/** 手机上面板默认收起 —— 展开的面板会盖住半张图。 */
+const panelOpen = ref(true);
 /** 在线呼号输入框的原文。解析是**手动触发**的 —— 见 runResolve。 */
 const onlineText = ref("");
 const loading = ref<string | null>(null);
@@ -473,6 +509,13 @@ function applyTiles(theme: "dark" | "light") {
 let stopTheme: (() => void) | null = null;
 
 onMounted(() => {
+  // 地址栏里的 FIR 不认识就清掉（useQueryState 的 onMounted 先跑，这时已经读进来了）。
+  if (firParam.value && !activeFir.value) firParam.value = "";
+  // 没有 FIR 时地址栏里的 `fixes` 也去掉：否则之后一选 FIR，showFixes 和 activeFir 两个
+  // watch 会各画一遍航路点。
+  if (!activeFir.value && layersOn.value.has("fixes")) setLayer("fixes", false);
+  if (window.matchMedia("(max-width: 639px)").matches) panelOpen.value = false;
+
   if (!host.value) return;
   const m = L.map(host.value, {
     zoomControl: true,
@@ -523,125 +566,170 @@ watch(showAirways, () => void drawAirways());
 watch(showFixes, () => void drawFixes());
 watch(showSectors, () => void drawSectors());
 
-function pickFir(fir: string | null) {
-  activeFir.value = activeFir.value === fir ? null : fir;
+/** FilterChips 已经处理了「再点一次等于取消」，这里收到的 '' 就是全部 FIR。 */
+function pickFir(fir: string) {
+  firParam.value = fir;
   // 全网视图下不给画航路点，所以顺手关掉开关，而不是留一个按了没反应的按钮。
-  if (!activeFir.value) showFixes.value = false;
+  if (!fir) showFixes.value = false;
 }
+
+const firChips = computed(() =>
+  props.firs.map((fir) => ({
+    value: fir,
+    label: fir,
+    count: firCounts.value.get(fir) ?? 0,
+    color: firColor(fir),
+    mono: true,
+  })),
+);
 </script>
 
 <template>
-  <div class="flex flex-col gap-3">
-    <!-- FIR 筛选。用 button 而不是 select：11 个选项全摆出来，一眼看得到哪个 FIR
-         机场多，而且每个都带着它在图上的颜色。 -->
-    <div class="flex flex-wrap items-center gap-1.5">
-      <button
-        type="button"
-        class="rounded-full border px-2.5 py-1 text-xs transition"
-        :class="
-          activeFir === null
-            ? 'border-can bg-can/10 text-ink'
-            : 'border-line text-muted hover:border-can/40'
-        "
-        @click="pickFir(null)"
-      >
-        {{ t("allFirs") }}
-        <span class="tnum opacity-60">{{ airports.length }}</span>
-      </button>
-
-      <button
-        v-for="fir in firs"
-        :key="fir"
-        type="button"
-        class="flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition"
-        :class="
-          activeFir === fir
-            ? 'border-can bg-can/10 text-ink'
-            : 'border-line text-muted hover:border-can/40'
-        "
-        @click="pickFir(fir)"
-      >
-        <span
-          class="inline-block size-2 rounded-full"
-          :style="{ backgroundColor: firColor(fir) }"
-          aria-hidden="true"
-        />
-        <span class="font-mono">{{ fir }}</span>
-        <span class="tnum opacity-60">{{ firCounts.get(fir) ?? 0 }}</span>
-      </button>
-    </div>
-
-    <div class="flex flex-wrap items-center gap-4 text-xs text-muted">
-      <label class="flex items-center gap-2">
-        <input v-model="showAirways" type="checkbox" class="accent-can" />
-        {{ t("layerAirways") }}
-      </label>
-      <label
-        class="flex items-center gap-2"
-        :class="activeFir ? '' : 'cursor-not-allowed opacity-50'"
-        :title="activeFir ? undefined : String(t('fixesNeedFir'))"
-      >
-        <input
-          v-model="showFixes"
-          type="checkbox"
-          class="accent-can"
-          :disabled="!activeFir"
-        />
-        {{ t("layerFixes") }}
-      </label>
-      <label class="flex items-center gap-2">
-        <input v-model="showSectors" type="checkbox" class="accent-can" />
-        {{ t("layerSectors") }}
-      </label>
-      <span v-if="loading" class="text-faint">{{ loading }}</span>
-      <span v-if="failed" class="text-danger">{{ failed }}</span>
-    </div>
-
-    <!-- top-down 归属。**只在扇区图层开着时出现** —— 一个解析出来没地方画的输入框，
-         按下去看起来像没反应。 -->
-    <div
-      v-if="showSectors"
-      class="flex flex-wrap items-center gap-2 text-xs text-muted"
-    >
-      <label class="sr-only" for="online">{{ t("onlineLabel") }}</label>
-      <input
-        id="online"
-        v-model="onlineText"
-        type="text"
-        class="min-w-64 flex-1 rounded-lg border border-line bg-transparent px-2.5 py-1 font-mono text-xs"
-        :placeholder="String(t('onlineHint'))"
-        @keyup.enter="runResolve"
-      />
-      <button
-        type="button"
-        class="rounded-lg border border-can px-2.5 py-1 text-xs text-ink transition hover:bg-can/10"
-        @click="runResolve"
-      >
-        {{ t("resolveRun") }}
-      </button>
-      <button
-        v-if="ownership"
-        type="button"
-        class="rounded-lg border border-line px-2.5 py-1 text-xs transition hover:border-can/40"
-        @click="clearResolve"
-      >
-        {{ t("resolveClear") }}
-      </button>
-      <span v-if="resolveNote" class="text-faint">{{ resolveNote }}</span>
-    </div>
-
+  <!-- 地图就是这一页：图占满视口剩下的高度，控件浮在图上。 -->
+  <div class="relative">
     <div
       ref="host"
-      class="h-[clamp(24rem,68vh,46rem)] w-full overflow-hidden rounded-xl border border-line"
+      class="h-[max(26rem,calc(100dvh-16rem))] w-full overflow-hidden rounded-xl border border-subtle"
       role="application"
       :aria-label="String(t('mapLabel'))"
     />
 
-    <p class="text-xs text-faint">
-      {{ t("shownCount", { n: String(shownAirports.length) })
-      }}<template v-if="showSectors">
-        · {{ t("sectorsCount", { n: String(shownSectors.length) }) }}</template
+    <!-- 浮动面板放右上：左上是 Leaflet 的缩放按钮。宽度给缩放按钮留出 4.5rem，
+         手机上也不会压住它。面板是地图容器的兄弟而不是子节点，所以在面板上点击、
+         滚动不会漏给地图。 -->
+    <aside
+      class="map-panel absolute top-2 right-2 z-[1000] flex max-h-[calc(100%-1rem)] w-[min(20rem,calc(100%-4.5rem))] flex-col"
+      :aria-label="String(t('panelTitle'))"
+    >
+      <div class="flex items-center gap-2 px-3 py-2">
+        <button
+          type="button"
+          class="flex min-w-0 flex-1 items-center gap-2 rounded-control text-left text-sm font-medium text-ink focus-visible:shadow-[var(--ring-brand)] focus-visible:outline-none"
+          :aria-expanded="panelOpen"
+          aria-controls="map-panel-body"
+          @click="panelOpen = !panelOpen"
+        >
+          <Icon name="adjustments" class="size-4 shrink-0 text-muted" />
+          <span>{{ t("panelTitle") }}</span>
+          <span
+            v-if="activeFir"
+            class="flex items-center gap-1 font-mono text-xs text-muted"
+          >
+            <span
+              class="chip__dot"
+              :style="{ backgroundColor: firColor(activeFir) }"
+              aria-hidden="true"
+            />
+            {{ activeFir }}
+          </span>
+          <Icon
+            name="chevronDown"
+            class="ml-auto size-4 shrink-0 text-faint transition-transform"
+            :class="panelOpen ? 'rotate-180' : ''"
+          />
+        </button>
+        <!-- 收起时也得看得出在取数据：面板里那一行这时看不见。 -->
+        <Spinner v-if="loading && !panelOpen" size="sm" />
+      </div>
+
+      <div
+        v-show="panelOpen"
+        id="map-panel-body"
+        class="min-h-0 space-y-4 overflow-y-auto border-t border-subtle p-3"
       >
-    </p>
+        <AlertBox
+          v-if="failed"
+          variant="danger"
+          dismissible
+          @dismiss="failed = null"
+        >
+          {{ failed }}
+        </AlertBox>
+        <Spinner v-if="loading" size="sm" :label="loading" />
+
+        <!-- FIR 筛选。chip 而不是下拉：十几个选项全摆出来，一眼看得到哪个 FIR 机场
+             多，而且每个都带着它在图上的颜色（firColor，和清单页同源）。 -->
+        <section>
+          <h3 class="text-eyebrow mb-2 text-faint">{{ t("firTitle") }}</h3>
+          <FilterChips
+            :model-value="activeFir ?? ''"
+            :chips="firChips"
+            :all-label="String(t('allFirs'))"
+            :all-count="airports.length"
+            :label="String(t('firTitle'))"
+            @update:model-value="pickFir"
+          />
+        </section>
+
+        <section class="space-y-3">
+          <h3 class="text-eyebrow text-faint">{{ t("layersTitle") }}</h3>
+          <Toggle v-model="showAirways" :label="String(t('layerAirways'))" />
+          <!-- 不选 FIR 时是禁用的，并且说为什么 —— 而不是按了没反应。 -->
+          <Toggle
+            v-model="showFixes"
+            :label="String(t('layerFixes'))"
+            :description="activeFir ? undefined : String(t('fixesNeedFir'))"
+            :disabled="!activeFir"
+          />
+          <Toggle v-model="showSectors" :label="String(t('layerSectors'))" />
+        </section>
+
+        <!-- top-down 归属。**只在扇区图层开着时出现** —— 一个解析出来没地方画的输入框，
+             按下去看起来像没反应。**解析是按钮触发的，不是 watch**：见 runResolve。 -->
+        <section v-if="showSectors" class="space-y-2.5">
+          <h3 class="text-eyebrow text-faint">{{ t("topDownTitle") }}</h3>
+          <form class="flex gap-2" @submit.prevent="runResolve">
+            <label class="sr-only" for="online">{{ t("onlineLabel") }}</label>
+            <input
+              id="online"
+              v-model="onlineText"
+              type="text"
+              class="input min-w-0 flex-1 font-mono text-xs uppercase"
+              :placeholder="String(t('onlineHint'))"
+              autocomplete="off"
+              spellcheck="false"
+            />
+            <button type="submit" class="btn btn-primary shrink-0">
+              {{ t("resolveRun") }}
+            </button>
+          </form>
+          <div
+            v-if="ownership"
+            class="flex flex-wrap items-center justify-between gap-2 text-xs"
+          >
+            <span class="tnum text-muted">{{ resolveNote }}</span>
+            <button type="button" class="link" @click="clearResolve">
+              {{ t("resolveClear") }}
+            </button>
+          </div>
+
+          <!-- 三种状态三种画法。图例的色块走 sectorPaint，和图上同一个函数。 -->
+          <SectorLegend
+            :package-color="firColor(activeFir)"
+            :labels="{
+              unresolved: String(t('legendUnresolved')),
+              owned: String(t('legendOwned')),
+              uncovered: String(t('legendUncovered')),
+            }"
+          />
+        </section>
+
+        <p class="tnum border-t border-subtle pt-3 text-xs text-faint">
+          {{
+            activeFir
+              ? t("shownOfTotal", {
+                  n: String(shownAirports.length),
+                  total: String(airports.length),
+                })
+              : t("shownCount", { n: String(shownAirports.length) })
+          }}<template v-if="showSectors">
+            ·
+            {{
+              t("sectorsCount", { n: String(shownSectors.length) })
+            }}</template
+          >
+        </p>
+      </div>
+    </aside>
   </div>
 </template>

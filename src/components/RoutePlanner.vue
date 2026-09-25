@@ -12,14 +12,24 @@
 import {
   computed,
   onBeforeUnmount,
+  onMounted,
   ref,
   shallowRef,
   watch,
   nextTick,
 } from "vue";
 import L from "leaflet";
+import {
+  AlertBox,
+  EmptyState,
+  Icon,
+  Skeleton,
+  Spinner,
+  Toggle,
+} from "@jianyuelab-org/can-ui";
 import { createTranslator } from "@/lib/i18n";
 import { api } from "@/lib/canDb";
+import { useQueryState } from "@/composables/useQueryState";
 import {
   TILES,
   TILE_ATTRIBUTION,
@@ -132,34 +142,134 @@ const loading = ref(false);
 const error = ref("");
 const copied = ref(false);
 
+/** 代号一律大写 —— 输入框上的 `uppercase` 只是显示，值得自己转。 */
+watch(from, (v) => (from.value = v.toUpperCase()));
+watch(to, (v) => (to.value = v.toUpperCase()));
+
+function swap() {
+  [from.value, to.value] = [to.value, from.value];
+}
+
+/* **地址栏上的是上一次提交的值，不是输入框里正在敲的。**
+ *
+ * `?from=ZGGG&to=ZBAA&level=29100` 让一个结果能发给别人、刷新之后还在。只在提交时写：
+ * 跟着输入框走的话，敲到一半刷新会拿一个半截代号去规划。挂载时读到两个代号就直接跑
+ * 一次 —— 带着链接进来的人要的就是那条航路。 */
+const qFrom = useQueryState("from");
+const qTo = useQueryState("to");
+const qLevel = useQueryState("level");
+const qUnrestricted = useQueryState("unrestricted");
+
+onMounted(() => {
+  // useQueryState 的 onMounted 先跑，这时地址栏已经读进来了。
+  from.value = qFrom.value.toUpperCase();
+  to.value = qTo.value.toUpperCase();
+  level.value = qLevel.value;
+  unrestricted.value = qUnrestricted.value === "1";
+  if (from.value && to.value) void submit();
+});
+
 const known = computed(() => new Set(props.airports));
-/** 输入的机场在不在库里 —— 提交前就说，比提交后拿一个 404 好。 */
-const fromKnown = computed(
-  () => !from.value || known.value.has(from.value.toUpperCase()),
-);
-const toKnown = computed(
-  () => !to.value || known.value.has(to.value.toUpperCase()),
+/** 提交过一次之后，没敲满四位的代号也要报。 */
+const attempted = ref(false);
+/**
+ * 输入的机场在不在库里 —— 提交前就说，比提交后拿一个 404 好。敲满四位才判：敲到一半
+ * 就亮警告，等于在人还没打完字时说他错了。
+ */
+function unknownCode(code: string): boolean {
+  const c = code.trim();
+  if (!c || (c.length < 4 && !attempted.value)) return false;
+  return !known.value.has(c);
+}
+const fromUnknown = computed(() => unknownCode(from.value));
+const toUnknown = computed(() => unknownCode(to.value));
+const unknownCodes = computed(() =>
+  [fromUnknown.value && from.value, toUnknown.value && to.value]
+    .filter(Boolean)
+    .join(", "),
 );
 
+/** 绕行只拿 `distanceKm` 比 —— `publishedDistanceKm` 量的是航路段，比出来会「比直线还短」。 */
 const detour = computed(() => {
   const p = plan.value;
   if (!p || !p.directKm) return null;
   return (p.distanceKm / p.directKm) * 100 - 100;
 });
 
+interface Stat {
+  key: string;
+  label: string;
+  value: string;
+  mono?: boolean;
+  danger?: boolean;
+  hint?: string;
+}
+
+const stats = computed<Stat[]>(() => {
+  const p = plan.value;
+  if (!p) return [];
+  const km = (n: number) => `${Math.round(n)} km`;
+  const out: Stat[] = [
+    { key: "distance", label: String(t("distance")), value: km(p.distanceKm) },
+    { key: "direct", label: String(t("direct")), value: km(p.directKm) },
+  ];
+  if (detour.value !== null)
+    out.push({
+      key: "detour",
+      label: String(t("detour")),
+      value: `${detour.value > 0 ? "+" : ""}${detour.value.toFixed(0)}%`,
+    });
+  if (p.publishedDistanceKm)
+    out.push({
+      key: "enroute",
+      label: String(t("enroute")),
+      value: `${p.publishedDistanceKm} km`,
+    });
+  out.push({
+    key: "legs",
+    label: String(t("legs")),
+    value: String(p.legs.length),
+  });
+  // 标红跟着 can-db 的 `levelBelowMtca` 走，这里不再判一次。
+  if (p.mtcaM)
+    out.push({
+      key: "mtca",
+      label: String(t("mtca")),
+      value: `${p.mtcaM} m`,
+      danger: !!p.levelBelowMtca,
+      hint: p.levelBelowMtca ? String(t("belowMtca")) : undefined,
+    });
+  if (p.minSafeAltM)
+    out.push({
+      key: "msa",
+      label: String(t("minSafeAlt")),
+      value: `${p.minSafeAltM} m`,
+    });
+  if (p.sid) out.push({ key: "sid", label: "SID", value: p.sid, mono: true });
+  if (p.star)
+    out.push({ key: "star", label: "STAR", value: p.star, mono: true });
+  return out;
+});
+
 async function submit() {
+  attempted.value = true;
   error.value = "";
   plan.value = null;
   const f = from.value.trim().toUpperCase();
   const d = to.value.trim().toUpperCase();
   if (!f || !d) return;
 
+  // 只在档上的人勾了才带 —— 带 `unrestricted=0` 和不带是一回事，少一个参数少一份歧义。
+  const tier = canChooseTier.value && unrestricted.value;
+  qFrom.value = f;
+  qTo.value = d;
+  qLevel.value = level.value.trim();
+  qUnrestricted.value = tier ? "1" : "";
+
   loading.value = true;
   const params = new URLSearchParams({ from: f, to: d });
   if (level.value.trim()) params.set("level", level.value.trim());
-  // 只在档上的人勾了才带 —— 带 `unrestricted=0` 和不带是一回事，少一个参数少一份歧义。
-  if (canChooseTier.value && unrestricted.value)
-    params.set("unrestricted", "1");
+  if (tier) params.set("unrestricted", "1");
   const result = await api<RoutePlan>(`/api/v1/aip/route?${params}`);
   loading.value = false;
 
@@ -200,12 +310,38 @@ async function copyRoute() {
   }
 }
 
-/** 限制是怎么命中的：本航线 / 本段 / 同航路。 */
-function scopeKey(scope: Restriction["scope"]): string {
-  if (scope === "route") return "scopeRoute";
-  if (scope === "segment") return "scopeSegment";
-  return "scopeAirway";
-}
+/**
+ * 限制是怎么命中的：本航线 / 本段 / 同航路。三种各一个颜色、各一句解释，**不合并** ——
+ * 合并等于告诉看的人它们一样确定。
+ */
+const SCOPES: Restriction["scope"][] = ["route", "segment", "airway"];
+const SCOPE_META: Record<
+  Restriction["scope"],
+  { key: string; note: string; badge: string }
+> = {
+  route: { key: "scopeRoute", note: "scopeRouteNote", badge: "badge-danger" },
+  segment: {
+    key: "scopeSegment",
+    note: "scopeSegmentNote",
+    badge: "badge-warning",
+  },
+  airway: {
+    key: "scopeAirway",
+    note: "scopeAirwayNote",
+    badge: "badge-neutral",
+  },
+};
+
+/** 最确定的排最前。稳定排序，同一类里保持 can-db 给的顺序。 */
+const restrictions = computed(() =>
+  [...(plan.value?.restrictions ?? [])].sort(
+    (a, b) => SCOPES.indexOf(a.scope) - SCOPES.indexOf(b.scope),
+  ),
+);
+/** 图例只解释这次真出现了的那几种。 */
+const scopesPresent = computed(() =>
+  SCOPES.filter((sc) => restrictions.value.some((r) => r.scope === sc)),
+);
 
 const host = ref<HTMLDivElement | null>(null);
 const map = shallowRef<L.Map | null>(null);
@@ -390,89 +526,145 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="flex flex-col gap-5">
-    <form class="flex flex-wrap items-end gap-3" @submit.prevent="submit">
-      <div>
-        <label class="mb-1 block text-xs text-muted" for="rp-from">{{
-          t("from")
-        }}</label>
-        <input
-          id="rp-from"
-          v-model="from"
-          class="input w-28 font-mono uppercase"
-          maxlength="4"
-          autocomplete="off"
-          placeholder="ZGGG"
-        />
+    <form class="card flex flex-col gap-3 p-3 sm:p-4" @submit.prevent="submit">
+      <div class="flex flex-wrap items-end gap-3">
+        <div class="flex items-end gap-1.5">
+          <div>
+            <label class="mb-1 block text-xs text-muted" for="rp-from">{{
+              t("from")
+            }}</label>
+            <input
+              id="rp-from"
+              v-model="from"
+              class="input w-24 font-mono uppercase"
+              :class="{ 'input-error': fromUnknown }"
+              :aria-invalid="fromUnknown || undefined"
+              aria-describedby="rp-unknown"
+              maxlength="4"
+              autocomplete="off"
+              spellcheck="false"
+              placeholder="ZGGG"
+            />
+          </div>
+          <button
+            type="button"
+            class="icon-button text-muted hover:text-ink"
+            :aria-label="String(t('swap'))"
+            :title="String(t('swap'))"
+            @click="swap"
+          >
+            <!-- can-ui 的图标集里没有左右互换，画一个。 -->
+            <svg
+              class="size-4"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.75"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path
+                d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5"
+              />
+            </svg>
+          </button>
+          <div>
+            <label class="mb-1 block text-xs text-muted" for="rp-to">{{
+              t("to")
+            }}</label>
+            <input
+              id="rp-to"
+              v-model="to"
+              class="input w-24 font-mono uppercase"
+              :class="{ 'input-error': toUnknown }"
+              :aria-invalid="toUnknown || undefined"
+              aria-describedby="rp-unknown"
+              maxlength="4"
+              autocomplete="off"
+              spellcheck="false"
+              placeholder="ZBAA"
+            />
+          </div>
+        </div>
+        <div>
+          <label class="mb-1 block text-xs text-muted" for="rp-level">{{
+            t("level")
+          }}</label>
+          <input
+            id="rp-level"
+            v-model="level"
+            class="input tnum w-32"
+            inputmode="numeric"
+            autocomplete="off"
+            :placeholder="String(t('levelHint'))"
+          />
+        </div>
+        <button
+          type="submit"
+          class="btn btn-primary"
+          :disabled="loading || !from.trim() || !to.trim()"
+        >
+          <Spinner v-if="loading" size="sm" />
+          {{ loading ? t("planning") : t("plan") }}
+        </button>
       </div>
-      <div>
-        <label class="mb-1 block text-xs text-muted" for="rp-to">{{
-          t("to")
-        }}</label>
-        <input
-          id="rp-to"
-          v-model="to"
-          class="input w-28 font-mono uppercase"
-          maxlength="4"
-          autocomplete="off"
-          placeholder="ZBAA"
-        />
-      </div>
-      <div>
-        <label class="mb-1 block text-xs text-muted" for="rp-level">{{
-          t("level")
-        }}</label>
-        <input
-          id="rp-level"
-          v-model="level"
-          class="input w-32 tnum"
-          inputmode="numeric"
-          autocomplete="off"
-          :placeholder="String(t('levelHint'))"
-        />
-      </div>
-      <button
-        type="submit"
-        class="btn btn-primary mb-px"
-        :disabled="loading || !from.trim() || !to.trim()"
+
+      <!-- 代号不在库里就提前说。提交后拿一个 404 也能懂，但那时人已经在怀疑是不是服务坏了。 -->
+      <p
+        id="rp-unknown"
+        class="text-xs text-danger"
+        :class="{ 'sr-only': !unknownCodes }"
+        aria-live="polite"
       >
-        {{ loading ? t("planning") : t("plan") }}
-      </button>
+        <template v-if="unknownCodes">{{
+          t("unknownCodes", { codes: unknownCodes })
+        }}</template>
+      </p>
+
+      <!-- 3–5 级才有的开关：把规划压到 1–2 级的数据上，也就是不用 NAIP 汇编。
+           档下的人不显示 —— 对他们这个开关恒为空转，摆出来只会让人以为自己错过了什么。 -->
+      <div v-if="canChooseTier" class="max-w-md border-t border-subtle pt-3">
+        <Toggle
+          v-model="unrestricted"
+          :label="String(t('unrestricted'))"
+          :description="String(t('unrestrictedHint'))"
+        />
+      </div>
     </form>
 
-    <!-- 3–5 级才有的开关：把规划压到 1–2 级的数据上，也就是不用 NAIP 汇编。
-         档下的人不显示 —— 对他们这个开关恒为空转，摆出来只会让人以为自己错过了什么。 -->
-    <label
-      v-if="canChooseTier"
-      class="-mt-2 flex w-fit cursor-pointer items-start gap-2 text-sm"
-      for="rp-unrestricted"
-    >
-      <input
-        id="rp-unrestricted"
-        v-model="unrestricted"
-        type="checkbox"
-        class="mt-0.5"
+    <AlertBox v-if="error" variant="danger">{{ error }}</AlertBox>
+
+    <!-- 生成中：占住结果的形状 —— 一张卡片加一张图。 -->
+    <div v-if="loading" class="flex flex-col gap-5">
+      <div class="card p-4 sm:p-5"><Skeleton variant="text" :count="4" /></div>
+      <div class="skeleton h-[clamp(18rem,46vh,32rem)] w-full rounded-xl" />
+    </div>
+
+    <div v-else-if="!plan && !error" class="card">
+      <EmptyState
+        compact
+        icon="map"
+        :title="String(t('idleTitle'))"
+        :description="String(t('idleHint'))"
       />
-      <span>
-        <span class="text-ink">{{ t("unrestricted") }}</span>
-        <span class="mt-0.5 block text-xs text-muted">{{
-          t("unrestrictedHint")
-        }}</span>
-      </span>
-    </label>
-
-    <!-- 代号不在库里就提前说。提交后拿一个 404 也能懂，但那时人已经在怀疑是不是服务坏了。 -->
-    <p v-if="!fromKnown || !toKnown" class="text-xs text-warning">
-      {{ t("unknownAirport") }}
-    </p>
-
-    <p v-if="error" class="card border-danger/40 p-4 text-sm text-danger">
-      {{ error }}
-    </p>
+    </div>
 
     <template v-if="plan">
-      <section class="card p-4">
-        <div class="flex flex-wrap items-center justify-between gap-3">
-          <p class="font-mono text-sm leading-relaxed text-ink">
+      <section class="card flex flex-col gap-4 p-4 sm:p-5">
+        <h2 class="font-mono text-title-3 text-ink">
+          {{ plan.from }} <span class="text-faint" aria-hidden="true">→</span>
+          <span class="sr-only">{{ t("to") }}</span> {{ plan.to }}
+        </h2>
+
+        <!-- 这一页的产物就是这一行字：等宽、可复制、不截断。 -->
+        <div
+          class="flex items-start gap-2 rounded-control bg-surface-sunken p-2 pl-3"
+        >
+          <p
+            class="min-w-0 flex-1 py-1.5 font-mono text-sm leading-relaxed break-words text-ink"
+            :aria-label="String(t('routeLabel'))"
+          >
             {{ plan.route }}
           </p>
           <button
@@ -480,109 +672,147 @@ onBeforeUnmount(() => {
             class="btn btn-secondary shrink-0"
             @click="copyRoute"
           >
-            {{ copied ? t("copied") : t("copy") }}
+            <Icon
+              :name="copied ? 'checkCircle' : 'clipboardCheck'"
+              class="size-4"
+            />
+            <span aria-live="polite">{{
+              copied ? t("copied") : t("copy")
+            }}</span>
           </button>
         </div>
+
         <!-- 发布的还是算的，是这一页最重要的一个字：一条是汇编说该怎么飞，另一条是
-             我们按距离算出来的。摆在航路串正下方，不能藏进折叠里。 -->
-        <div class="mt-3 flex flex-wrap items-center gap-2">
-          <span
-            class="badge"
-            :class="
-              plan.source === 'published' ? 'badge-success' : 'badge-neutral'
-            "
-          >
+             我们按距离算出来的。摆在航路串正下方，连同那句解释，不能藏进折叠里。 -->
+        <div>
+          <div class="flex flex-wrap items-center gap-2">
+            <span
+              class="badge"
+              :class="
+                plan.source === 'published' ? 'badge-success' : 'badge-warning'
+              "
+            >
+              {{
+                t(
+                  plan.source === "published"
+                    ? "sourcePublished"
+                    : "sourceComputed",
+                )
+              }}
+            </span>
+            <!-- 只对档上的人显示。1–2 级本来就永远是「未使用」，对他们这不是一条信息。
+                 值取 can-db 报的 `plan.unrestricted`，不是这里的勾选框 —— 答案该由产出
+                 它的那一方描述，而不是由发起请求的一方记着。 -->
+            <span
+              v-if="canChooseTier && plan.unrestricted"
+              class="badge badge-neutral"
+            >
+              {{ t("unrestrictedBadge") }}
+            </span>
+            <span v-if="plan.publishedName" class="text-xs text-muted">{{
+              plan.publishedName
+            }}</span>
+            <span v-if="plan.alternatives" class="text-xs text-faint">
+              {{ t("alternatives", { n: String(plan.alternatives) }) }}
+            </span>
+          </div>
+          <p class="mt-1.5 text-xs text-muted">
             {{
               t(
                 plan.source === "published"
-                  ? "sourcePublished"
-                  : "sourceComputed",
+                  ? "sourcePublishedNote"
+                  : "sourceComputedNote",
               )
             }}
-          </span>
-          <!-- 只对档上的人显示。1–2 级本来就永远是「未使用」，对他们这不是一条信息。
-               值取 can-db 报的 `plan.unrestricted`，不是这里的勾选框 —— 答案该由产出
-               它的那一方描述，而不是由发起请求的一方记着。 -->
-          <span
-            v-if="canChooseTier && plan.unrestricted"
-            class="badge badge-neutral"
-          >
-            {{ t("unrestrictedBadge") }}
-          </span>
-          <span v-if="plan.publishedName" class="text-xs text-muted">{{
-            plan.publishedName
-          }}</span>
-          <span v-if="plan.alternatives" class="text-xs text-faint">
-            {{ t("alternatives", { n: String(plan.alternatives) }) }}
-          </span>
+          </p>
         </div>
-        <p class="mt-2 text-xs text-faint">
-          {{
-            t(
-              plan.source === "published"
-                ? "sourcePublishedNote"
-                : "sourceComputedNote",
-            )
-          }}
-        </p>
 
-        <div class="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-xs text-muted">
-          <span class="tnum"
-            >{{ t("distance") }}: {{ Math.round(plan.distanceKm) }} km</span
+        <dl class="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <div
+            v-for="s in stats"
+            :key="s.key"
+            class="rounded-control bg-surface-sunken px-3 py-2"
+            :class="{ 'ring-1 ring-danger/50': s.danger }"
           >
-          <span class="tnum"
-            >{{ t("direct") }}: {{ Math.round(plan.directKm) }} km</span
-          >
-          <span v-if="detour !== null" class="tnum">
-            {{ t("detour") }}: {{ detour > 0 ? "+" : ""
-            }}{{ detour.toFixed(0) }}%
-          </span>
-          <span v-if="plan.publishedDistanceKm" class="tnum">
-            {{ t("enroute") }}: {{ plan.publishedDistanceKm }} km
-          </span>
-          <span v-if="plan.minSafeAltM" class="tnum">
-            {{ t("minSafeAlt") }}: {{ plan.minSafeAltM }} m
-          </span>
-          <span
-            v-if="plan.mtcaM"
-            class="tnum"
-            :class="{ 'text-danger': plan.levelBelowMtca }"
-          >
-            {{ t("mtca") }}: {{ plan.mtcaM }} m
-            <template v-if="plan.levelBelowMtca">⚠</template>
-          </span>
-          <span class="tnum">{{ t("legs") }}: {{ plan.legs.length }}</span>
-          <span v-if="plan.sid">SID: {{ plan.sid }}</span>
-          <span v-if="plan.star">STAR: {{ plan.star }}</span>
-        </div>
-      </section>
-
-      <!-- 规划器退而求其次的地方要说出来：一条从最近航路点接入的航路，和一条走发布 SID
-           的航路，在这一页上长得一模一样，而区别对拿去放行的人很重要。 -->
-      <section v-if="plan.notes.length" class="card border-warning/40 p-4">
-        <h2 class="mb-2 text-sm font-semibold text-ink">{{ t("notes") }}</h2>
-        <ul class="space-y-1 text-xs text-muted">
-          <li v-for="(n, i) in plan.notes" :key="i">{{ n }}</li>
-        </ul>
+            <dt class="text-xs text-muted">{{ s.label }}</dt>
+            <dd
+              class="mt-0.5 truncate text-sm font-semibold"
+              :class="[
+                s.mono ? 'font-mono' : 'tnum',
+                s.danger ? 'text-danger' : 'text-ink',
+              ]"
+              :title="s.value"
+            >
+              {{ s.value }}
+            </dd>
+            <dd v-if="s.hint" class="mt-0.5 text-xs text-danger">
+              {{ s.hint }}
+            </dd>
+          </div>
+        </dl>
       </section>
 
       <div
         ref="host"
-        class="h-[clamp(18rem,46vh,32rem)] w-full overflow-hidden rounded-xl border border-line"
+        class="h-[clamp(18rem,46vh,32rem)] w-full overflow-hidden rounded-xl border border-subtle"
         role="application"
         :aria-label="String(t('mapLabel'))"
       />
 
+      <!-- 限制是原文，不是规则，不做摘要 —— 「7800米以下可双向」这种话，摘要一次就可能
+           把含义摘反。三种命中各一个颜色、各一句解释，不合并。 -->
+      <section v-if="restrictions.length" class="card border-danger/40 p-4">
+        <h2 class="text-sm font-semibold text-ink">
+          {{ t("restrictions", { n: String(restrictions.length) }) }}
+        </h2>
+        <p class="mt-1 text-xs text-muted">{{ t("restrictionsNote") }}</p>
+        <dl class="mt-3 space-y-1.5 text-xs">
+          <div
+            v-for="sc in scopesPresent"
+            :key="sc"
+            class="flex items-start gap-2"
+          >
+            <dt class="shrink-0">
+              <span class="badge" :class="SCOPE_META[sc].badge">{{
+                t(SCOPE_META[sc].key)
+              }}</span>
+            </dt>
+            <dd class="pt-0.5 text-muted">{{ t(SCOPE_META[sc].note) }}</dd>
+          </div>
+        </dl>
+        <ul
+          class="mt-4 divide-y divide-[var(--border-subtle)] text-sm text-ink"
+        >
+          <li
+            v-for="(r, i) in restrictions"
+            :key="i"
+            class="flex flex-wrap items-baseline gap-x-2 gap-y-1 py-2 leading-relaxed"
+          >
+            <span class="badge" :class="SCOPE_META[r.scope].badge">
+              {{ t(SCOPE_META[r.scope].key) }}
+            </span>
+            <span v-if="r.code" class="badge badge-neutral font-mono">{{
+              r.code
+            }}</span>
+            <span class="min-w-0 basis-full sm:basis-0 sm:flex-1">{{
+              r.body
+            }}</span>
+          </li>
+        </ul>
+      </section>
+
       <!-- 穿过的限制性空域。禁区规划器已经绕开了，所以这里看到的是限制区和危险区 ——
            它们的活动时间是「byNOTAM」「每日0700-0830」这种文字，谁也没解析，所以列出来
-           的是「这条航路会穿过它」，不是「今天不能飞」。 -->
+           的是「这条航路会穿过它」，不是「今天不能飞」。那句说明必须留着。 -->
       <section v-if="plan.airspaces.length" class="card border-warning/40 p-4">
-        <h2 class="mb-2 text-sm font-semibold text-ink">
+        <h2 class="text-sm font-semibold text-ink">
           {{ t("airspaces", { n: String(plan.airspaces.length) }) }}
         </h2>
-        <p class="mb-3 text-xs text-faint">{{ t("airspacesNote") }}</p>
-        <ul class="space-y-3 text-sm text-ink">
-          <li v-for="(a, i) in plan.airspaces" :key="i">
+        <p class="mt-1 text-xs text-muted">{{ t("airspacesNote") }}</p>
+        <ul
+          class="mt-3 divide-y divide-[var(--border-subtle)] text-sm text-ink"
+        >
+          <li v-for="(a, i) in plan.airspaces" :key="i" class="py-2">
             <div class="flex flex-wrap items-center gap-2">
               <span
                 class="badge"
@@ -603,44 +833,24 @@ onBeforeUnmount(() => {
               <template v-if="a.reason && a.note"> · </template>
               <template v-if="a.note">{{ a.note }}</template>
             </p>
-            <p class="mt-1 font-mono text-xs text-faint">
-              {{ a.legs.join(" ") }}
+            <p class="mt-1 font-mono text-xs break-words text-faint">
+              {{ (a.legs ?? []).join(" ") }}
             </p>
           </li>
         </ul>
       </section>
 
-      <!-- 限制是原文，不是规则。这一段刻意排在最显眼的位置之一，而且不做摘要 ——
-           「7800米以下可双向」这种话，摘要一次就可能把含义摘反。 -->
-      <section
-        v-if="plan.restrictions.length"
-        class="card border-danger/40 p-4"
+      <!-- 规划器退而求其次的地方要说出来：一条从最近航路点接入的航路，和一条走发布 SID
+           的航路，在图上长得一模一样，而区别对拿去放行的人很重要。单独一张，不藏。 -->
+      <AlertBox
+        v-if="plan.notes.length"
+        variant="warning"
+        :title="String(t('notes'))"
       >
-        <h2 class="mb-2 text-sm font-semibold text-ink">
-          {{ t("restrictions", { n: String(plan.restrictions.length) }) }}
-        </h2>
-        <p class="mb-3 text-xs text-faint">{{ t("restrictionsNote") }}</p>
-        <!-- 「同航路」那一类必须解释，否则看的人会以为它和直接命中一样确定。 -->
-        <p class="mb-3 text-xs text-faint">{{ t("scopeNote") }}</p>
-        <ul class="space-y-2 text-sm text-ink">
-          <li
-            v-for="(r, i) in plan.restrictions"
-            :key="i"
-            class="leading-relaxed"
-          >
-            <span
-              class="badge mr-2"
-              :class="r.scope === 'airway' ? 'badge-neutral' : 'badge-danger'"
-            >
-              {{ t(scopeKey(r.scope)) }}
-            </span>
-            <span v-if="r.code" class="badge badge-neutral mr-2">{{
-              r.code
-            }}</span>
-            {{ r.body }}
-          </li>
+        <ul class="mt-1 list-disc space-y-1 pl-4 text-xs">
+          <li v-for="(n, i) in plan.notes" :key="i">{{ n }}</li>
         </ul>
-      </section>
+      </AlertBox>
 
       <section class="card overflow-hidden">
         <details>

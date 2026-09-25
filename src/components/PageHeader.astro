@@ -22,8 +22,12 @@
  *
  * `title` 插槽给机场详情页：那一页的标题是一个标识符（ICAO），要等宽字体，但字号
  * 该和别的页面的标题是同一级。
+ *
+ * `back` 给挂在别的页面下面的详情页（修订记录、编辑、机场详情）：标题上方一行小号
+ * 的返回链接。原来每一页各自在 `actions` 里手写一个，位置和样式各不相同。
  */
 import RichText from "@/components/RichText.astro";
+import Icon from "@jianyuelab-org/can-ui/components/Icon.vue";
 
 interface Props {
   title: string;
@@ -31,15 +35,28 @@ interface Props {
   description?: string;
   /** 标题上面那行小号全大写的标签。 */
   eyebrow?: string;
+  /** 标题上方的返回链接。 */
+  back?: { href: string; label: string };
 }
 
-const { title, description, eyebrow } = Astro.props;
+const { title, description, eyebrow, back } = Astro.props;
 ---
 
 <header
   class="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"
 >
   <div class="min-w-0">
+    {
+      back && (
+        <a
+          href={back.href}
+          class="mb-2 inline-flex items-center gap-1 rounded-control text-sm text-muted transition-colors hover:text-ink focus-visible:shadow-[var(--ring-brand)] focus-visible:outline-none"
+        >
+          <Icon name="arrowLeft" class="size-3.5" />
+          {back.label}
+        </a>
+      )
+    }
     {eyebrow && <p class="text-eyebrow mb-1.5 text-can">{eyebrow}</p>}
     <h1 class="text-title-1 text-ink">
       <slot name="title">{title}</slot>

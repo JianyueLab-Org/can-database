@@ -3,6 +3,8 @@ import AppLayout from "@/layouts/AppLayout.astro";
 import PageHeader from "@/components/PageHeader.astro";
 import ExportButton from "@/components/ExportButton.vue";
 import DatasetActions from "@/components/DatasetActions.vue";
+import EmptyState from "@jianyuelab-org/can-ui/components/EmptyState.vue";
+import AlertBox from "@jianyuelab-org/can-ui/components/AlertBox.vue";
 import { getLocale, getMessages, useTranslations } from "@/lib/i18n";
 import { callDb } from "@/server/canDb";
 import { canManage } from "@/lib/config";
@@ -28,53 +30,97 @@ const stateBadge: Record<string, string> = {
   loading: "badge badge-warning",
   superseded: "badge badge-neutral",
 };
+/** 状态显示本地化的名字；can-db 哪天多给一个状态，原样显示枚举值而不是空白。 */
+const stateLabel: Record<string, string> = {
+  active: t("stateActive"),
+  loading: t("stateLoading"),
+  superseded: t("stateSuperseded"),
+};
 const fmt = (iso: string | null) =>
   iso ? new Date(iso).toISOString().slice(0, 16).replace("T", " ") : t("never");
+
+/**
+ * 距下一周期生效还有几天。只是把 can-db 给的日期换个说法 —— 按 UTC 日历日数，
+ * 不是按小时取整：AIRAC 在 UTC 零点换期。
+ */
+const daysUntil = (date: string): number | null => {
+  const target = Date.parse(`${date.slice(0, 10)}T00:00:00Z`);
+  if (Number.isNaN(target)) return null;
+  const today = new Date();
+  const startOfToday = Date.UTC(
+    today.getUTCFullYear(),
+    today.getUTCMonth(),
+    today.getUTCDate(),
+  );
+  return Math.round((target - startOfToday) / 86_400_000);
+};
+const nextIn = airac ? daysUntil(airac.next.effective) : null;
 ---
 
 <AppLayout title={t("title")}>
   <div class="mx-auto w-full max-w-6xl">
-    <PageHeader title={t("title")} description={t("description")} />
+    <PageHeader title={t("title")} description={t("description")}>
+      <Fragment slot="actions">
+        <ExportButton
+          client:idle
+          resource="datasets"
+          rows={datasets}
+          licence={licence}
+          messages={{ datasets: messages, export: exportMessages }}
+        />
+      </Fragment>
+    </PageHeader>
 
     {
+      /* 当前和下一周期对所有进得来的人显示 —— 「下一期什么时候换」是看这一页的人
+        最常问的一句，而日期由 can-db 按日历算，这里只换个说法。 */
+    }
+    {
       airac && (
-        <dl class="mb-6 flex flex-wrap gap-x-10 gap-y-3 text-sm">
-          <div>
-            <dt class="text-xs text-muted">{t("airacCurrent")}</dt>
-            <dd class="tnum mt-0.5">
-              <span class="font-mono text-ink">{airac.current.ident}</span>
-              <span class="ml-2 text-faint">
-                {t("effective", { date: airac.current.effective })}
-              </span>
-            </dd>
+        <div class="mb-6 grid gap-3 sm:grid-cols-2">
+          <div class="card flex items-center justify-between gap-4 p-4">
+            <div class="min-w-0">
+              <p class="text-xs text-muted">{t("airacCurrent")}</p>
+              <p class="tnum mt-1 font-mono text-xl font-semibold text-ink">
+                {airac.current.ident}
+              </p>
+            </div>
+            <p class="tnum text-right text-sm text-faint">
+              {t("effective", { date: airac.current.effective })}
+            </p>
           </div>
-          <div>
-            <dt class="text-xs text-muted">{t("airacNext")}</dt>
-            <dd class="tnum mt-0.5">
-              <span class="font-mono text-ink">{airac.next.ident}</span>
-              <span class="ml-2 text-faint">
+          <div class="card flex items-center justify-between gap-4 p-4">
+            <div class="min-w-0">
+              <p class="text-xs text-muted">{t("airacNext")}</p>
+              <p class="tnum mt-1 font-mono text-xl font-semibold text-ink">
+                {airac.next.ident}
+              </p>
+            </div>
+            <div class="text-right text-sm">
+              <p class="tnum text-faint">
                 {t("effective", { date: airac.next.effective })}
-              </span>
-            </dd>
+              </p>
+              {nextIn !== null && nextIn >= 0 && (
+                <p class="tnum mt-0.5 font-medium text-can">
+                  {nextIn === 0
+                    ? t("effectiveToday")
+                    : t("daysUntil", { n: nextIn })}
+                </p>
+              )}
+            </div>
           </div>
-        </dl>
+        </div>
       )
     }
 
-    <div class="mb-3 flex justify-end">
-      <ExportButton
-        client:idle
-        resource="datasets"
-        rows={datasets}
-        licence={licence}
-        messages={{ datasets: messages, export: exportMessages }}
-      />
-    </div>
-
     {
-      datasets.length === 0 ? (
-        <div class="card p-10 text-center">
-          <p class="text-muted">{t("empty")}</p>
+      !result.ok ? (
+        <AlertBox variant="danger" title={t("errorTitle")}>
+          {t("error", { message: result.message ?? result.error ?? "" })}
+        </AlertBox>
+      ) : datasets.length === 0 ? (
+        <div class="card">
+          <EmptyState title={t("empty")} icon="squares2x2" />
         </div>
       ) : (
         <div
@@ -85,24 +131,29 @@ const fmt = (iso: string | null) =>
             <thead>
               <tr>
                 <th>{t("airac")}</th>
-                <th>{t("access")}</th>
                 <th>{t("state")}</th>
+                <th>{t("access")}</th>
                 <th>{t("redistributable")}</th>
-                <th>{t("airports")}</th>
-                <th>{t("activated")}</th>
+                <th class="text-right">{t("airports")}</th>
+                <th class="text-right">{t("activated")}</th>
                 {manage && <th>{t("manage")}</th>}
               </tr>
             </thead>
             <tbody>
               {datasets.map((d) => (
                 <tr>
-                  <td data-label={t("airac")} class="tnum font-mono">
-                    {d.airac}
+                  <td data-label={t("airac")} class="whitespace-nowrap">
+                    <span class="tnum font-mono font-semibold text-ink">
+                      {d.airac}
+                    </span>
                     {d.manual && (
-                      <span class="badge badge-info ml-2 font-sans">
-                        {t("manual")}
-                      </span>
+                      <span class="badge badge-info ml-2">{t("manual")}</span>
                     )}
+                  </td>
+                  <td data-label={t("state")}>
+                    <span class={stateBadge[d.state] ?? "badge badge-neutral"}>
+                      {stateLabel[d.state] ?? d.state}
+                    </span>
                   </td>
                   {/* 受限的那几批要一眼看得出来 —— 一个校对数据的人应该分得清手上
                       这条是官方汇编还是面向模拟的派生物。 */}
@@ -113,18 +164,20 @@ const fmt = (iso: string | null) =>
                       <span class="text-faint">{t("open")}</span>
                     )}
                   </td>
-                  <td data-label={t("state")}>
-                    <span class={stateBadge[d.state] ?? "badge badge-neutral"}>
-                      {d.state}
-                    </span>
-                  </td>
                   <td data-label={t("redistributable")}>
-                    {d.redistributable ? t("yes") : t("no")}
+                    {d.redistributable ? (
+                      <span class="text-ink">{t("yes")}</span>
+                    ) : (
+                      <span class="text-faint">{t("no")}</span>
+                    )}
                   </td>
-                  <td data-label={t("airports")} class="tnum">
+                  <td data-label={t("airports")} class="tnum text-right">
                     {d.airports}
                   </td>
-                  <td data-label={t("activated")} class="tnum">
+                  <td
+                    data-label={t("activated")}
+                    class="tnum whitespace-nowrap text-right text-muted"
+                  >
                     {fmt(d.activatedAt)}
                   </td>
                   {manage && (

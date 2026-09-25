@@ -2,6 +2,7 @@
 import AppLayout from "@/layouts/AppLayout.astro";
 import PageHeader from "@/components/PageHeader.astro";
 import NetworkMap from "@/components/NetworkMap.vue";
+import EmptyState from "@jianyuelab-org/can-ui/components/EmptyState.vue";
 import { getLocale, getMessages, useTranslations } from "@/lib/i18n";
 import { callDb } from "@/server/canDb";
 import type { AirportSummary } from "@/lib/canDb";
@@ -39,7 +40,9 @@ const initialFir =
 
     {
       airports.length === 0 ? (
-        <div class="card p-10 text-center text-muted">{t("empty")}</div>
+        <div class="card">
+          <EmptyState icon="map" title={t("empty")} />
+        </div>
       ) : (
         <NetworkMap
           messages={messages}
@@ -47,7 +50,14 @@ const initialFir =
           firs={firs}
           initialFir={initialFir}
           client:only="vue"
-        />
+        >
+          {/* client:only 在水合前什么都不渲染 —— 先占住地图的位置和高度，免得图出来时整
+              页往下一跳。高度和岛屿里那个容器是同一个表达式。 */}
+          <div
+            slot="fallback"
+            class="skeleton h-[max(26rem,calc(100dvh-16rem))] w-full rounded-xl"
+          />
+        </NetworkMap>
       )
     }
   </div>

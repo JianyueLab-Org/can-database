@@ -5,6 +5,9 @@ import RichText from "@/components/RichText.astro";
 import SectionTitle from "@/components/SectionTitle.astro";
 import AirportMap from "@/components/AirportMap.vue";
 import Procedures from "@/components/Procedures.vue";
+import StandsTable from "@/components/airport/StandsTable.vue";
+import EmptyState from "@jianyuelab-org/can-ui/components/EmptyState.vue";
+import Icon from "@jianyuelab-org/can-ui/components/Icon.vue";
 import { getLocale, getMessages, useTranslations } from "@/lib/i18n";
 import { callDb } from "@/server/canDb";
 import type { AirportDetail } from "@/lib/canDb";
@@ -22,6 +25,7 @@ const locale = getLocale(Astro.cookies);
 const t = useTranslations(locale, "airports");
 const mapMessages = getMessages(locale, "airportMap");
 const procMessages = getMessages(locale, "procedures");
+const standMessages = getMessages(locale, "airportStands");
 
 const result = await callDb<AirportDetail>(
   Astro,
@@ -135,35 +139,60 @@ const facts: Fact[] = !airport
           ]
         : []),
     ];
+
+/**
+ * 页内导航：图、跑道、机位、程序四节，各带条数。
+ *
+ * ZGGG 这一页从上到下是一张图、十行跑道、五百多个机位、一百六十多条程序 —— 要看程序得
+ * 先滚过前面三节。这一排锚点让人直接跳过去，条数顺便回答「这一节有没有东西」。
+ *
+ * 桌面上吸顶，贴在 AppShell 那条 4rem 的顶栏下面（`lg:top-16`）；手机上不吸，那里一屏本
+ * 来就窄，再压一条会把地图挤没。
+ */
+const sections = !airport
+  ? []
+  : [
+      { id: "map", label: t("sectionMap"), count: undefined },
+      { id: "runways", label: t("runways"), count: runwayRows.length },
+      { id: "stands", label: t("standsTitle"), count: airport.stands.length },
+      {
+        id: "procedures",
+        label: t("procedures"),
+        count: airport.procedures.length,
+      },
+    ];
 ---
 
 <AppLayout title={icao}>
   <div class="mx-auto w-full max-w-5xl">
-    <a href="/airports" class="link mb-4 inline-block text-sm">← {t("back")}</a>
-
     {
       !airport ? (
-        <div class="card mt-6 p-10 text-center">
-          <p class="text-muted">{t("notFound")}</p>
-        </div>
+        <>
+          <PageHeader
+            title={icao}
+            back={{ href: "/airports", label: t("back") }}
+          >
+            <span slot="title" class="font-mono">
+              {icao}
+            </span>
+          </PageHeader>
+          <div class="card">
+            <EmptyState title={t("notFound")} icon="mapPin" compact />
+          </div>
+        </>
       ) : (
         <>
           <PageHeader
             title={airport.icao}
             description={airport.name ?? undefined}
+            back={{ href: "/airports", label: t("back") }}
           >
             <span slot="title" class="font-mono">
               {airport.icao}
             </span>
             {/* 分类属性排在右边当标签 —— 它们没有「值」，和下面那张有单位有数字的
-                事实表不是一类东西。 */}
+                事实表不是一类东西。导出按钮排在最后，是这一行里唯一能点的。 */}
             <Fragment slot="actions">
-              <a
-                href={airportExportHref(airport.icao)}
-                class="btn btn-secondary"
-              >
-                {t("exportAirport")}
-              </a>
               {airport.isInternational && (
                 <span class="badge badge-info">{t("international")}</span>
               )}
@@ -173,40 +202,67 @@ const facts: Fact[] = !airport
               {airport.milOps && (
                 <span class="badge badge-neutral">{airport.milOps}</span>
               )}
+              <a
+                href={airportExportHref(airport.icao)}
+                class="btn btn-secondary"
+              >
+                <Icon name="arrowDownTray" class="size-4" />
+                {t("exportAirport")}
+              </a>
             </Fragment>
           </PageHeader>
 
           {/* 值**不截断**。一个被省略号切掉一半的坐标在这一页上比换行难看得多 ——
               这是拿来核对数字的地方，宁可让「23.39250, 113.29889」在手机上折成两
               行（逗号后面是它唯一的断点），也不能让人读到一个不完整的数。 */}
-          <dl class="card mb-6 grid grid-cols-2 gap-x-6 gap-y-4 p-4 sm:grid-cols-3 sm:p-5 lg:grid-cols-4">
-            {facts.map((f) => (
-              <div class="min-w-0">
-                <dt class="text-eyebrow text-faint">{f.label}</dt>
-                <dd
-                  class:list={[
-                    "mt-1 text-sm text-ink",
-                    f.tnum && "tnum",
-                    f.mono && "font-mono",
-                  ]}
-                >
-                  {f.value}
-                </dd>
-              </div>
-            ))}
-          </dl>
+          <div class="card mb-4 p-4">
+            <dl class="grid grid-cols-2 gap-x-5 gap-y-3 sm:grid-cols-3 lg:grid-cols-5">
+              {facts.map((f) => (
+                <div class="min-w-0">
+                  <dt class="text-eyebrow text-faint">{f.label}</dt>
+                  <dd
+                    class:list={[
+                      "mt-0.5 text-sm text-ink",
+                      f.tnum && "tnum",
+                      f.mono && "font-mono",
+                    ]}
+                  >
+                    {f.value}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+            {/* The magnetic/true distinction is the single most expensive thing
+                to get wrong downstream — it puts a parked aircraft skew to its
+                own stand box — so the page says it rather than assuming the
+                reader knows which one these columns are. */}
+            <p class="mt-3 border-t border-subtle pt-3 text-xs text-faint">
+              <RichText text={t("magneticNote")} />
+            </p>
+          </div>
 
-          {/* The magnetic/true distinction is the single most expensive thing
-              to get wrong downstream — it puts a parked aircraft skew to its
-              own stand box — so the page says it rather than assuming the
-              reader knows which one these columns are. */}
-          <p class="mb-8 max-w-2xl text-xs text-faint">
-            <RichText text={t("magneticNote")} />
-          </p>
+          <nav
+            aria-label={t("sectionNav")}
+            class="material-thin z-30 -mx-1 mb-6 rounded-control px-1 py-2 lg:sticky lg:top-16"
+          >
+            <ul class="flex flex-wrap gap-1.5">
+              {sections.map((s) => (
+                <li>
+                  <a href={`#${s.id}`} class="chip">
+                    {s.label}
+                    {s.count !== undefined && (
+                      <span class="chip__count">{s.count}</span>
+                    )}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
 
           {/* 图排在表格前面：这一页的读者多半是在核对「这个机位是不是在它该在的
               地方」，而那件事看图一眼就知道，看一张 520 行的坐标表要一行行读。 */}
-          <section class="mb-8">
+          <section id="map" class="mb-10 scroll-mt-6 lg:scroll-mt-32">
+            <SectionTitle title={t("sectionMap")} />
             <AirportMap
               messages={mapMessages}
               airport={airport}
@@ -216,93 +272,107 @@ const facts: Fact[] = !airport
 
           {/* **一张表，不是两张。** 几何（入口/终点坐标、航向）来自一份数据，物理
               （长宽道面强度）来自另一份，但读的人问的是同一件事：这条跑道是什么样。
-              按代号拼在一起，缺哪一半就是破折号 —— 两张并排的表要读的人自己对代号。 */}
-          <section class="mb-8">
+              按代号拼在一起，缺哪一半就是破折号 —— 两张并排的表要读的人自己对代号。
+              单位写在表头（手机上跟着 data-label 走），格子里只留数。 */}
+          <section id="runways" class="mb-10 scroll-mt-6 lg:scroll-mt-32">
             <SectionTitle
               title={t("runways")}
               count={runwayRows.length}
               note={t("runwayNote")}
             />
-            <div
-              class="scroll-shadow-x overflow-x-auto"
-              style="--scroll-shadow-bg: var(--surface)"
-            >
-              <table class="data-table w-full text-sm">
-                <thead>
-                  <tr>
-                    <th>{t("rwy")}</th>
-                    <th>{t("rwyLength")}</th>
-                    <th>{t("rwyWidth")}</th>
-                    <th>{t("rwySurface")}</th>
-                    <th>{t("rwyStrength")}</th>
-                    <th>hdg</th>
-                    <th>{t("rwyThrElev")}</th>
-                    <th>{t("rwyThreshold")}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {runwayRows.map((r) => (
+            {runwayRows.length === 0 ? (
+              <div class="card">
+                <EmptyState title={t("noRunways")} compact />
+              </div>
+            ) : (
+              <div
+                class="scroll-shadow-x overflow-x-auto"
+                style="--scroll-shadow-bg: var(--surface)"
+              >
+                <table class="data-table w-full text-sm">
+                  <thead>
                     <tr>
-                      <td data-label={t("rwy")} class="font-mono">
-                        {r.ident}
-                        {r.opposite ? (
-                          <span class="text-faint"> / {r.opposite}</span>
-                        ) : null}
-                      </td>
-                      <td data-label={t("rwyLength")} class="tnum">
-                        {r.lengthM ? `${r.lengthM} m` : "—"}
-                      </td>
-                      <td data-label={t("rwyWidth")} class="tnum">
-                        {r.widthM ? `${r.widthM} m` : "—"}
-                      </td>
-                      <td data-label={t("rwySurface")}>{r.surface ?? "—"}</td>
-                      <td data-label={t("rwyStrength")} class="text-xs">
-                        {r.strengthDesc ?? r.strength ?? "—"}
-                      </td>
-                      <td data-label="hdg" class="tnum">
-                        {r.hdg ?? (r.trueBrg != null ? `${r.trueBrg}T` : "—")}
-                      </td>
-                      <td data-label={t("rwyThrElev")} class="tnum">
-                        {r.thrElevM ? `${r.thrElevM} m` : "—"}
-                      </td>
-                      <td data-label={t("rwyThreshold")} class="tnum text-xs">
-                        {r.lat != null
-                          ? `${r.lat.toFixed(5)}, ${r.lon!.toFixed(5)}`
-                          : "—"}
-                      </td>
+                      <th>{t("rwy")}</th>
+                      <th class="text-right">{t("rwyLengthM")}</th>
+                      <th class="text-right">{t("rwyWidthM")}</th>
+                      <th>{t("rwySurface")}</th>
+                      <th>{t("rwyStrength")}</th>
+                      <th class="text-right">{t("rwyHdg")}</th>
+                      <th class="text-right">{t("rwyThrElevM")}</th>
+                      <th class="text-right">{t("rwyThreshold")}</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {runwayRows.map((r) => (
+                      <tr>
+                        <td
+                          data-label={t("rwy")}
+                          class="font-mono font-medium text-ink"
+                        >
+                          {r.ident}
+                          {r.opposite ? (
+                            <span class="font-normal text-faint">
+                              {" "}
+                              / {r.opposite}
+                            </span>
+                          ) : null}
+                        </td>
+                        <td
+                          data-label={t("rwyLengthM")}
+                          class="tnum text-right"
+                        >
+                          {r.lengthM ? r.lengthM : "—"}
+                        </td>
+                        <td data-label={t("rwyWidthM")} class="tnum text-right">
+                          {r.widthM ? r.widthM : "—"}
+                        </td>
+                        <td data-label={t("rwySurface")}>{r.surface ?? "—"}</td>
+                        <td
+                          data-label={t("rwyStrength")}
+                          class="font-mono text-xs"
+                        >
+                          {r.strengthDesc ?? r.strength ?? "—"}
+                        </td>
+                        {/* 导航数据的磁航向优先；只有汇编那一半时退到真方位，带 T 标出
+                            来 —— 两者差一个磁差，混在一列里不标就是错的数。 */}
+                        <td data-label={t("rwyHdg")} class="tnum text-right">
+                          {r.hdg ?? (r.trueBrg != null ? `${r.trueBrg}T` : "—")}
+                        </td>
+                        <td
+                          data-label={t("rwyThrElevM")}
+                          class="tnum text-right"
+                        >
+                          {r.thrElevM ? r.thrElevM : "—"}
+                        </td>
+                        <td
+                          data-label={t("rwyThreshold")}
+                          class="tnum text-right text-xs text-muted"
+                        >
+                          {r.lat != null
+                            ? `${r.lat.toFixed(5)}, ${r.lon!.toFixed(5)}`
+                            : "—"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </section>
 
-          <section class="mb-8">
+          <section id="stands" class="mb-10 scroll-mt-6 lg:scroll-mt-32">
             <SectionTitle
               title={t("standsTitle")}
               count={airport.stands.length}
             />
-            {/* Capped at 60 rendered rows. ZGGG has 520 stands and a wall of
-                them helps nobody read this page; the count above is the honest
-                number and the cap says so rather than silently truncating. */}
-            <div class="flex flex-wrap gap-1.5">
-              {airport.stands.slice(0, 60).map((s) => (
-                <span
-                  class="badge badge-neutral font-mono"
-                  title={`${s.lat.toFixed(5)}, ${s.lon.toFixed(5)}${s.span ? ` · ${s.span} m` : ""}`}
-                >
-                  {s.name}
-                </span>
-              ))}
-            </div>
-            {airport.stands.length > 60 && (
-              <p class="mt-2 text-xs text-faint">
-                … {airport.stands.length - 60} more
-              </p>
-            )}
+            <StandsTable
+              messages={standMessages}
+              stands={airport.stands}
+              client:load
+            />
           </section>
 
-          <section class="mb-8">
+          <section id="procedures" class="mb-10 scroll-mt-6 lg:scroll-mt-32">
             <SectionTitle
               title={t("procedures")}
               count={airport.procedures.length}

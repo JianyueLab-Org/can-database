@@ -382,10 +382,29 @@ EuroScope 靠标识把扇区归属解析回呼号。一行一个呼号，只有�
 3914 个点 —— 打开那一页的人几乎总是在找某一个代号，唯一的办法却是用眼睛扫，或者按浏览
 器的 Ctrl+F 去搜一份已经渲染出来的 DOM。搜索框是这一页的主操作，不是附加功能。
 
-**截断必须说出来。** 航路点页只渲染前 300 条（三千多个 `<li>` 各带两个 `<span>` 是一万
-多个节点，而能看见的不到三十个），机场详情页只渲染前 60 个机位。两处都把省略掉的数量写
-在下面 —— **一个悄悄截断的列表会让人以为剩下的不存在**，那比慢糟得多，而这个站的用途正
-是校对数据。
+**截断必须说出来。** 航路点页只渲染前 300 行（三千多行表格是一万多个节点，而能看见的不
+到三十个），机场详情页的机位表默认只渲染前 60 行，另有「显示全部」按钮。两处都把省略掉
+的数量写在下面 —— **一个悄悄截断的列表会让人以为剩下的不存在**，那比慢糟得多，而这个站
+的用途正是校对数据。
+
+**清单页用同一套零件。** 搜索框是 `src/components/ui/SearchField.vue`（`/` 聚焦，Esc
+清空，Enter 在只剩一条时直接打开），筛子是 `FilterChips.vue`，排布是
+`src/components/lists/ListToolbar.vue`。筛选值经 `src/composables/useQueryState.ts` 写进
+查询串（`replaceState`，初值在 `onMounted` 里读，免得水合对不上）：
+
+| 页面               | 查询参数                                       |
+| ------------------ | ---------------------------------------------- |
+| `/airports`        | `q` `fir` `sort`                               |
+| `/fixes`           | `fir` `q`                                      |
+| `/positions`       | `q` `fir`（归属包） `facility`                 |
+| `/airports/<icao>` | `stand` `proc` `kind` `rwy`                    |
+| `/map`             | `fir` `layers`                                 |
+| `/route`           | `from` `to` `level` `unrestricted`（提交时写） |
+
+一页只有一个搜索框占 `/`：机场详情页给程序，机位表的 `hotkey` 是 `null`。
+
+`DatasetExport.vue` 和 `AirportExportScope.vue` 不 import 任何 `.vue` 文件：
+`src/lib/export/page.test.ts` 只编译这两个 SFC，多 import 一个组件测试就挂。
 
 ## 航路生成器：这一页不规划航路
 

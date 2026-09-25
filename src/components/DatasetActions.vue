@@ -8,9 +8,13 @@
  * 403 的按钮。
  *
  * 每一次成功之后整页重新加载，屏幕上显示的是 can-db 落下的结果，不是这里请求的值。
+ *
+ * 一行一个「管理」菜单（can-ui `Popover`），不再把六个链接平铺在表格里 —— 数据集表本
+ * 来就宽，六个链接在手机的卡片布局里要占三行。每个写操作都先开一个确认框：生效和停用
+ * 改的是成员能看到什么，复制会建一整期数据，都不该一点就发。
  */
 import { computed, ref } from "vue";
-import { Dialog } from "@jianyuelab-org/can-ui";
+import { AlertBox, Dialog, Icon, Popover } from "@jianyuelab-org/can-ui";
 import { createTranslator } from "@/lib/i18n";
 import { api, type AiracCalendar, type Dataset } from "@/lib/canDb";
 
@@ -122,36 +126,113 @@ const confirmLabel = computed(() => {
 });
 
 const LEVELS = [0, 1, 2, 3, 4];
+
+const STATE_BADGE: Record<string, string> = {
+  active: "badge-success",
+  loading: "badge-warning",
+  superseded: "badge-neutral",
+};
+
+interface MenuItem {
+  action: Action;
+  label: string;
+  icon: string;
+  danger?: boolean;
+}
+
+/** 菜单里的写操作。生效只给不在服务的，停用只给还没停用的。 */
+const items = computed<MenuItem[]>(() => [
+  { action: "clone", label: t("clone"), icon: "squaresPlus" },
+  ...(props.dataset.state !== "active"
+    ? [
+        {
+          action: "activate" as const,
+          label: t("activate"),
+          icon: "checkCircle",
+        },
+      ]
+    : []),
+  { action: "threshold", label: t("threshold"), icon: "shieldCheck" },
+  ...(props.dataset.state !== "superseded"
+    ? [
+        {
+          action: "supersede" as const,
+          label: t("supersede"),
+          icon: "xCircle",
+          danger: true,
+        },
+      ]
+    : []),
+]);
 </script>
 
 <template>
-  <div class="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm">
-    <button type="button" class="link" @click="show('clone')">
-      {{ t("clone") }}
-    </button>
-    <button
-      v-if="dataset.state !== 'active'"
-      type="button"
-      class="link"
-      @click="show('activate')"
-    >
-      {{ t("activate") }}
-    </button>
-    <button
-      v-if="dataset.state !== 'superseded'"
-      type="button"
-      class="link"
-      @click="show('supersede')"
-    >
-      {{ t("supersede") }}
-    </button>
-    <button type="button" class="link" @click="show('threshold')">
-      {{ t("threshold") }}
-    </button>
-    <a :href="`/datasets/${dataset.id}/edit`" class="link">{{ t("edit") }}</a>
-    <a :href="`/datasets/${dataset.id}/revisions`" class="link">{{
-      t("revisions")
-    }}</a>
+  <div class="inline-flex">
+    <Popover placement="bottom-end" width="14rem" :label="t('manage')">
+      <template #trigger="{ toggle, open: menuOpen }">
+        <button
+          type="button"
+          class="btn btn-ghost h-8 gap-1 px-2 text-xs"
+          :aria-expanded="menuOpen"
+          aria-haspopup="menu"
+          @click="toggle"
+        >
+          {{ t("manage") }}
+          <span class="sr-only font-mono">{{ dataset.airac }}</span>
+          <Icon
+            name="chevronDown"
+            class="size-3.5 transition-transform"
+            :class="menuOpen ? 'rotate-180' : ''"
+          />
+        </button>
+      </template>
+
+      <template #default="{ close: closeMenu }">
+        <ul role="menu" class="space-y-0.5">
+          <li v-for="item in items" :key="item.action" role="none">
+            <button
+              type="button"
+              role="menuitem"
+              :class="[
+                'flex w-full items-center gap-2.5 rounded-control px-2.5 py-2 text-left text-sm transition-colors hover:bg-surface-raised focus-visible:bg-surface-raised focus-visible:outline-none',
+                item.danger ? 'text-danger' : 'text-ink',
+              ]"
+              @click="
+                closeMenu();
+                show(item.action);
+              "
+            >
+              <Icon
+                :name="item.icon"
+                :class="['size-4 shrink-0', item.danger ? '' : 'text-faint']"
+              />
+              {{ item.label }}
+            </button>
+          </li>
+          <li role="none" class="my-1 border-t border-subtle"></li>
+          <li role="none">
+            <a
+              :href="`/datasets/${dataset.id}/edit`"
+              role="menuitem"
+              class="flex items-center gap-2.5 rounded-control px-2.5 py-2 text-sm text-ink transition-colors hover:bg-surface-raised focus-visible:bg-surface-raised focus-visible:outline-none"
+            >
+              <Icon name="pencilSquare" class="size-4 shrink-0 text-faint" />
+              {{ t("edit") }}
+            </a>
+          </li>
+          <li role="none">
+            <a
+              :href="`/datasets/${dataset.id}/revisions`"
+              role="menuitem"
+              class="flex items-center gap-2.5 rounded-control px-2.5 py-2 text-sm text-ink transition-colors hover:bg-surface-raised focus-visible:bg-surface-raised focus-visible:outline-none"
+            >
+              <Icon name="clock" class="size-4 shrink-0 text-faint" />
+              {{ t("revisions") }}
+            </a>
+          </li>
+        </ul>
+      </template>
+    </Popover>
 
     <Dialog
       :open="open !== null"
@@ -160,24 +241,39 @@ const LEVELS = [0, 1, 2, 3, 4];
       size="sm"
       @update:open="(v: boolean) => (v ? null : close())"
     >
-      <form id="dataset-action" @submit.prevent="run">
+      <form id="dataset-action" class="space-y-4" @submit.prevent="run">
+        <!-- 操作的对象写在最上面：菜单是从一行里点开的，对话框盖住那一行之后，
+             「我改的是哪一期」只剩这里看得到。 -->
+        <p class="flex flex-wrap items-center gap-2 text-sm">
+          <span class="font-mono text-ink">{{ dataset.airac }}</span>
+          <span
+            :class="['badge', STATE_BADGE[dataset.state] ?? 'badge-neutral']"
+            >{{ dataset.state }}</span
+          >
+          <span class="text-faint">{{
+            t("currentThreshold", { level: t(`level${dataset.minAccess}`) })
+          }}</span>
+        </p>
+
         <template v-if="open === 'clone'">
-          <p class="mb-4 text-sm text-muted">{{ t("cloneHint") }}</p>
-          <label class="mb-1 block text-xs text-muted" for="clone-airac">{{
-            t("cloneAirac")
-          }}</label>
-          <input
-            id="clone-airac"
-            v-model="cloneAirac"
-            class="input w-32 font-mono"
-            inputmode="numeric"
-            pattern="[0-9]{4}"
-            maxlength="4"
-            autocomplete="off"
-          />
-          <p v-if="cloneEffective" class="tnum mt-2 text-xs text-faint">
-            {{ cloneEffective }}
-          </p>
+          <p class="text-sm text-muted">{{ t("cloneHint") }}</p>
+          <div>
+            <label class="mb-1 block text-xs text-muted" for="clone-airac">{{
+              t("cloneAirac")
+            }}</label>
+            <input
+              id="clone-airac"
+              v-model="cloneAirac"
+              class="input w-32 font-mono"
+              inputmode="numeric"
+              pattern="[0-9]{4}"
+              maxlength="4"
+              autocomplete="off"
+            />
+            <p class="tnum mt-1.5 text-xs text-faint">
+              {{ cloneEffective || t("cloneAiracHint") }}
+            </p>
+          </div>
         </template>
 
         <p v-else-if="open === 'activate'" class="text-sm text-muted">
@@ -188,24 +284,40 @@ const LEVELS = [0, 1, 2, 3, 4];
         </p>
 
         <template v-else-if="open === 'threshold'">
-          <p class="mb-4 text-sm text-muted">{{ t("thresholdHint") }}</p>
-          <label class="mb-1 block text-xs text-muted" for="threshold-level">{{
-            t("thresholdLevel")
-          }}</label>
-          <select
-            id="threshold-level"
-            v-model.number="threshold"
-            class="input w-48"
-          >
-            <option v-for="level in LEVELS" :key="level" :value="level">
-              {{ t(`level${level}`) }}
-            </option>
-          </select>
+          <p class="text-sm text-muted">{{ t("thresholdHint") }}</p>
+          <fieldset>
+            <legend class="mb-1.5 text-xs text-muted">
+              {{ t("thresholdLevel") }}
+            </legend>
+            <div class="space-y-1">
+              <label
+                v-for="level in LEVELS"
+                :key="level"
+                :class="[
+                  'flex cursor-pointer items-center gap-2.5 rounded-control border px-3 py-2 text-sm transition-colors',
+                  threshold === level
+                    ? 'border-strong bg-surface-raised text-ink'
+                    : 'border-subtle text-muted hover:text-ink',
+                ]"
+              >
+                <input
+                  v-model.number="threshold"
+                  type="radio"
+                  name="threshold-level"
+                  :value="level"
+                />
+                <span class="flex-1">{{ t(`level${level}`) }}</span>
+                <span
+                  v-if="level === dataset.minAccess"
+                  class="text-xs text-faint"
+                  >{{ t("thresholdNow") }}</span
+                >
+              </label>
+            </div>
+          </fieldset>
         </template>
 
-        <p v-if="error" class="mt-4 text-sm text-danger" role="alert">
-          {{ error }}
-        </p>
+        <AlertBox v-if="error" variant="danger">{{ error }}</AlertBox>
       </form>
 
       <template #footer>
@@ -221,7 +333,13 @@ const LEVELS = [0, 1, 2, 3, 4];
           type="submit"
           form="dataset-action"
           :class="['btn', open === 'supersede' ? 'btn-danger' : 'btn-primary']"
-          :disabled="busy"
+          :disabled="
+            busy ||
+            (open === 'threshold' && threshold === dataset.minAccess) ||
+            (open === 'clone' &&
+              !/^[0-9]{4}$/.test(cloneAirac.trim()) &&
+              cloneAirac.trim() !== '')
+          "
         >
           {{ busy ? t("working") : confirmLabel }}
         </button>

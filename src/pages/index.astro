@@ -1,19 +1,27 @@
 ---
 import AppLayout from "@/layouts/AppLayout.astro";
 import PageHeader from "@/components/PageHeader.astro";
+import SectionTitle from "@/components/SectionTitle.astro";
+import AirportJump from "@/components/overview/AirportJump.vue";
 import StatCard from "@jianyuelab-org/can-ui/components/StatCard.vue";
-import { getLocale, useTranslations } from "@/lib/i18n";
+import EmptyState from "@jianyuelab-org/can-ui/components/EmptyState.vue";
+import AlertBox from "@jianyuelab-org/can-ui/components/AlertBox.vue";
+import Icon from "@jianyuelab-org/can-ui/components/Icon.vue";
+import { getLocale, getMessages, useTranslations } from "@/lib/i18n";
+import { buildNavigation } from "@/lib/nav";
 import { callDb } from "@/server/canDb";
-import type { Overview } from "@/lib/canDb";
+import { isRestricted, type Overview } from "@/lib/canDb";
 
 /**
- * 总览：现在生效的是哪一期、哪一个来源。
+ * 总览：现在生效的是哪一期、哪一个来源，以及从这里去哪儿。
  *
- * 服务端渲染而不是岛屿 —— 这一页没有任何交互，而一个先画骨架再自己去取的岛屿只是
- * 多一个往返。
+ * 服务端渲染而不是岛屿 —— 这一页只有「直达机场」那一个输入框需要交互，它自己是一个
+ * 小岛；为了它把整页变成先画骨架再自己去取的岛屿，只是多一个往返。
  */
 const locale = getLocale(Astro.cookies);
 const t = useTranslations(locale, "overview");
+const tRoot = useTranslations(locale);
+const messages = getMessages(locale, "overview");
 
 // 一条路由把这一页要的全部答出来。**这里不再推导任何东西** —— 「哪一期是活的」
 // 是一条关于这批数据的规则，归 can-db（见 internal/aip 的 Overview）。
@@ -23,29 +31,47 @@ const datasets = overview?.datasets ?? 0;
 const active = overview?.active ?? [];
 const liveAirac = overview?.liveAirac ?? null;
 const totalAirports = overview?.airports ?? 0;
+
+// 工具入口取自侧栏那一份（`lib/nav.ts`），名字和图标因此和侧栏一字不差；这里只补
+// 一句用途。总览自己不列。
+const tools = buildNavigation(tRoot, Astro.locals.user?.aipAccess ?? 0)
+  .filter((item) => item.href !== "/")
+  .map((item) => ({
+    ...item,
+    purpose: t(`tools.${(item.href ?? "").slice(1)}`),
+  }));
 ---
 
 <AppLayout title={t("title")}>
   <div class="mx-auto w-full max-w-5xl">
     <PageHeader title={t("title")} description={t("description")} />
 
+    <section class="card mb-8 p-4 sm:p-5" aria-labelledby="airport-jump-title">
+      <h2 id="airport-jump-title" class="text-title-3 mb-3 text-ink">
+        {t("jumpTitle")}
+      </h2>
+      <AirportJump client:load messages={messages} />
+    </section>
+
     {
-      datasets === 0 ? (
-        <div class="card p-10 text-center">
-          <p class="text-muted">{t("noData")}</p>
+      !result.ok ? (
+        <div class="mb-8">
+          <AlertBox variant="danger" title={t("errorTitle")}>
+            {t("error", { message: result.message ?? result.error ?? "" })}
+          </AlertBox>
+        </div>
+      ) : datasets === 0 ? (
+        <div class="card mb-8">
+          <EmptyState
+            title={t("noDataTitle")}
+            description={t("noData")}
+            icon="squares2x2"
+          />
         </div>
       ) : (
         <>
-          {/* can-ui 的 `StatCard`，不再手抄一份。原来那两块是「小号全大写标签 +
-              大号 tnum 数字」，也就是 StatCard 的版式照着写了一遍 —— 而设计系统那
-              一份还带图标槽、hover 抬升和 `truncate`（手机上两块并排时长标签不会
-              截成空的）。
-
-              **第三块是补上的，不是新加的需求。** 网格本来就写着
-              `sm:grid-cols-3` 却只放了两块，`sm` 以上右边空着一格；`overview.datasets`
-              这个数这一页早就取回来了（下面 `datasets === 0` 那个判断用的就是
-              它），只是没显示。它挂 `href` 指向 `/datasets` —— 一个总览页上的数
-              字，人看见了下一步就是想看清单。 */}
+          {/* can-ui 的 `StatCard`，不再手抄一份。第三块挂 `href` 指向 `/datasets`
+              —— 一个总览页上的数字，人看见了下一步就是想看清单。 */}
           <div class="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
             <StatCard
               label={t("airacLive")}
@@ -66,30 +92,100 @@ const totalAirports = overview?.airports ?? 0;
             />
           </div>
 
-          <ul class="space-y-3">
-            {active.map((d) => (
-              <li class="card flex flex-wrap items-center gap-x-6 gap-y-2 p-4">
-                <span class="tnum font-mono text-sm font-semibold text-can">
-                  {d.airac}
-                </span>
-                <span class="badge badge-success">{t("live")}</span>
-                <span
-                  class={
-                    d.redistributable
-                      ? "badge badge-info"
-                      : "badge badge-warning"
-                  }
-                >
-                  {d.redistributable ? t("open") : t("licensed")}
-                </span>
-                <span class="tnum ml-auto text-sm text-muted">
-                  {d.airports} {t("airports")}
-                </span>
-              </li>
-            ))}
-          </ul>
+          <section class="mb-8">
+            <SectionTitle
+              title={t("activeTitle")}
+              count={active.length}
+              note={t("activeNote")}
+            />
+            {/* 有数据集、却没有一期在生效，是一种要说出来的状态：全部都还在 loading 或
+                都停用了。它和「还没导入」不是一回事。 */}
+            {active.length === 0 ? (
+              <div class="card">
+                <EmptyState
+                  compact
+                  title={t("noActiveTitle")}
+                  description={t("noActive")}
+                  icon="calendarDays"
+                />
+              </div>
+            ) : (
+              <ul class="grid gap-3 sm:grid-cols-2">
+                {active.map((d) => (
+                  <li class="card flex flex-col gap-3 p-4">
+                    <div class="flex items-center justify-between gap-3">
+                      <span class="tnum font-mono text-lg font-semibold text-can">
+                        {d.airac}
+                      </span>
+                      <span class="badge badge-success">{t("live")}</span>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                      <span
+                        class={
+                          d.redistributable
+                            ? "badge badge-info"
+                            : "badge badge-warning"
+                        }
+                      >
+                        {d.redistributable ? t("open") : t("licensed")}
+                      </span>
+                      {/* 官方汇编要一眼分得出来，和数据集页同一条。 */}
+                      {isRestricted(d.minAccess) && (
+                        <span class="badge badge-danger">
+                          {t("restricted")}
+                        </span>
+                      )}
+                      {d.manual && (
+                        <span class="badge badge-neutral">{t("manual")}</span>
+                      )}
+                    </div>
+                    <p class="mt-auto text-sm text-muted">
+                      <span class="tnum font-semibold text-ink">
+                        {d.airports}
+                      </span>{" "}
+                      {t("airportsUnit")}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
         </>
       )
     }
+
+    <section aria-labelledby="tools-title">
+      <h2 id="tools-title" class="text-title-3 mb-3 text-ink">
+        {t("toolsTitle")}
+      </h2>
+      <ul class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {
+          tools.map((tool) => (
+            <li>
+              <a
+                href={tool.href}
+                class="card group flex h-full items-start gap-3 p-4 transition duration-200 ease-[var(--ease-out-quint)] hover:-translate-y-0.5 hover:shadow-card-hover focus-visible:shadow-[var(--ring-brand)] focus-visible:outline-none"
+              >
+                <span class="flex size-9 shrink-0 items-center justify-center rounded-control bg-surface-sunken text-can">
+                  <Icon name={tool.icon ?? "squares2x2"} class="size-5" />
+                </span>
+                <span class="min-w-0 flex-1">
+                  <span class="flex items-center gap-1 font-semibold text-ink">
+                    {tool.name}
+                    <Icon
+                      name="arrowRight"
+                      class="size-3.5 text-faint opacity-0 transition-opacity group-hover:opacity-100"
+                    />
+                  </span>
+                  <span class="mt-0.5 block text-sm text-muted">
+                    {tool.purpose}
+                  </span>
+                </span>
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </section>
   </div>
 </AppLayout>

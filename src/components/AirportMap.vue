@@ -62,6 +62,8 @@ import {
   firColor,
   watchTheme,
 } from "@/lib/mapBase";
+import { Spinner } from "@jianyuelab-org/can-ui";
+import FilterChips from "@/components/ui/FilterChips.vue";
 
 const props = defineProps<{
   messages: Record<string, unknown>;
@@ -82,7 +84,8 @@ const groundLayer = shallowRef<L.LayerGroup | null>(null);
 const featureLayer = shallowRef<L.LayerGroup | null>(null);
 
 const showStands = ref(true);
-const showProc = ref<"none" | "sid" | "star">("none");
+/** 画哪一类程序。空串是「不画」—— 和 FilterChips 的「没选」同一个值。 */
+const showProc = ref<string>("");
 
 const showGround = ref(false);
 /**
@@ -481,7 +484,7 @@ function drawProcedures() {
   const a = base.value;
   if (!layer) return;
   layer.clearLayers();
-  if (showProc.value === "none") return;
+  if (showProc.value !== "sid" && showProc.value !== "star") return;
 
   const list: Procedure[] = showProc.value === "sid" ? sids.value : stars.value;
   const colour = showProc.value === "sid" ? "#4c92c1" : "#5bbd8a";
@@ -610,130 +613,280 @@ watch(showGround, (on) => {
   drawGround();
   drawFeatures();
 });
+
+/** 程序图层的两格。没有 SID（或 STAR）的机场那一格禁用，而不是点了没反应。 */
+const procChips = computed(() => [
+  {
+    value: "sid",
+    label: String(t("sid")),
+    count: sids.value.length,
+    color: "#4c92c1",
+    disabled: !sids.value.length,
+  },
+  {
+    value: "star",
+    label: String(t("star")),
+    count: stars.value.length,
+    color: "#5bbd8a",
+    disabled: !stars.value.length,
+  },
+]);
+
+/**
+ * 图例：只列此刻图上画着的东西。
+ *
+ * 色值和上面画线用的是同一组常量 —— 图例和图各写一份颜色，漂移只是时间问题。
+ * 可疑段只在画了程序、而且真的有可疑点时才列：图上没有的东西出现在图例里，读的人
+ * 会去找它。
+ */
+const legend = computed(() => {
+  const items: {
+    key: string;
+    label: string;
+    color: string;
+    shape: "line" | "dash" | "dot";
+  }[] = [
+    {
+      key: "runway",
+      label: String(t("legendRunway")),
+      color: "#e05252",
+      shape: "line",
+    },
+  ];
+  if (showStands.value && props.airport.stands.length)
+    items.push({
+      key: "stands",
+      label: String(t("stands")),
+      color: firColor(props.airport.fir),
+      shape: "dot",
+    });
+  if (showProc.value === "sid")
+    items.push({
+      key: "sid",
+      label: String(t("sid")),
+      color: "#4c92c1",
+      shape: "line",
+    });
+  if (showProc.value === "star")
+    items.push({
+      key: "star",
+      label: String(t("star")),
+      color: "#5bbd8a",
+      shape: "line",
+    });
+  if (showProc.value && suspectCount.value)
+    items.push({
+      key: "suspect",
+      label: String(t("legendSuspect")),
+      color: "#e0a252",
+      shape: "dash",
+    });
+  return items;
+});
 </script>
 
 <template>
-  <div class="flex flex-col gap-3">
-    <div class="flex flex-wrap items-center gap-4 text-xs text-muted">
-      <label class="flex items-center gap-2">
-        <input v-model="showStands" type="checkbox" class="accent-can" />
-        {{ t("layerStands", { n: String(airport.stands.length) }) }}
-      </label>
-
-      <div class="flex items-center gap-1.5">
+  <!-- `isolate`：Leaflet 的图层和控件带 400–1000 的 z-index，不圈起来会压到页面上
+       吸顶的小节导航和 AppShell 的顶栏上面。 -->
+  <div class="card isolate overflow-hidden">
+    <!-- 所有开关集中在图的上沿一条工具栏里。选中态一律走 `.chip` 的 aria-pressed。 -->
+    <div
+      class="flex flex-col gap-2 border-b border-subtle px-3 py-2.5"
+      role="toolbar"
+      :aria-label="String(t('layers'))"
+    >
+      <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
         <button
-          v-for="opt in ['none', 'sid', 'star'] as const"
-          :key="opt"
           type="button"
-          class="rounded-full border px-2.5 py-1 transition"
-          :class="
-            showProc === opt
-              ? 'border-can bg-can/10 text-ink'
-              : 'border-line text-muted hover:border-can/40'
-          "
-          :disabled="
-            opt === 'sid'
-              ? !sids.length
-              : opt === 'star'
-                ? !stars.length
-                : false
-          "
-          @click="showProc = opt"
+          class="chip"
+          :aria-pressed="showStands"
+          :disabled="!airport.stands.length"
+          @click="showStands = !showStands"
         >
-          {{
-            opt === "none"
-              ? t("procNone")
-              : opt === "sid"
-                ? t("procSid", { n: String(sids.length) })
-                : t("procStar", { n: String(stars.length) })
-          }}
+          <span
+            class="chip__dot"
+            :style="{ backgroundColor: firColor(airport.fir) }"
+            aria-hidden="true"
+          />
+          {{ t("stands") }}
+          <span class="chip__count">{{ airport.stands.length }}</span>
+        </button>
+
+        <span
+          class="hidden h-4 border-l border-subtle sm:block"
+          aria-hidden="true"
+        />
+
+        <FilterChips
+          v-model="showProc"
+          :chips="procChips"
+          :label="String(t('procLayer'))"
+          :all-label="String(t('procNone'))"
+        />
+
+        <span
+          class="hidden h-4 border-l border-subtle sm:block"
+          aria-hidden="true"
+        />
+
+        <button
+          type="button"
+          class="chip"
+          :aria-pressed="showGround"
+          @click="showGround = !showGround"
+        >
+          {{ t("layerGround") }}
+        </button>
+        <button
+          v-if="showGround && ground && ground.lines.length"
+          type="button"
+          class="chip"
+          :aria-pressed="guidanceOnly"
+          :title="String(t('groundGuidanceHint'))"
+          @click="guidanceOnly = !guidanceOnly"
+        >
+          {{ t("groundOnlyGuidance") }}
         </button>
       </div>
 
-      <label class="flex items-center gap-2">
-        <input v-model="showGround" type="checkbox" class="accent-can" />
-        {{ t("layerGround") }}
-      </label>
+      <!-- 地面要素按类别分层。取到数据才出现 —— 没开「地面线画」之前这一行不存在。 -->
+      <div
+        v-if="showGround && featureKinds.length"
+        class="flex flex-wrap items-center gap-1.5"
+        role="group"
+        :aria-label="String(t('featureLayers'))"
+      >
+        <button
+          v-for="k in featureKinds"
+          :key="k.kind"
+          type="button"
+          class="chip"
+          :aria-pressed="Boolean(featureOn[k.kind])"
+          @click="featureOn[k.kind] = !featureOn[k.kind]"
+        >
+          <span
+            class="chip__dot"
+            :style="{
+              backgroundColor: FEATURE_STYLE[k.kind]?.color ?? '#8a8a8a',
+            }"
+            aria-hidden="true"
+          />
+          {{ t("kind." + k.kind) }}
+          <span class="chip__count">{{ k.n }}</span>
+        </button>
+      </div>
+    </div>
 
-      <label
-        v-if="showGround && ground && ground.lines.length"
+    <!-- 图的容器始终在 DOM 里，不挂 v-if：Leaflet 绑在这个节点上，拆掉重建就是航路页那
+         次「第一次好、第二次空白」。 -->
+    <div class="relative">
+      <div
+        ref="host"
+        class="h-[clamp(18rem,55svh,26rem)] w-full sm:h-[clamp(24rem,60vh,40rem)]"
+        role="application"
+        :aria-label="String(t('mapLabel', { icao: airport.icao }))"
+      />
+      <!-- 图例压在图的左下角（右下角是版权条）；手机上图太小，挪到下面的状态行里。 -->
+      <ul
+        class="map-panel pointer-events-none absolute bottom-3 left-3 z-[1000] hidden flex-col gap-1 px-2.5 py-2 text-xs text-muted sm:flex"
+        :aria-label="String(t('legend'))"
+      >
+        <li v-for="l in legend" :key="l.key" class="flex items-center gap-2">
+          <span
+            :class="l.shape === 'dot' ? 'legend-dot' : 'legend-line'"
+            :style="{ '--legend-color': l.color }"
+            :data-dash="l.shape === 'dash' ? '' : undefined"
+            aria-hidden="true"
+          />
+          {{ l.label }}
+        </li>
+      </ul>
+    </div>
+
+    <!-- 状态行：地面线画的状态与精度、署名、可疑点数。精度不折叠 —— 校对数据的站把误差藏
+         起来，看图的人会以为它准。 -->
+    <div
+      class="flex flex-col gap-1.5 border-t border-subtle px-3 py-2.5 text-xs text-muted"
+    >
+      <ul
+        class="flex flex-wrap items-center gap-x-3 gap-y-1 sm:hidden"
+        :aria-label="String(t('legend'))"
+      >
+        <li v-for="l in legend" :key="l.key" class="flex items-center gap-1.5">
+          <span
+            :class="l.shape === 'dot' ? 'legend-dot' : 'legend-line'"
+            :style="{ '--legend-color': l.color }"
+            :data-dash="l.shape === 'dash' ? '' : undefined"
+            aria-hidden="true"
+          />
+          {{ l.label }}
+        </li>
+      </ul>
+
+      <p
+        v-if="showGround && groundState === 'loading'"
         class="flex items-center gap-2"
-        :title="String(t('groundGuidanceHint'))"
       >
-        <input v-model="guidanceOnly" type="checkbox" class="accent-can" />
-        {{ t("groundOnlyGuidance") }}
-      </label>
-
-      <span v-if="showGround && groundState === 'loading'">
+        <Spinner size="sm" />
         {{ t("groundLoading") }}
-      </span>
-      <span v-else-if="showGround && groundState === 'none'">
+      </p>
+      <p v-else-if="showGround && groundState === 'none'">
         {{ t("groundNone") }}
-      </span>
+      </p>
       <!-- 署名：ODbL 的硬要求，有就必须显示，不能折叠也不能藏在 tooltip 里。 -->
-      <span
-        v-if="showGround && ground && ground.attribution"
-        class="text-faint"
-      >
+      <p v-if="showGround && ground && ground.attribution" class="text-faint">
         {{ ground.attribution }}
-      </span>
-
-      <span v-else-if="showGround && ground" class="text-muted">
+      </p>
+      <p v-else-if="showGround && ground">
         {{ t("groundAccuracy", { n: ground.accuracyM.toFixed(0) }) }}
         <template v-if="ground.runways === 0">
           · {{ t("groundUnchecked") }}
         </template>
-      </span>
+      </p>
 
-      <span v-if="suspectCount" class="text-warning">
+      <p v-if="suspectCount" class="text-warning">
         {{ t("suspectCount", { n: String(suspectCount) }) }}
-      </span>
+      </p>
+
+      <!-- 滑行道代号：核对的人照着代号找，所以是一列可点的按钮而不是图上的标注 ——
+           标注缩到全场会糊成一片，这一列点一下就跳过去并高亮。 -->
+      <details v-if="showGround && namedTaxiways.length">
+        <summary class="cursor-pointer text-muted hover:text-ink">
+          {{ t("taxiwayList", { n: String(namedTaxiways.length) }) }}
+        </summary>
+        <div class="mt-2 flex flex-wrap gap-1.5">
+          <button
+            v-for="tw in namedTaxiways"
+            :key="tw.name"
+            type="button"
+            class="chip font-mono"
+            @click="focusTaxiway(tw.points)"
+          >
+            {{ tw.name }}
+          </button>
+        </div>
+      </details>
     </div>
-
-    <!-- 地面要素按类别分层。取到数据才出现 —— 没勾「地面线画」之前这一行是空的。 -->
-    <div
-      v-if="showGround && featureKinds.length"
-      class="flex flex-wrap items-center gap-3 text-xs text-muted"
-    >
-      <label
-        v-for="k in featureKinds"
-        :key="k.kind"
-        class="flex items-center gap-1.5"
-      >
-        <input v-model="featureOn[k.kind]" type="checkbox" class="accent-can" />
-        <span
-          class="inline-block h-2 w-2 rounded-full"
-          :style="{ background: FEATURE_STYLE[k.kind]?.color ?? '#8a8a8a' }"
-        />
-        {{ t("kind." + k.kind) }}
-        <span class="tnum text-faint">{{ k.n }}</span>
-      </label>
-    </div>
-
-    <div
-      ref="host"
-      class="h-[clamp(20rem,52vh,34rem)] w-full overflow-hidden rounded-xl border border-line"
-      role="application"
-      :aria-label="String(t('mapLabel', { icao: airport.icao }))"
-    />
-
-    <!-- 滑行道代号：核对的人照着代号找，所以是一列可点的按钮而不是图上的标注 ——
-         标注缩到全场会糊成一片，这一列点一下就跳过去并高亮。 -->
-    <details v-if="showGround && namedTaxiways.length" class="text-xs">
-      <summary class="cursor-pointer text-muted hover:text-ink">
-        {{ t("taxiwayList", { n: String(namedTaxiways.length) }) }}
-      </summary>
-      <div class="mt-2 flex flex-wrap gap-1.5">
-        <button
-          v-for="tw in namedTaxiways"
-          :key="tw.name"
-          type="button"
-          class="rounded-md border border-line px-2 py-0.5 font-mono transition hover:border-can/50 hover:bg-can/10"
-          @click="focusTaxiway(tw.points)"
-        >
-          {{ tw.name }}
-        </button>
-      </div>
-    </details>
   </div>
 </template>
+
+<style scoped>
+/* 图例的小样：线就是一道 3px 的色条，可疑段是虚线，机位是圆点 —— 和图上画法一一对应。 */
+.legend-line {
+  width: 1rem;
+  height: 0;
+  flex: none;
+  border-top: 3px solid var(--legend-color);
+}
+.legend-line[data-dash] {
+  border-top-style: dashed;
+  border-top-width: 2px;
+}
+.legend-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  flex: none;
+  border-radius: 9999px;
+  background: var(--legend-color);
+}
+</style>

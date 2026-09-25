@@ -182,3 +182,98 @@
     background: currentColor;
   }
 }
+
+@layer components {
+  /* ── 筛子和按键提示 ─────────────────────────────────────────────────────
+     `FilterChips.vue` 和 `SearchField.vue` 用。选中态走 `aria-pressed`，不另设 class
+     —— 屏幕阅读器读到的和屏幕上画的是同一个状态。 */
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    min-height: 1.875rem;
+    padding: 0.25rem 0.625rem;
+    border: 1px solid var(--border-subtle);
+    border-radius: 9999px;
+    background: var(--surface-raised);
+    color: var(--color-muted);
+    font-size: 0.75rem;
+    line-height: 1;
+    white-space: nowrap;
+    transition:
+      border-color var(--duration-fast) var(--ease-out-quint),
+      background-color var(--duration-fast) var(--ease-out-quint),
+      color var(--duration-fast) var(--ease-out-quint);
+  }
+  .chip:hover:not(:disabled) {
+    border-color: var(--border-strong);
+    color: var(--color-ink);
+  }
+  .chip:focus-visible {
+    outline: none;
+    box-shadow: var(--ring-brand);
+  }
+  .chip[aria-pressed="true"] {
+    border-color: color-mix(in srgb, var(--color-can) 55%, transparent);
+    background: color-mix(in srgb, var(--color-can) 12%, var(--surface-raised));
+    color: var(--color-ink);
+  }
+  .chip:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+  .chip__dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    flex: none;
+    border-radius: 9999px;
+  }
+  .chip__count {
+    font-variant-numeric: tabular-nums;
+    color: var(--color-faint);
+  }
+  .chip[aria-pressed="true"] .chip__count {
+    color: var(--color-muted);
+  }
+
+  .kbd {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.25rem;
+    height: 1.25rem;
+    padding: 0 0.3rem;
+    border: 1px solid var(--border-subtle);
+    border-bottom-width: 2px;
+    border-radius: 0.3rem;
+    background: var(--surface-sunken);
+    color: var(--color-faint);
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    line-height: 1;
+  }
+
+  /* ── 可点的表格行 ───────────────────────────────────────────────────────
+     整行可点由岛屿里的 click 处理（见 `Airports.vue` 的 `openRow`），这里只管样式。
+     不用「第一个链接的 `::after` 盖满整行」：那要 `<tr>` 当定位容器，有的 WebKit 不
+     认，盖片就会铺满整个滚动区，点哪里都打开最后一行。 */
+  .row-link {
+    cursor: pointer;
+  }
+  .row-link:hover > td {
+    background: color-mix(in srgb, var(--color-can) 6%, transparent);
+  }
+  .row-link:has(.row-link__target:focus-visible) > td {
+    background: color-mix(in srgb, var(--color-can) 10%, transparent);
+  }
+
+  /* ── 地图上的浮动面板 ───────────────────────────────────────────────────
+     图层开关、图例这类压在地图上的控件。用 can-ui 的材质，暗色主题下跟着走。 */
+  .map-panel {
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-control);
+    background: color-mix(in srgb, var(--surface-raised) 88%, transparent);
+    backdrop-filter: blur(12px) saturate(1.4);
+    box-shadow: var(--shadow-popover);
+  }
+}

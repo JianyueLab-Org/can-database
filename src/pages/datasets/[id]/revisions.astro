@@ -1,6 +1,9 @@
 ---
 import AppLayout from "@/layouts/AppLayout.astro";
 import PageHeader from "@/components/PageHeader.astro";
+import EmptyState from "@jianyuelab-org/can-ui/components/EmptyState.vue";
+import AlertBox from "@jianyuelab-org/can-ui/components/AlertBox.vue";
+import Icon from "@jianyuelab-org/can-ui/components/Icon.vue";
 import { getLocale, useTranslations } from "@/lib/i18n";
 import { callDb } from "@/server/canDb";
 import { canManage } from "@/lib/config";
@@ -76,10 +79,15 @@ function diff(r: Revision) {
     )
     .map((n) => ({
       name: n,
+      hasBefore: n in b,
+      hasAfter: n in a,
       before: n in b ? show(b[n]) : "",
       after: n in a ? show(a[n]) : "",
     }));
 }
+
+/** 列少的改动直接展开，一眼读完；多的收起，免得一页五十行被撑成几屏。 */
+const OPEN_BELOW = 4;
 
 const fmt = (iso: string) =>
   new Date(iso).toISOString().slice(0, 19).replace("T", " ");
@@ -90,116 +98,176 @@ const fmt = (iso: string) =>
     <PageHeader
       title={t("title", { airac: dataset.airac })}
       description={t("description")}
+      back={{ href: "/datasets", label: t("back") }}
     >
       <Fragment slot="actions">
-        <a href="/datasets" class="link text-sm">{t("back")}</a>
-        <a href={`/datasets/${id}/edit`} class="link text-sm">{t("edit")}</a>
+        <a href={`/datasets/${id}/edit`} class="btn btn-secondary">
+          <Icon name="pencilSquare" class="size-4" />
+          {t("edit")}
+        </a>
       </Fragment>
     </PageHeader>
 
     {
       !result.ok ? (
-        <p class="badge badge-danger">
+        <AlertBox variant="danger" title={t("errorTitle")}>
           {t("error", { message: result.message ?? result.error ?? "" })}
-        </p>
+        </AlertBox>
       ) : revisions.length === 0 ? (
-        <div class="card p-10 text-center">
-          <p class="text-muted">{t("empty")}</p>
+        <div class="card">
+          <EmptyState
+            title={cursor > 0 ? t("emptyPage") : t("empty")}
+            icon="clock"
+          >
+            {cursor > 0 && (
+              <a
+                slot="action"
+                href={`/datasets/${id}/revisions`}
+                class="btn btn-secondary"
+              >
+                {t("newest")}
+              </a>
+            )}
+          </EmptyState>
         </div>
       ) : (
-        <div
-          class="scroll-shadow-x overflow-x-auto"
-          style="--scroll-shadow-bg: var(--surface)"
-        >
-          <table class="data-table w-full text-sm">
-            <thead>
-              <tr>
-                <th>{t("op")}</th>
-                <th>{t("table")}</th>
-                <th>{t("key")}</th>
-                <th>{t("actor")}</th>
-                <th>{t("at")}</th>
-                <th>{t("diff")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {revisions.map((r) => {
-                const changes = diff(r);
-                return (
-                  <tr class="align-top">
-                    <td data-label={t("op")}>
-                      <span class={OP_BADGE[r.op] ?? "badge badge-neutral"}>
-                        {OP_LABEL[r.op] ? t(OP_LABEL[r.op]) : r.op}
-                      </span>
-                    </td>
-                    <td data-label={t("table")} class="font-mono">
-                      {r.table}
-                    </td>
-                    <td data-label={t("key")} class="font-mono text-ink">
-                      {keyText(r)}
-                    </td>
-                    <td data-label={t("actor")}>{r.actor}</td>
-                    <td data-label={t("at")} class="tnum whitespace-nowrap">
-                      {fmt(r.at)}
-                    </td>
-                    <td data-label={t("diff")}>
-                      {changes.length === 0 ? (
-                        <span class="text-faint">{t("noDiff")}</span>
-                      ) : (
-                        <details>
-                          <summary class="link cursor-pointer">
-                            {t("showDiff", { n: changes.length })}
-                          </summary>
-                          <table class="mt-2 w-full text-xs">
-                            <thead>
-                              <tr class="text-left text-muted">
-                                <th class="pr-3 font-normal">{t("field")}</th>
-                                <th class="pr-3 font-normal">{t("before")}</th>
-                                <th class="font-normal">{t("after")}</th>
-                              </tr>
-                            </thead>
-                            <tbody>
+        <>
+          <p class="mb-3 text-sm text-muted">
+            {cursor > 0
+              ? t("pageOlder", { n: revisions.length })
+              : t("pageNewest", { n: revisions.length })}
+          </p>
+          <div
+            class="scroll-shadow-x overflow-x-auto"
+            style="--scroll-shadow-bg: var(--surface)"
+          >
+            <table class="data-table w-full text-sm">
+              <thead>
+                <tr>
+                  <th>{t("at")}</th>
+                  <th>{t("op")}</th>
+                  <th>{t("table")}</th>
+                  <th>{t("key")}</th>
+                  <th>{t("actor")}</th>
+                  <th>{t("diff")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {revisions.map((r) => {
+                  const changes = diff(r);
+                  return (
+                    <tr class="align-top">
+                      <td
+                        data-label={t("at")}
+                        class="tnum whitespace-nowrap text-muted"
+                      >
+                        {fmt(r.at)}
+                      </td>
+                      <td data-label={t("op")}>
+                        <span class={OP_BADGE[r.op] ?? "badge badge-neutral"}>
+                          {OP_LABEL[r.op] ? t(OP_LABEL[r.op]) : r.op}
+                        </span>
+                      </td>
+                      <td data-label={t("table")} class="font-mono">
+                        {r.table}
+                      </td>
+                      <td
+                        data-label={t("key")}
+                        class="break-all font-mono text-ink"
+                      >
+                        {keyText(r)}
+                      </td>
+                      <td data-label={t("actor")}>{r.actor}</td>
+                      <td data-label={t("diff")} class="min-w-64">
+                        {changes.length === 0 ? (
+                          <span class="text-faint">{t("noDiff")}</span>
+                        ) : (
+                          <details open={changes.length < OPEN_BELOW}>
+                            <summary class="link cursor-pointer">
+                              {t("showDiff", { n: changes.length })}
+                            </summary>
+                            {/* 一列一行：列名，然后「改前 → 改后」。新增只有改后，删除
+                                只有改前 —— 缺的那一边不画，而不是画一个空框。 */}
+                            <dl class="mt-2 space-y-1.5 text-left text-xs">
                               {changes.map((c) => (
-                                <tr class="border-t border-subtle">
-                                  <td class="py-1 pr-3 font-mono text-ink">
-                                    {c.name}
-                                  </td>
-                                  <td class="max-w-64 break-all py-1 pr-3 font-mono text-danger">
-                                    {c.before}
-                                  </td>
-                                  <td class="max-w-64 break-all py-1 font-mono text-success">
-                                    {c.after}
-                                  </td>
-                                </tr>
+                                <div class="rounded-control bg-surface-sunken px-2 py-1.5">
+                                  <dt class="font-mono text-muted">{c.name}</dt>
+                                  <dd class="mt-0.5 flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 font-mono">
+                                    {c.hasBefore && (
+                                      <span
+                                        class="break-all text-danger line-through decoration-1"
+                                        title={t("before")}
+                                      >
+                                        <span class="sr-only">
+                                          {t("before")}:{" "}
+                                        </span>
+                                        {c.before}
+                                      </span>
+                                    )}
+                                    {c.hasBefore && c.hasAfter && (
+                                      <span
+                                        class="text-faint"
+                                        aria-hidden="true"
+                                      >
+                                        →
+                                      </span>
+                                    )}
+                                    {c.hasAfter && (
+                                      <span
+                                        class="break-all text-success"
+                                        title={t("after")}
+                                      >
+                                        <span class="sr-only">
+                                          {t("after")}:{" "}
+                                        </span>
+                                        {c.after}
+                                      </span>
+                                    )}
+                                  </dd>
+                                </div>
                               ))}
-                            </tbody>
-                          </table>
-                        </details>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                            </dl>
+                          </details>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
       )
     }
 
     {
-      (cursor > 0 || next) && (
-        <nav class="mt-4 flex justify-between text-sm">
+      /* 游标翻页只能往更早走一步、或者回到最新 —— can-db 只给 `next`，没有「上一
+        页」的游标，也不给总数，所以这里不画页码。 */
+    }
+    {
+      result.ok && (cursor > 0 || next) && (
+        <nav
+          class="mt-4 flex items-center justify-between gap-3"
+          aria-label={t("pagination")}
+        >
           {cursor > 0 ? (
-            <a href={`/datasets/${id}/revisions`} class="link">
+            <a href={`/datasets/${id}/revisions`} class="btn btn-secondary">
+              <Icon name="chevronDoubleLeft" class="size-4" />
               {t("newest")}
             </a>
           ) : (
             <span />
           )}
-          {next && (
-            <a href={`/datasets/${id}/revisions?before=${next}`} class="link">
+          {next ? (
+            <a
+              href={`/datasets/${id}/revisions?before=${next}`}
+              class="btn btn-secondary"
+            >
               {t("older")}
+              <Icon name="chevronRight" class="size-4" />
             </a>
+          ) : (
+            <span class="text-sm text-faint">{t("end")}</span>
           )}
         </nav>
       )

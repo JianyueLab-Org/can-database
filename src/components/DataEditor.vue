@@ -12,9 +12,29 @@
  * 能对上列名时标在那一列旁边。
  *
  * 状态写进地址栏（`?table=&列=值&offset=`），刷新和后退都回到同一处。
+ *
+ * 布局：桌面左栏是表的树（`editor/TablePicker.vue`），右栏是面包屑、筛选条和行表；手机
+ * 上左栏收成一个按钮。新增和修改在右侧抽屉（can-ui `Drawer`）里做 —— 表格留在底下看得
+ * 见，改的是哪一行不用靠记。删除走一个确认框。成功和失败都写在页内（`AlertBox`），不弹
+ * 浏览器的 alert。
  */
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from "vue";
-import { Dialog } from "@jianyuelab-org/can-ui";
+import {
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  reactive,
+  ref,
+} from "vue";
+import {
+  AlertBox,
+  Dialog,
+  Drawer,
+  EmptyState,
+  Icon,
+  Popover,
+  Skeleton,
+} from "@jianyuelab-org/can-ui";
 import { createTranslator } from "@/lib/i18n";
 import {
   api,
@@ -24,6 +44,8 @@ import {
   type TableColumn,
   type TableSpec,
 } from "@/lib/canDb";
+import TablePicker from "@/components/editor/TablePicker.vue";
+import RowField from "@/components/editor/RowField.vue";
 
 const props = defineProps<{
   datasetId: number;
@@ -57,6 +79,8 @@ const filterColumns = computed(() => {
   return [...new Set(names)];
 });
 
+const filtered = computed(() => Object.values(filter.value).some(Boolean));
+
 /** 声明了父表是当前表的那些子表。 */
 const childTables = computed(() =>
   props.tables.filter((c) => c.parent?.table === tableName.value),
@@ -86,14 +110,75 @@ function relationsOf(row: Row): Relation[] {
   return out;
 }
 
-/** 子表按父列筛着的时候，给一条回到父行的路。 */
-const parentLink = computed<Relation | null>(() => {
-  const s = spec.value;
-  if (!s?.parent) return null;
-  const value = filter.value[s.parent.column];
-  if (!value) return null;
-  return { table: s.parent.table, filter: { id: value } };
-});
+/* --------------------------------------------------------------- 面包屑 */
+
+/**
+ * 一张表按父列（或 `icao`）筛着的时候，它上面那一行在哪。
+ * 子表按 `parent` 找回父表的 `id`；`onAirport` 的表按 `icao` 找回机场。
+ */
+function upOf(s: TableSpec, f: Record<string, string>): Relation | null {
+  if (s.parent && f[s.parent.column]) {
+    return { table: s.parent.table, filter: { id: f[s.parent.column]! } };
+  }
+  if (s.onAirport && f.icao && byName.value.has("airport")) {
+    return { table: "airport", filter: { icao: f.icao } };
+  }
+  return null;
+}
+
+interface Crumb extends Relation {
+  label: string;
+}
+
+/**
+ * 从正在看的表往上，一层一层取父行，拼成「airport › ZBAA › procedure › … › 当前表」。
+ * 父行要取回来才知道它自己的父列 —— 程序点的程序属于哪个机场，只有程序那一行知道。
+ * 最多四层；取失败的那一层就用筛选值本身当名字，并停在那里。
+ */
+const trail = ref<Crumb[]>([]);
+let trailRequest = 0;
+
+async function buildTrail() {
+  const ticket = ++trailRequest;
+  const out: Crumb[] = [];
+  let s = spec.value;
+  let f = filter.value;
+  for (let depth = 0; s && depth < 4; depth++) {
+    const up = upOf(s, f);
+    if (!up) break;
+    const upSpec = byName.value.get(up.table);
+    if (!upSpec) break;
+    const upTable = up.table;
+    const query = new URLSearchParams({ ...up.filter, limit: "1" });
+    const result = await api<RowPage>(
+      `/api/v1/aip/datasets/${props.datasetId}/tables/${upTable}/rows?${query}`,
+    );
+    if (ticket !== trailRequest) return;
+    const row = result.ok ? result.data.rows[0] : undefined;
+    out.unshift({
+      ...up,
+      label: row ? rowLabel(upSpec, row) : Object.values(up.filter).join(" · "),
+    });
+    if (!row) break;
+    s = upSpec;
+    f = Object.fromEntries(
+      Object.entries(row).map(([k, v]) => [k, v === null ? "" : String(v)]),
+    );
+  }
+  trail.value = out;
+}
+
+/** 一行的名字：键列拼起来；键只有 `id` 时补上第一个像名字的列。 */
+const NAME_COLUMNS = ["icao", "ident", "name", "designator", "airway"];
+function rowLabel(s: TableSpec, row: Row): string {
+  const key = s.key.map((k) => display(row[k])).join(" · ");
+  if (s.key.length !== 1 || s.key[0] !== "id") return key;
+  const named = NAME_COLUMNS.map((c) => row[c])
+    .filter((v) => v !== null && v !== undefined && v !== "")
+    .slice(0, 2)
+    .map((v) => display(v));
+  return named.length ? `${named.join(" ")} #${key}` : `#${key}`;
+}
 
 /* --------------------------------------------------------------- 地址栏 */
 
@@ -118,11 +203,15 @@ function readUrl() {
   offset.value = Math.max(0, Number(params.get("offset")) || 0);
   resetDraft();
   load();
+  void buildTrail();
 }
 
 onMounted(() => {
   window.addEventListener("popstate", readUrl);
-  if (tableName.value) load();
+  if (tableName.value) {
+    load();
+    void buildTrail();
+  }
 });
 onBeforeUnmount(() => window.removeEventListener("popstate", readUrl));
 
@@ -131,13 +220,20 @@ onBeforeUnmount(() => window.removeEventListener("popstate", readUrl));
 const page = ref<RowPage | null>(null);
 const loading = ref(false);
 const loadError = ref("");
+/** 页内反馈：上一次写操作的结果。换表、翻页时清掉。 */
+const notice = ref<{ variant: "success" | "danger"; text: string } | null>(
+  null,
+);
+const pickerOpen = ref(false);
 
 function resetDraft() {
   for (const k of Object.keys(draftFilter)) delete draftFilter[k];
   Object.assign(draftFilter, filter.value);
 }
 
+let loadRequest = 0;
 async function load() {
+  const ticket = ++loadRequest;
   page.value = null;
   loadError.value = "";
   if (!tableName.value) return;
@@ -149,6 +245,8 @@ async function load() {
   const result = await api<RowPage>(
     `/api/v1/aip/datasets/${props.datasetId}/tables/${tableName.value}/rows?${params}`,
   );
+  // 连点两张表时，先发的那个请求后回来不该盖掉后一张。
+  if (ticket !== loadRequest) return;
   loading.value = false;
   if (!result.ok) {
     loadError.value = result.message;
@@ -161,13 +259,12 @@ function go(table: string, next: Record<string, string>) {
   tableName.value = table;
   filter.value = { ...next };
   offset.value = 0;
+  notice.value = null;
+  pickerOpen.value = false;
   resetDraft();
   syncUrl(true);
   load();
-}
-
-function onPickTable(event: Event) {
-  go((event.target as HTMLSelectElement).value, {});
+  void buildTrail();
 }
 
 function applyFilter() {
@@ -180,6 +277,7 @@ function applyFilter() {
   offset.value = 0;
   syncUrl(false);
   load();
+  void buildTrail();
 }
 
 function clearFilter() {
@@ -187,8 +285,9 @@ function clearFilter() {
   applyFilter();
 }
 
-function turn(delta: number) {
-  offset.value = Math.max(0, offset.value + delta * PAGE);
+function turnTo(nextOffset: number) {
+  offset.value = Math.max(0, nextOffset);
+  notice.value = null;
   syncUrl(false);
   load();
 }
@@ -200,6 +299,8 @@ const range = computed(() => {
     total: p.total,
     from: p.offset + 1,
     to: p.offset + p.rows.length,
+    page: Math.floor(p.offset / PAGE) + 1,
+    pages: Math.max(1, Math.ceil(p.total / PAGE)),
   };
 });
 
@@ -235,6 +336,8 @@ const original = ref<Record<string, string>>({});
 const busy = ref(false);
 const formError = ref("");
 const errorColumn = ref("");
+
+const sheetOpen = computed(() => mode.value === "add" || mode.value === "edit");
 
 /** 一个值在输入框里的样子。布尔用 "true"/"false"，空值用空串。 */
 function toInput(col: TableColumn, value: RowValue | undefined): string {
@@ -281,6 +384,19 @@ const editableColumns = computed(() =>
   (spec.value?.columns ?? []).filter((c) => !c.identity && !isLocked(c)),
 );
 
+function isChanged(col: TableColumn): boolean {
+  return (
+    mode.value === "edit" &&
+    !col.identity &&
+    !isLocked(col) &&
+    (form[col.name] ?? "") !== (original.value[col.name] ?? "")
+  );
+}
+
+const changeCount = computed(
+  () => (spec.value?.columns ?? []).filter((c) => isChanged(c)).length,
+);
+
 function openForm(next: Mode, row: Row | null) {
   mode.value = next;
   target.value = row;
@@ -316,9 +432,18 @@ const formTitle = computed(() => {
 
 /** 从 can-db 的一句错误里认出列名：约束错误带 `column`，其余以列名开头。 */
 function columnOf(message: string, column?: string): string {
-  if (column) return column;
-  const first = message.split(/\s/)[0] ?? "";
-  return spec.value?.columns.some((c) => c.name === first) ? first : "";
+  // 只认登记表里有的列：一个表单上不存在的列名会让错误既不在顶上也不在任何字段下。
+  const name = column || (message.split(/\s/)[0] ?? "");
+  return spec.value?.columns.some((c) => c.name === name) ? name : "";
+}
+
+/** 标错的那一列滚进视野并拿到焦点 —— 抽屉里二十几个字段，错的那个可能在折线下面。 */
+async function focusError() {
+  if (!errorColumn.value) return;
+  await nextTick();
+  const el = document.getElementById(`field-${errorColumn.value}`);
+  el?.scrollIntoView({ block: "center" });
+  el?.focus();
 }
 
 async function submit() {
@@ -327,11 +452,12 @@ async function submit() {
   formError.value = "";
   errorColumn.value = "";
 
+  const current = mode.value;
   const base = `/api/v1/aip/datasets/${props.datasetId}/tables/${tableName.value}/rows`;
   let url = base;
   let init: RequestInit;
 
-  if (mode.value === "delete") {
+  if (current === "delete") {
     url = `${base}?${keyQuery(target.value!)}`;
     init = { method: "DELETE" };
   } else {
@@ -339,7 +465,7 @@ async function submit() {
     try {
       for (const col of editableColumns.value) {
         const raw = form[col.name] ?? "";
-        if (mode.value === "add") {
+        if (current === "add") {
           if (raw.trim() === "") continue;
         } else if (raw === original.value[col.name]) {
           continue;
@@ -350,17 +476,18 @@ async function submit() {
       if (error instanceof InputError) {
         errorColumn.value = error.column;
         formError.value = t("invalidNumber", { column: error.column });
+        void focusError();
         return;
       }
       throw error;
     }
-    if (mode.value === "edit" && Object.keys(body).length === 0) {
+    if (current === "edit" && Object.keys(body).length === 0) {
       formError.value = t("noChanges");
       return;
     }
-    if (mode.value === "edit") url = `${base}?${keyQuery(target.value!)}`;
+    if (current === "edit") url = `${base}?${keyQuery(target.value!)}`;
     init = {
-      method: mode.value === "add" ? "POST" : "PATCH",
+      method: current === "add" ? "POST" : "PATCH",
       body: JSON.stringify(body),
     };
   }
@@ -373,345 +500,483 @@ async function submit() {
     formError.value = result.constraint
       ? `${t("constraint", { constraint: result.constraint })}：${result.message}`
       : result.message;
+    void focusError();
     return;
   }
+  const table = tableName.value;
+  const key =
+    current === "add"
+      ? result.data
+        ? keyLabel(result.data)
+        : ""
+      : keyLabel(target.value!);
+  notice.value = {
+    variant: "success",
+    text:
+      current === "add"
+        ? t("created", { table, key })
+        : current === "edit"
+          ? t("saved", { table, key })
+          : t("deleted", { table, key }),
+  };
   mode.value = null;
   load();
-}
-
-function fieldId(name: string) {
-  return `field-${name}`;
 }
 </script>
 
 <template>
-  <div>
-    <div class="mb-4 flex flex-wrap items-end gap-3">
-      <div>
-        <label class="mb-1 block text-xs text-muted" for="table-picker">{{
-          t("table")
-        }}</label>
-        <select
-          id="table-picker"
-          :value="tableName"
-          class="input w-56 font-mono"
-          @change="onPickTable"
-        >
-          <option value="">{{ t("pickTable") }}</option>
-          <option v-for="s in tables" :key="s.name" :value="s.name">
-            {{ s.name }}
-          </option>
-        </select>
-      </div>
-
-      <form
-        v-if="spec && filterColumns.length"
-        class="flex flex-wrap items-end gap-3"
-        @submit.prevent="applyFilter"
-      >
-        <div v-for="name in filterColumns" :key="name">
-          <label class="mb-1 block text-xs text-muted" :for="`filter-${name}`">
-            {{ name }}
-          </label>
-          <input
-            :id="`filter-${name}`"
-            v-model="draftFilter[name]"
-            class="input w-32 font-mono"
-            autocomplete="off"
-          />
-        </div>
-        <button type="submit" class="btn btn-secondary">
-          {{ t("filter") }}
-        </button>
-        <button
-          v-if="Object.keys(filter).length"
-          type="button"
-          class="btn btn-ghost"
-          @click="clearFilter"
-        >
-          {{ t("clearFilter") }}
-        </button>
-      </form>
-
-      <button
-        v-if="spec"
-        type="button"
-        class="btn btn-primary ml-auto"
-        @click="openForm('add', null)"
-      >
-        {{ t("add") }}
-      </button>
-    </div>
-
-    <p v-if="parentLink" class="mb-3 text-sm">
+  <div class="grid gap-6 lg:grid-cols-[15rem_minmax(0,1fr)] lg:items-start">
+    <!-- 左栏：表的树。手机上收成一个按钮，选完自己收起来。 -->
+    <aside class="lg:sticky lg:top-6">
       <button
         type="button"
-        class="link"
-        @click="go(parentLink.table, parentLink.filter)"
+        class="btn btn-secondary w-full justify-between lg:hidden"
+        :aria-expanded="pickerOpen"
+        aria-controls="editor-table-picker"
+        @click="pickerOpen = !pickerOpen"
       >
-        {{ t("upTo", { table: parentLink.table }) }}
+        <span class="flex min-w-0 items-center gap-2">
+          <span class="text-xs font-normal text-muted">{{ t("table") }}</span>
+          <span class="truncate font-mono">{{
+            tableName || t("pickTable")
+          }}</span>
+        </span>
+        <Icon
+          name="chevronDown"
+          class="size-4 transition-transform"
+          :class="pickerOpen ? 'rotate-180' : ''"
+        />
       </button>
-      <span class="ml-3 text-muted">{{
-        t("parentOf", {
-          table: parentLink.table,
-          key: parentLink.filter.id ?? "",
-          child: tableName,
-        })
-      }}</span>
-    </p>
-
-    <p v-if="loading" class="text-muted">…</p>
-    <p v-else-if="loadError" class="badge badge-danger">{{ loadError }}</p>
-    <p
-      v-else-if="page && !page.rows.length"
-      class="card p-10 text-center text-muted"
-    >
-      {{ t("empty") }}
-    </p>
-
-    <template v-else-if="page && spec">
       <div
-        class="scroll-shadow-x overflow-x-auto"
-        style="--scroll-shadow-bg: var(--surface)"
+        id="editor-table-picker"
+        :class="[
+          'card mt-2 p-2 lg:mt-0 lg:block lg:max-h-[calc(100dvh-8rem)] lg:overflow-y-auto',
+          pickerOpen ? 'block' : 'hidden',
+        ]"
       >
-        <table class="data-table w-full text-sm">
-          <thead>
-            <tr>
-              <th v-for="col in spec.columns" :key="col.name" class="font-mono">
-                {{ col.name }}
-              </th>
-              <th>{{ t("actions") }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="row in page.rows" :key="keyQuery(row)">
-              <td
-                v-for="col in spec.columns"
-                :key="col.name"
-                :data-label="col.name"
-                :class="[
-                  isNumeric(col) ? 'tnum' : '',
-                  spec.key.includes(col.name) ? 'font-mono text-ink' : '',
-                  'max-w-64 truncate',
-                ]"
-                :title="display(row[col.name])"
-              >
-                <span
-                  v-if="row[col.name] === null || row[col.name] === undefined"
-                  class="text-faint"
-                  >—</span
-                >
-                <template v-else>{{ display(row[col.name]) }}</template>
-              </td>
-              <td :data-label="t('actions')">
-                <div
-                  class="flex flex-wrap items-center gap-x-3 gap-y-1 whitespace-nowrap"
-                >
-                  <button
-                    type="button"
-                    class="link"
-                    @click="openForm('edit', row)"
-                  >
-                    {{ t("editRow") }}
-                  </button>
-                  <button
-                    type="button"
-                    class="link text-danger"
-                    @click="openForm('delete', row)"
-                  >
-                    {{ t("deleteRow") }}
-                  </button>
-                  <template
-                    v-if="
-                      relationsOf(row).length && relationsOf(row).length <= 3
-                    "
-                  >
-                    <button
-                      v-for="rel in relationsOf(row)"
-                      :key="rel.table"
-                      type="button"
-                      class="link"
-                      @click="go(rel.table, rel.filter)"
-                    >
-                      {{ t("children", { table: rel.table }) }}
-                    </button>
-                  </template>
-                  <select
-                    v-else-if="relationsOf(row).length"
-                    class="input h-8 w-40 py-0 font-mono text-xs"
-                    :aria-label="t('table')"
-                    @change="
-                      (e) => {
-                        const rel = relationsOf(row).find(
-                          (r) =>
-                            r.table === (e.target as HTMLSelectElement).value,
-                        );
-                        if (rel) go(rel.table, rel.filter);
-                      }
-                    "
-                  >
-                    <option value="">{{ t("pickTable") }}</option>
-                    <option
-                      v-for="rel in relationsOf(row)"
-                      :key="rel.table"
-                      :value="rel.table"
-                    >
-                      {{ rel.table }}
-                    </option>
-                  </select>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <TablePicker
+          :tables="tables"
+          :current="tableName"
+          :t="t"
+          @pick="(name) => go(name, {})"
+        />
       </div>
+    </aside>
 
-      <div
-        v-if="range"
-        class="tnum mt-3 flex flex-wrap items-center gap-3 text-sm text-muted"
-      >
-        <span>{{ t("total", range) }}</span>
-        <button
-          type="button"
-          class="btn btn-secondary ml-auto"
-          :disabled="offset === 0"
-          @click="turn(-1)"
-        >
-          {{ t("prev") }}
-        </button>
-        <button
-          type="button"
-          class="btn btn-secondary"
-          :disabled="range.to >= range.total"
-          @click="turn(1)"
-        >
-          {{ t("next") }}
-        </button>
-      </div>
-    </template>
+    <section class="min-w-0 space-y-4">
+      <EmptyState
+        v-if="!spec"
+        class="card"
+        icon="squaresPlus"
+        :title="t('pickTable')"
+        :description="t('pickTableHint')"
+      />
 
-    <Dialog
-      :open="mode !== null"
-      :title="formTitle"
-      :description="mode === 'delete' ? t('deleteHint') : undefined"
-      :dismissible="!busy"
-      :size="mode === 'delete' ? 'sm' : 'lg'"
-      @update:open="(v: boolean) => (v ? null : closeForm())"
-    >
-      <form id="row-form" @submit.prevent="submit">
-        <div
-          v-if="mode === 'add' || mode === 'edit'"
-          class="grid gap-x-4 gap-y-3 sm:grid-cols-2"
+      <template v-else>
+        <!-- 面包屑：从机场一层层下到这张表。每一段都能点回去。 -->
+        <nav :aria-label="t('breadcrumb')">
+          <ol
+            class="flex flex-wrap items-center gap-x-1.5 gap-y-1 font-mono text-sm"
+          >
+            <template
+              v-for="crumb in trail"
+              :key="`${crumb.table}:${crumb.label}`"
+            >
+              <li>
+                <button type="button" class="link" @click="go(crumb.table, {})">
+                  {{ crumb.table }}
+                </button>
+              </li>
+              <li class="text-faint" aria-hidden="true">›</li>
+              <li>
+                <button
+                  type="button"
+                  class="link text-ink"
+                  @click="go(crumb.table, crumb.filter)"
+                >
+                  {{ crumb.label }}
+                </button>
+              </li>
+              <li class="text-faint" aria-hidden="true">›</li>
+            </template>
+            <li
+              aria-current="page"
+              class="text-title-3 font-mono font-semibold text-ink"
+            >
+              {{ tableName }}
+            </li>
+          </ol>
+        </nav>
+
+        <!-- 工具条：按键列（子表加父列）筛，右边新增。 -->
+        <form
+          class="card flex flex-wrap items-end gap-3 p-3"
+          @submit.prevent="applyFilter"
         >
           <div
-            v-for="col in spec?.columns ?? []"
-            :key="col.name"
-            :class="col.type === 'double[]' ? 'sm:col-span-2' : ''"
+            v-for="name in filterColumns"
+            :key="name"
+            class="min-w-28 flex-1 sm:max-w-44"
           >
             <label
-              class="mb-1 flex items-baseline justify-between gap-2 text-xs"
-              :for="fieldId(col.name)"
+              class="mb-1 block font-mono text-xs text-muted"
+              :for="`filter-${name}`"
             >
-              <span class="font-mono text-ink">{{ col.name }}</span>
-              <span class="text-faint">
-                {{ col.type }}
-                <template v-if="col.identity"> · {{ t("generated") }}</template>
-                <template
-                  v-else-if="!col.nullable && !col.hasDefault && mode === 'add'"
-                >
-                  · {{ t("required") }}</template
-                >
-              </span>
+              {{ name }}
             </label>
-
             <input
-              v-if="col.identity || isLocked(col)"
-              :id="fieldId(col.name)"
-              :value="form[col.name]"
-              class="input w-full font-mono"
-              disabled
-            />
-            <select
-              v-else-if="col.type === 'boolean'"
-              :id="fieldId(col.name)"
-              v-model="form[col.name]"
-              :class="[
-                'input w-full',
-                errorColumn === col.name ? 'input-error' : '',
-              ]"
-            >
-              <option value="">
-                {{
-                  mode === "add" && col.hasDefault
-                    ? t("defaultValue")
-                    : t("nullValue")
-                }}
-              </option>
-              <option value="true">{{ t("true") }}</option>
-              <option value="false">{{ t("false") }}</option>
-            </select>
-            <select
-              v-else-if="col.values?.length"
-              :id="fieldId(col.name)"
-              v-model="form[col.name]"
-              :class="[
-                'input w-full font-mono',
-                errorColumn === col.name ? 'input-error' : '',
-              ]"
-            >
-              <option value="">
-                {{
-                  mode === "add" && col.hasDefault
-                    ? t("defaultValue")
-                    : t("nullValue")
-                }}
-              </option>
-              <option v-for="v in col.values" :key="v" :value="v">
-                {{ v }}
-              </option>
-            </select>
-            <textarea
-              v-else-if="col.type === 'double[]'"
-              :id="fieldId(col.name)"
-              v-model="form[col.name]"
-              rows="3"
-              :placeholder="t('arrayHint')"
-              :class="[
-                'input w-full font-mono text-xs',
-                errorColumn === col.name ? 'input-error' : '',
-              ]"
-            />
-            <input
-              v-else
-              :id="fieldId(col.name)"
-              v-model="form[col.name]"
-              :inputmode="isNumeric(col) ? 'decimal' : undefined"
-              :placeholder="
-                mode === 'add' && col.hasDefault ? t('defaultValue') : undefined
-              "
-              :required="mode === 'add' && !col.nullable && !col.hasDefault"
+              :id="`filter-${name}`"
+              v-model="draftFilter[name]"
+              class="input h-9 w-full font-mono"
               autocomplete="off"
-              :class="[
-                'input w-full',
-                spec?.key.includes(col.name) || isNumeric(col)
-                  ? 'font-mono'
-                  : '',
-                errorColumn === col.name ? 'input-error' : '',
-              ]"
+              spellcheck="false"
+              :placeholder="t('any')"
             />
           </div>
+          <div class="flex items-center gap-2">
+            <button
+              v-if="filterColumns.length"
+              type="submit"
+              class="btn btn-secondary h-9"
+            >
+              <Icon name="funnel" class="size-4" />
+              {{ t("filter") }}
+            </button>
+            <button
+              v-if="filtered"
+              type="button"
+              class="btn btn-ghost h-9"
+              @click="clearFilter"
+            >
+              {{ t("clearFilter") }}
+            </button>
+          </div>
+          <button
+            type="button"
+            class="btn btn-primary ml-auto h-9"
+            @click="openForm('add', null)"
+          >
+            <Icon name="plus" class="size-4" />
+            {{ t("add") }}
+          </button>
+        </form>
+
+        <AlertBox
+          v-if="notice"
+          :variant="notice.variant"
+          dismissible
+          @dismiss="notice = null"
+        >
+          {{ notice.text }}
+        </AlertBox>
+
+        <Skeleton v-if="loading" variant="table" :count="8" />
+
+        <AlertBox v-else-if="loadError" variant="danger">
+          <div class="flex flex-wrap items-center gap-3">
+            <span class="min-w-0 flex-1">{{ loadError }}</span>
+            <button
+              type="button"
+              class="btn btn-secondary h-8 px-2.5 text-xs"
+              @click="load"
+            >
+              {{ t("retry") }}
+            </button>
+          </div>
+        </AlertBox>
+
+        <div v-else-if="page && !page.rows.length" class="card">
+          <EmptyState
+            v-if="filtered"
+            compact
+            icon="funnel"
+            :title="t('emptyFiltered')"
+            :description="t('emptyFilteredHint')"
+          >
+            <template #action>
+              <button
+                type="button"
+                class="btn btn-secondary"
+                @click="clearFilter"
+              >
+                {{ t("clearFilter") }}
+              </button>
+            </template>
+          </EmptyState>
+          <EmptyState
+            v-else
+            compact
+            :title="t('emptyTable')"
+            :description="t('emptyTableHint')"
+          >
+            <template #action>
+              <button
+                type="button"
+                class="btn btn-primary"
+                @click="openForm('add', null)"
+              >
+                {{ t("add") }}
+              </button>
+            </template>
+          </EmptyState>
         </div>
 
-        <p
-          v-if="formError"
-          class="text-sm text-danger"
-          :class="mode === 'delete' ? '' : 'mt-4'"
-          role="alert"
-        >
-          {{ formError }}
+        <template v-else-if="page">
+          <div
+            class="scroll-shadow-x overflow-x-auto"
+            style="--scroll-shadow-bg: var(--surface)"
+          >
+            <table class="data-table w-full text-sm">
+              <thead>
+                <tr>
+                  <th class="w-px">
+                    <span class="sr-only">{{ t("actions") }}</span>
+                  </th>
+                  <th
+                    v-for="col in spec.columns"
+                    :key="col.name"
+                    class="font-mono whitespace-nowrap"
+                    :class="isNumeric(col) ? 'text-right' : ''"
+                    :title="col.type"
+                  >
+                    <span class="inline-flex items-center gap-1">
+                      <Icon
+                        v-if="spec.key.includes(col.name)"
+                        name="key"
+                        class="size-3 text-can"
+                        :label="t('keyColumn')"
+                      />
+                      {{ col.name }}
+                    </span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="row in page.rows" :key="keyQuery(row)">
+                  <td :data-label="t('actions')" class="w-px">
+                    <div class="flex items-center gap-0.5">
+                      <button
+                        type="button"
+                        class="icon-button size-8"
+                        :aria-label="`${t('editRow')} ${keyLabel(row)}`"
+                        :title="t('editRow')"
+                        @click="openForm('edit', row)"
+                      >
+                        <Icon name="pencilSquare" class="size-4" />
+                      </button>
+                      <Popover
+                        v-if="relationsOf(row).length"
+                        placement="bottom-start"
+                        width="15rem"
+                        :label="t('childTables')"
+                      >
+                        <template #trigger="{ toggle, open }">
+                          <button
+                            type="button"
+                            class="icon-button size-8"
+                            :aria-label="`${t('childTables')} ${keyLabel(row)}`"
+                            :title="t('childTables')"
+                            :aria-expanded="open"
+                            aria-haspopup="menu"
+                            @click="toggle"
+                          >
+                            <Icon name="arrowRight" class="size-4" />
+                          </button>
+                        </template>
+                        <template #default="{ close }">
+                          <p class="px-2.5 pt-1.5 pb-1 text-xs text-faint">
+                            {{ t("childTablesOf", { key: keyLabel(row) }) }}
+                          </p>
+                          <ul role="menu" class="space-y-0.5">
+                            <li
+                              v-for="rel in relationsOf(row)"
+                              :key="rel.table"
+                              role="none"
+                            >
+                              <button
+                                type="button"
+                                role="menuitem"
+                                class="flex w-full items-center justify-between gap-2 rounded-control px-2.5 py-1.5 text-left font-mono text-sm text-ink transition-colors hover:bg-surface-raised focus-visible:bg-surface-raised focus-visible:outline-none"
+                                @click="
+                                  close();
+                                  go(rel.table, rel.filter);
+                                "
+                              >
+                                {{ rel.table }}
+                                <Icon
+                                  name="chevronRight"
+                                  class="size-4 text-faint"
+                                />
+                              </button>
+                            </li>
+                          </ul>
+                        </template>
+                      </Popover>
+                      <button
+                        type="button"
+                        class="icon-button size-8 hover:text-danger"
+                        :aria-label="`${t('deleteRow')} ${keyLabel(row)}`"
+                        :title="t('deleteRow')"
+                        @click="openForm('delete', row)"
+                      >
+                        <Icon name="xCircle" class="size-4" />
+                      </button>
+                    </div>
+                  </td>
+                  <td
+                    v-for="col in spec.columns"
+                    :key="col.name"
+                    :data-label="col.name"
+                    :class="[
+                      isNumeric(col) ? 'tnum text-right' : '',
+                      spec.key.includes(col.name) ? 'font-mono text-ink' : '',
+                      'max-w-64 truncate',
+                    ]"
+                    :title="display(row[col.name])"
+                  >
+                    <span
+                      v-if="
+                        row[col.name] === null || row[col.name] === undefined
+                      "
+                      class="text-faint"
+                      >—</span
+                    >
+                    <template v-else>{{ display(row[col.name]) }}</template>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div
+            v-if="range"
+            class="tnum flex flex-wrap items-center gap-2 text-sm text-muted"
+          >
+            <span class="mr-auto">
+              {{ t(filtered ? "totalFiltered" : "total", range) }}
+            </span>
+            <span class="text-xs text-faint">{{
+              t("pageOf", { page: range.page, pages: range.pages })
+            }}</span>
+            <div class="flex items-center gap-1">
+              <button
+                type="button"
+                class="icon-button size-8"
+                :aria-label="t('first')"
+                :disabled="offset === 0"
+                @click="turnTo(0)"
+              >
+                <Icon name="chevronDoubleLeft" class="size-4" />
+              </button>
+              <button
+                type="button"
+                class="btn btn-secondary h-8 px-2.5 text-xs"
+                :disabled="offset === 0"
+                @click="turnTo(offset - PAGE)"
+              >
+                <Icon name="chevronLeft" class="size-4" />
+                {{ t("prev") }}
+              </button>
+              <button
+                type="button"
+                class="btn btn-secondary h-8 px-2.5 text-xs"
+                :disabled="range.to >= range.total"
+                @click="turnTo(offset + PAGE)"
+              >
+                {{ t("next") }}
+                <Icon name="chevronRight" class="size-4" />
+              </button>
+              <button
+                type="button"
+                class="icon-button size-8"
+                :aria-label="t('last')"
+                :disabled="range.to >= range.total"
+                @click="turnTo((range.pages - 1) * PAGE)"
+              >
+                <Icon name="chevronDoubleRight" class="size-4" />
+              </button>
+            </div>
+          </div>
+        </template>
+      </template>
+    </section>
+
+    <!-- 新增 / 修改：右侧抽屉。 -->
+    <Drawer
+      :open="sheetOpen"
+      side="right"
+      width="34rem"
+      :title="formTitle"
+      :dismissible="!busy"
+      @update:open="(v: boolean) => (v ? null : closeForm())"
+    >
+      <form id="row-form" class="space-y-4" @submit.prevent="submit">
+        <p v-if="mode === 'add' && filtered" class="text-xs text-faint">
+          {{ t("prefilledHint") }}
         </p>
+        <AlertBox v-if="formError && !errorColumn" variant="danger">
+          {{ formError }}
+        </AlertBox>
+        <div class="grid gap-x-4 gap-y-4 sm:grid-cols-2">
+          <RowField
+            v-for="col in spec?.columns ?? []"
+            :key="col.name"
+            :model-value="form[col.name] ?? ''"
+            @update:model-value="(v: string) => (form[col.name] = v)"
+            :class="col.type === 'double[]' ? 'sm:col-span-2' : ''"
+            :col="col"
+            :mode="mode === 'edit' ? 'edit' : 'add'"
+            :is-key="spec?.key.includes(col.name) ?? false"
+            :locked="isLocked(col)"
+            :changed="isChanged(col)"
+            :error="errorColumn === col.name ? formError : ''"
+            :t="t"
+          />
+        </div>
       </form>
 
+      <template #footer>
+        <div class="flex items-center gap-2">
+          <span
+            v-if="mode === 'edit'"
+            class="tnum mr-auto text-xs text-faint"
+            role="status"
+          >
+            {{ t("changes", { n: changeCount }) }}
+          </span>
+          <button
+            type="button"
+            class="btn btn-secondary"
+            :class="mode === 'edit' ? '' : 'ml-auto'"
+            :disabled="busy"
+            @click="closeForm"
+          >
+            {{ t("cancel") }}
+          </button>
+          <button
+            type="submit"
+            form="row-form"
+            class="btn btn-primary"
+            :disabled="busy || (mode === 'edit' && changeCount === 0)"
+          >
+            {{ busy ? t("working") : mode === "add" ? t("create") : t("save") }}
+          </button>
+        </div>
+      </template>
+    </Drawer>
+
+    <!-- 删除：页内确认框。 -->
+    <Dialog
+      :open="mode === 'delete'"
+      :title="formTitle"
+      :description="t('deleteHint')"
+      :dismissible="!busy"
+      size="sm"
+      @update:open="(v: boolean) => (v ? null : closeForm())"
+    >
+      <form id="row-delete" @submit.prevent="submit">
+        <AlertBox v-if="formError" variant="danger">{{ formError }}</AlertBox>
+      </form>
       <template #footer>
         <button
           type="button"
@@ -723,19 +988,11 @@ function fieldId(name: string) {
         </button>
         <button
           type="submit"
-          form="row-form"
-          :class="['btn', mode === 'delete' ? 'btn-danger' : 'btn-primary']"
+          form="row-delete"
+          class="btn btn-danger"
           :disabled="busy"
         >
-          {{
-            busy
-              ? t("working")
-              : mode === "delete"
-                ? t("confirmDelete")
-                : mode === "add"
-                  ? t("create")
-                  : t("save")
-          }}
+          {{ busy ? t("working") : t("confirmDelete") }}
         </button>
       </template>
     </Dialog>
