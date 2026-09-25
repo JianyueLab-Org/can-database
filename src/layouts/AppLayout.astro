@@ -11,6 +11,7 @@ import ThemeScript from "@jianyuelab-org/can-ui/components/ThemeScript.astro";
 import AppFrame from "@/components/AppFrame.vue";
 import { getLocale, getMessages, useTranslations } from "@/lib/i18n";
 import { buildNavigation, buildSecondary, buildWorkspaces } from "@/lib/nav";
+import { HIDE_NAIP_COOKIE, HIDE_NAIP_MIN_ACCESS } from "@/lib/hideNaip";
 
 interface Props {
   title?: string;
@@ -28,6 +29,8 @@ const navigation = buildNavigation(t, user?.aipAccess ?? 0);
 const secondary = buildSecondary(t);
 const workspaces = buildWorkspaces(t);
 const pathname = Astro.url.pathname;
+const canHideNaip = (user?.aipAccess ?? 0) >= HIDE_NAIP_MIN_ACCESS;
+const hideNaip = Astro.cookies.get(HIDE_NAIP_COOKIE)?.value === "1";
 const pageTitle = title
   ? `${title} · ${t("title")}`
   : `${t("title")} · Cerulean Aviation Network`;
@@ -61,6 +64,8 @@ const pageTitle = title
           userName={user?.name ?? ""}
           userId={user?.username ?? ""}
           locale={locale}
+          canHideNaip={canHideNaip}
+          hideNaip={hideNaip}
           client:load
         >
           <slot />

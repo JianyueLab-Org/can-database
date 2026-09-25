@@ -1,6 +1,11 @@
 import type { APIContext } from "astro";
 import { CAN_DB_ORIGIN } from "@/lib/config";
 import type { Licence } from "@/lib/canDb";
+import {
+  applyHideNaip,
+  hideNaipFromCookie,
+  isEditorPage,
+} from "@/lib/hideNaip";
 
 /**
  * 服务端调用 can-db。
@@ -35,9 +40,15 @@ export async function callDb<T = unknown>(
   const cookie = context.request.headers.get("cookie");
   if (cookie) headers.cookie = cookie;
 
+  // 「隐藏 NAIP 数据」开着时带 `unrestricted=1`。数据编辑器那两页不带，见 `lib/hideNaip.ts`。
+  const hide =
+    hideNaipFromCookie(cookie) &&
+    !isEditorPage(new URL(context.request.url).pathname);
+  const target = applyHideNaip(CAN_DB_ORIGIN + path, hide);
+
   let response: Response;
   try {
-    response = await fetch(CAN_DB_ORIGIN + path, {
+    response = await fetch(target, {
       headers,
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });

@@ -10,13 +10,17 @@
  * 监听器，`@signout` 只能写在一个 Vue 组件里。所以 AppLayout.astro 渲染的是
  * 这个组件，不是 AppShell 本身。
  */
+import { computed, ref } from "vue";
 import {
   AppShell,
+  Toggle,
   type NavItem,
   type NavSecondary,
   type Workspace,
 } from "@jianyuelab-org/can-ui";
 import { api } from "@/lib/canDb";
+import { writeHideNaip } from "@/lib/hideNaip";
+import { createTranslator } from "@/lib/i18n";
 
 const props = defineProps<{
   navigation: NavItem[];
@@ -28,7 +32,32 @@ const props = defineProps<{
   activeWorkspace?: string;
   userName?: string;
   userId?: string;
+  /** 「隐藏 NAIP 数据」开关出不出：成员 aipAccess ≥ 3。 */
+  canHideNaip?: boolean;
+  /** 开关的当前值，服务端从 cookie 读出来的，免得水合对不上。 */
+  hideNaip?: boolean;
 }>();
+
+const t = createTranslator(props.messages ?? {});
+/** 交给 AppShell 的那部分 —— 开关的两个属性是这一层自己的。 */
+const shellProps = computed(() => {
+  const { canHideNaip: _can, hideNaip: _on, ...rest } = props;
+  void _can;
+  void _on;
+  return rest;
+});
+
+/**
+ * 整个控制台的「隐藏 NAIP 数据」。写进 cookie 后整页刷新：大部分数据是服务端渲染的，
+ * 岛屿里取过的也各有缓存，刷新是唯一一种让每一处都按新值重新取的办法。
+ * 写不进去（浏览器禁了 cookie）就把开关弹回去，不刷新。
+ */
+const hideNaip = ref(props.hideNaip ?? false);
+function setHideNaip(on: boolean) {
+  hideNaip.value = on;
+  if (writeHideNaip(on)) window.location.reload();
+  else hideNaip.value = !on;
+}
 
 /**
  * 退出登录打的是 **can-api**，不是 can-db。
@@ -49,7 +78,17 @@ function handleSignOut() {
 </script>
 
 <template>
-  <AppShell v-bind="props" @signout="handleSignOut">
+  <AppShell v-bind="shellProps" @signout="handleSignOut">
+    <template v-if="canHideNaip" #profileMenu>
+      <div class="border-b border-subtle px-4 py-3">
+        <Toggle
+          :model-value="hideNaip"
+          :label="String(t('hideNaip'))"
+          :description="String(t('hideNaipHint'))"
+          @update:model-value="setHideNaip"
+        />
+      </div>
+    </template>
     <slot />
   </AppShell>
 </template>

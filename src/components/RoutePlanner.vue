@@ -25,10 +25,10 @@ import {
   Icon,
   Skeleton,
   Spinner,
-  Toggle,
 } from "@jianyuelab-org/can-ui";
 import { createTranslator } from "@/lib/i18n";
 import { api } from "@/lib/canDb";
+import { HIDE_NAIP_MIN_ACCESS } from "@/lib/hideNaip";
 import { useQueryState } from "@/composables/useQueryState";
 import {
   TILES,
@@ -50,11 +50,10 @@ const props = defineProps<{
   messages: Record<string, unknown>;
   airports: string[];
   /**
-   * 成员的 `aipAccess`，**只用来决定勾选框出不出**，不是权限判断。
+   * 成员的 `aipAccess`，**只用来决定「未使用受限汇编」那个标签出不出**，不是权限判断。
    *
-   * can-db 那边 `?unrestricted=1` 是把级别往下压（`min(自己的, 2)`），所以这里判错也只
-   * 会少看到而不会多看到。3/4/5 级看得到受限汇编；1–2 级的人本来就在档下，给他们
-   * 一个永远无效的开关只会让人以为自己错过了什么。
+   * 开关本身是整个控制台的「隐藏 NAIP 数据」（账户菜单里，`src/lib/hideNaip.ts`），
+   * `unrestricted=1` 由反代统一加上，这里不再带。
    */
   aipAccess: number;
 }>();
@@ -134,9 +133,8 @@ interface RoutePlan {
 const from = ref("");
 const to = ref("");
 const level = ref("");
-const unrestricted = ref(false);
-/** 勾选框对谁可见：3/4/5 级。档下的人不显示 —— 对他们这个开关恒为空转。 */
-const canChooseTier = computed(() => props.aipAccess >= 3);
+/** 标签对谁显示：3 级及以上。档下的人永远是「未使用」，对他们这不是一条信息。 */
+const canChooseTier = computed(() => props.aipAccess >= HIDE_NAIP_MIN_ACCESS);
 const plan = ref<RoutePlan | null>(null);
 const loading = ref(false);
 const error = ref("");
@@ -158,14 +156,12 @@ function swap() {
 const qFrom = useQueryState("from");
 const qTo = useQueryState("to");
 const qLevel = useQueryState("level");
-const qUnrestricted = useQueryState("unrestricted");
 
 onMounted(() => {
   // useQueryState 的 onMounted 先跑，这时地址栏已经读进来了。
   from.value = qFrom.value.toUpperCase();
   to.value = qTo.value.toUpperCase();
   level.value = qLevel.value;
-  unrestricted.value = qUnrestricted.value === "1";
   if (from.value && to.value) void submit();
 });
 
@@ -259,17 +255,13 @@ async function submit() {
   const d = to.value.trim().toUpperCase();
   if (!f || !d) return;
 
-  // 只在档上的人勾了才带 —— 带 `unrestricted=0` 和不带是一回事，少一个参数少一份歧义。
-  const tier = canChooseTier.value && unrestricted.value;
   qFrom.value = f;
   qTo.value = d;
   qLevel.value = level.value.trim();
-  qUnrestricted.value = tier ? "1" : "";
 
   loading.value = true;
   const params = new URLSearchParams({ from: f, to: d });
   if (level.value.trim()) params.set("level", level.value.trim());
-  if (tier) params.set("unrestricted", "1");
   const result = await api<RoutePlan>(`/api/v1/aip/route?${params}`);
   loading.value = false;
 
@@ -621,16 +613,6 @@ onBeforeUnmount(() => {
           t("unknownCodes", { codes: unknownCodes })
         }}</template>
       </p>
-
-      <!-- 3–5 级才有的开关：把规划压到 1–2 级的数据上，也就是不用 NAIP 汇编。
-           档下的人不显示 —— 对他们这个开关恒为空转，摆出来只会让人以为自己错过了什么。 -->
-      <div v-if="canChooseTier" class="max-w-md border-t border-subtle pt-3">
-        <Toggle
-          v-model="unrestricted"
-          :label="String(t('unrestricted'))"
-          :description="String(t('unrestrictedHint'))"
-        />
-      </div>
     </form>
 
     <AlertBox v-if="error" variant="danger">{{ error }}</AlertBox>

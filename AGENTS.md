@@ -392,19 +392,30 @@ EuroScope 靠标识把扇区归属解析回呼号。一行一个呼号，只有�
 `src/components/lists/ListToolbar.vue`。筛选值经 `src/composables/useQueryState.ts` 写进
 查询串（`replaceState`，初值在 `onMounted` 里读，免得水合对不上）：
 
-| 页面               | 查询参数                                       |
-| ------------------ | ---------------------------------------------- |
-| `/airports`        | `q` `fir` `sort`                               |
-| `/fixes`           | `fir` `q`                                      |
-| `/positions`       | `q` `fir`（归属包） `facility`                 |
-| `/airports/<icao>` | `stand` `proc` `kind` `rwy`                    |
-| `/map`             | `fir` `layers`                                 |
-| `/route`           | `from` `to` `level` `unrestricted`（提交时写） |
+| 页面               | 查询参数                        |
+| ------------------ | ------------------------------- |
+| `/airports`        | `q` `fir` `sort`                |
+| `/fixes`           | `fir` `q`                       |
+| `/positions`       | `q` `fir`（归属包） `facility`  |
+| `/airports/<icao>` | `stand` `proc` `kind` `rwy`     |
+| `/map`             | `fir` `layers`                  |
+| `/route`           | `from` `to` `level`（提交时写） |
 
 一页只有一个搜索框占 `/`：机场详情页给程序，机位表的 `hotkey` 是 `null`。
 
 `DatasetExport.vue` 和 `AirportExportScope.vue` 不 import 任何 `.vue` 文件：
 `src/lib/export/page.test.ts` 只编译这两个 SFC，多 import 一个组件测试就挂。
+
+## 隐藏 NAIP 数据：整站一个开关
+
+- 在账户菜单里，只给 `aipAccess >= 3` 的成员显示（`HIDE_NAIP_MIN_ACCESS`）。
+- 值存在本站主机的 cookie `can_hide_naip=1` 里。服务端渲染读不到 localStorage，所以不用它。
+- 打开时，发往 can-db 的每一条读请求都带 `unrestricted=1`。can-db 对 3 级及以上把级别压到 2，3 级以下空转。
+- 加参数的只有 `src/lib/hideNaip.ts` 的 `applyHideNaip`，调用它的只有两处：`src/server/canDb.ts`（服务端渲染）和反代 `src/pages/api/v1/[...path].ts`（岛屿的 GET，包括导出的 ZIP）。
+- 调用处不要自己带 `unrestricted`。
+- 写操作不带。`aip/datasets/{id}/…` 下的路由不带，`/datasets/{id}/edit`、`/datasets/{id}/revisions` 两页的服务端读取也不带。
+- 切换后整页刷新。
+- 航路页的「未使用受限汇编」标签仍按 can-db 返回的 `plan.unrestricted` 显示。
 
 ## 航路生成器：这一页不规划航路
 

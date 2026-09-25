@@ -1,5 +1,6 @@
 import type { APIRoute } from "astro";
 import { CAN_API_ORIGIN, CAN_DB_ORIGIN, origin } from "@/lib/config";
+import { applyHideNaip, hideNaipFromCookie } from "@/lib/hideNaip";
 
 export const prerender = false;
 
@@ -246,11 +247,17 @@ const handler: APIRoute = async (context) => {
   // 两个上游在这里交汇，而这是**唯一**一行在它们之间做选择的代码。这个文件其余
   // 部分都和上游无关，是刻意的。
   const upstreamOrigin = authEntry ? CAN_API_ORIGIN : CAN_DB_ORIGIN;
-  const target = upstreamTarget(upstreamOrigin, rest, context.url.search);
+  const cookie = context.request.headers.get("cookie");
+
+  // 「隐藏 NAIP 数据」开着时，发往 can-db 的 GET 带 `unrestricted=1`（导出的 ZIP 也是
+  // GET）。写操作和编辑器的行路由不带，见 `src/lib/hideNaip.ts`。
+  const target = applyHideNaip(
+    upstreamTarget(upstreamOrigin, rest, context.url.search),
+    !authEntry && method === "GET" && hideNaipFromCookie(cookie),
+  );
 
   // cookie 一定要带：can-db 靠它去 can-api 认人，没有它每一条都是 401。
   const headers = new Headers();
-  const cookie = context.request.headers.get("cookie");
   if (cookie) headers.set("cookie", cookie);
   const contentType = context.request.headers.get("content-type");
   if (contentType) headers.set("content-type", contentType);

@@ -93,7 +93,9 @@
       "exams": "Exams"
     },
     "closeSidebar": "Close navigation",
-    "openSidebar": "Open navigation"
+    "openSidebar": "Open navigation",
+    "hideNaip": "Hide NAIP data",
+    "hideNaipHint": "Show only tier 1–2 data across the whole console, leaving out NAIP. Applies to this browser only."
   },
   "nav": {
     "export": "Export",
@@ -278,8 +280,6 @@
     "mtca": "Min terrain clearance",
     "airspaces": "Restricted airspace crossed ({n})",
     "airspacesNote": "Prohibited areas are already routed around; these are restricted and danger areas. The activity times are published text, unparsed — crossing one is not the same as being unable to fly it today.",
-    "unrestricted": "Without the restricted compilation",
-    "unrestrictedHint": "Plan from tier 1–2 data only, leaving out NAIP. The result may be shared with members who do not hold that tier.",
     "unrestrictedBadge": "Restricted compilation not used",
     "notPublishable": "No dataset here is redistributable — this route must not be published.",
     "swap": "Swap departure and arrival",
