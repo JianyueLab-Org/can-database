@@ -113,8 +113,8 @@ export const ALLOW_PATTERNS: Array<Allowed & { test: RegExp }> = [
   // 数据集 id 是 1–10 位数字，表名是小写字母加下划线 —— 和 can-db 登记表里的名字同形。
   {
     test: /^aip\/datasets\/[0-9]{1,10}$/,
-    methods: ["PATCH"],
-    who: "DatasetActions.vue —— 修改门槛（minAccess 0–4）",
+    methods: ["PATCH", "DELETE"],
+    who: "DatasetActions.vue —— 修改门槛（minAccess 0–4）/ 删除一期（生效中的 can-db 回 409）",
   },
   {
     test: /^aip\/datasets\/[0-9]{1,10}\/(activate|supersede|clone)$/,

@@ -486,6 +486,7 @@ JavaScript。**
 
 - **`/datasets` 的「管理」列**（`DatasetActions.vue`）：复制为新一期、生效、停用、修改门槛，
   以及去编辑页和修订记录的链接。复制的周期号预填 `GET /aip/airac` 的 `next`，可以改。
+  删除只对非生效的一期可点（生效中的灰掉并写明先停用），确认框要求输入周期号；409 原样显示。
 - **`/datasets/[id]/edit`**（`DataEditor.vue`）：从登记表选表，按键列（子表加父列）筛选、
   分页列出，逐行新增 / 修改 / 删除。表单按登记表的列类型生成；删除前有页内确认框。子表按
   登记表的 `parent` 导航；登记表标了 `onAirport` 的表从 `airport` 的一行跳过去，按 `icao` 筛好。子表的
@@ -508,7 +509,7 @@ JavaScript。**
 
 | 路径                                             | 方法                  | 谁用               |
 | ------------------------------------------------ | --------------------- | ------------------ |
-| `aip/datasets/{id}`                              | PATCH                 | 修改门槛           |
+| `aip/datasets/{id}`                              | PATCH DELETE          | 修改门槛 / 删除    |
 | `aip/datasets/{id}/(activate\|supersede\|clone)` | POST                  | 生效 / 停用 / 复制 |
 | `aip/datasets/{id}/tables/{table}/rows`          | GET POST PATCH DELETE | 数据编辑器         |
 

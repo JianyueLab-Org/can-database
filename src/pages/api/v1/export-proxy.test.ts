@@ -1,6 +1,7 @@
 import { expect, spyOn, test } from "bun:test";
 import { createContext } from "astro/middleware";
 import {
+  DELETE,
   GET,
   POST,
   passThroughHeaders,
@@ -244,4 +245,52 @@ test("export response forwards disposition", () => {
   expect(headers.get("content-disposition")).toBe(
     'attachment; filename="x.zip"',
   );
+});
+
+test("dataset DELETE is forwarded with origin and without unrestricted", async () => {
+  let target = "";
+  let forwarded: RequestInit | undefined;
+  const fetchSpy = interceptFetch(async (input, init) => {
+    target = String(input);
+    forwarded = init;
+    return new Response(null, { status: 204 });
+  });
+  try {
+    const response = await DELETE(
+      proxyContext(
+        new Request("https://console.example/api/v1/aip/datasets/12", {
+          method: "DELETE",
+          headers: { origin: origin(), cookie: "session=current" },
+        }),
+        "aip/datasets/12",
+      ),
+    );
+    expect(response.status).toBe(204);
+    expect(forwarded?.method).toBe("DELETE");
+    expect(new URL(target).pathname).toBe("/api/v1/aip/datasets/12");
+    expect(new URL(target).search).toBe("");
+    const headers = new Headers(forwarded?.headers);
+    expect(headers.get("origin")).toBe(origin());
+    expect(headers.get("cookie")).toBe("session=current");
+  } finally {
+    fetchSpy.mockRestore();
+  }
+});
+
+test("dataset DELETE without a matching origin is refused", async () => {
+  const fetchSpy = interceptFetch(async () => new Response(null));
+  try {
+    const response = await DELETE(
+      proxyContext(
+        new Request("https://console.example/api/v1/aip/datasets/12", {
+          method: "DELETE",
+        }),
+        "aip/datasets/12",
+      ),
+    );
+    expect(response.status).toBe(403);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  } finally {
+    fetchSpy.mockRestore();
+  }
 });

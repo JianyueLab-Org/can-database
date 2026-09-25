@@ -12,6 +12,9 @@
  * 一行一个「管理」菜单（can-ui `Popover`），不再把六个链接平铺在表格里 —— 数据集表本
  * 来就宽，六个链接在手机的卡片布局里要占三行。每个写操作都先开一个确认框：生效和停用
  * 改的是成员能看到什么，复制会建一整期数据，都不该一点就发。
+ *
+ * 删除不可恢复，所以确认框要求把周期号原样输一遍，按钮才亮。生效中的一期菜单里照样
+ * 列出删除，但灰掉并写明原因：can-db 对它回 409，先停用才能删。
  */
 import { computed, ref } from "vue";
 import { AlertBox, Dialog, Icon, Popover } from "@jianyuelab-org/can-ui";
@@ -19,20 +22,24 @@ import { createTranslator } from "@/lib/i18n";
 import { api, type AiracCalendar, type Dataset } from "@/lib/canDb";
 
 const props = defineProps<{
-  dataset: Pick<Dataset, "id" | "airac" | "state" | "minAccess">;
+  dataset: Pick<Dataset, "id" | "airac" | "state" | "minAccess" | "airports">;
   /** SSR 取的 AIRAC 日历；can-db 答不上来时为 null。 */
   airac: AiracCalendar | null;
   messages: Record<string, unknown>;
 }>();
 const t = createTranslator(props.messages);
 
-type Action = "clone" | "activate" | "supersede" | "threshold";
+type Action = "clone" | "activate" | "supersede" | "threshold" | "delete";
 const open = ref<Action | null>(null);
 const busy = ref(false);
 const error = ref("");
 
 const cloneAirac = ref("");
 const threshold = ref(props.dataset.minAccess);
+const deleteTyped = ref("");
+const deleteReady = computed(
+  () => deleteTyped.value.trim() === props.dataset.airac,
+);
 
 /** 预填的周期号如果正好是日历上的当前或下一期，就把生效日标出来。 */
 const cloneEffective = computed(() => {
@@ -49,6 +56,7 @@ function show(action: Action) {
   error.value = "";
   if (action === "clone") cloneAirac.value = props.airac?.next.ident ?? "";
   if (action === "threshold") threshold.value = props.dataset.minAccess;
+  if (action === "delete") deleteTyped.value = "";
   open.value = action;
 }
 
@@ -86,6 +94,13 @@ async function run() {
         body: JSON.stringify({ minAccess: Number(threshold.value) }),
       });
       break;
+    case "delete":
+      if (!deleteReady.value) {
+        busy.value = false;
+        return;
+      }
+      result = await api(base, { method: "DELETE" });
+      break;
     default:
       busy.value = false;
       return;
@@ -109,6 +124,8 @@ const title = computed(() => {
       return t("supersedeTitle", { airac });
     case "threshold":
       return t("thresholdTitle", { airac });
+    case "delete":
+      return t("deleteTitle", { airac });
   }
   return "";
 });
@@ -121,6 +138,8 @@ const confirmLabel = computed(() => {
       return t("activate");
     case "supersede":
       return t("supersede");
+    case "delete":
+      return t("deleteConfirm");
   }
   return t("save");
 });
@@ -138,6 +157,8 @@ interface MenuItem {
   label: string;
   icon: string;
   danger?: boolean;
+  /** 列出但不能点；值是写在菜单项下面的原因。 */
+  disabledReason?: string;
 }
 
 /** 菜单里的写操作。生效只给不在服务的，停用只给还没停用的。 */
@@ -163,6 +184,15 @@ const items = computed<MenuItem[]>(() => [
         },
       ]
     : []),
+  {
+    action: "delete",
+    label: t("delete"),
+    icon: "xMark",
+    danger: true,
+    ...(props.dataset.state === "active"
+      ? { disabledReason: t("deleteActiveReason") }
+      : {}),
+  },
 ]);
 </script>
 
@@ -191,6 +221,23 @@ const items = computed<MenuItem[]>(() => [
         <ul role="menu" class="space-y-0.5">
           <li v-for="item in items" :key="item.action" role="none">
             <button
+              v-if="item.disabledReason"
+              type="button"
+              role="menuitem"
+              aria-disabled="true"
+              disabled
+              class="flex w-full cursor-not-allowed items-start gap-2.5 rounded-control px-2.5 py-2 text-left text-sm text-faint"
+            >
+              <Icon :name="item.icon" class="mt-0.5 size-4 shrink-0" />
+              <span>
+                {{ item.label }}
+                <span class="mt-0.5 block text-xs">{{
+                  item.disabledReason
+                }}</span>
+              </span>
+            </button>
+            <button
+              v-else
               type="button"
               role="menuitem"
               :class="[
@@ -283,6 +330,25 @@ const items = computed<MenuItem[]>(() => [
           {{ t("supersedeHint") }}
         </p>
 
+        <template v-else-if="open === 'delete'">
+          <AlertBox variant="danger">{{ t("deleteHint") }}</AlertBox>
+          <p class="tnum text-sm text-ink">
+            {{ t("deleteAirports", { n: dataset.airports }) }}
+          </p>
+          <div>
+            <label class="mb-1 block text-xs text-muted" for="delete-airac">{{
+              t("deleteType", { airac: dataset.airac })
+            }}</label>
+            <input
+              id="delete-airac"
+              v-model="deleteTyped"
+              class="input w-32 font-mono"
+              autocomplete="off"
+              spellcheck="false"
+            />
+          </div>
+        </template>
+
         <template v-else-if="open === 'threshold'">
           <p class="text-sm text-muted">{{ t("thresholdHint") }}</p>
           <fieldset>
@@ -332,9 +398,15 @@ const items = computed<MenuItem[]>(() => [
         <button
           type="submit"
           form="dataset-action"
-          :class="['btn', open === 'supersede' ? 'btn-danger' : 'btn-primary']"
+          :class="[
+            'btn',
+            open === 'supersede' || open === 'delete'
+              ? 'btn-danger'
+              : 'btn-primary',
+          ]"
           :disabled="
             busy ||
+            (open === 'delete' && !deleteReady) ||
             (open === 'threshold' && threshold === dataset.minAccess) ||
             (open === 'clone' &&
               !/^[0-9]{4}$/.test(cloneAirac.trim()) &&

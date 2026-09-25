@@ -124,7 +124,7 @@ describe("白名单自己", () => {
   });
 
   test("写方法只放行 5 级写界面的那几条", () => {
-    expect(lookup("aip/datasets/12")?.methods).toEqual(["PATCH"]);
+    expect(lookup("aip/datasets/12")?.methods).toEqual(["PATCH", "DELETE"]);
     for (const op of ["activate", "supersede", "clone"]) {
       expect(lookup(`aip/datasets/12/${op}`)?.methods).toEqual(["POST"]);
     }
