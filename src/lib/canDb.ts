@@ -551,75 +551,22 @@ export interface Fix {
 }
 
 /**
- * 一个机场的地面线画，从航图上抠出来的。
- *
- * `rgb` 是**图上的原色**，不是语义。图上的线没有语义 —— can-db 那边只存得到颜色和线
- * 宽，没有一个字说哪条是滑行道中线、哪条是机坪边界。要按语义用，得自己再判一层。
+ * 一个机场的地面要素。只有一份：扇区包手工做的那份（OSM 派生，来自 Ground 仓库）。
+ * 没有要素时接口回 404。
  */
-export interface GroundLines {
+export interface GroundData {
   icao: string;
-  /**
-   * 手工做的地面要素：分好类、带代号、米级，但只有 90 个机场。
-   *
-   * **有它就该用它** —— `lines` 只是那张航图的画面，没有语义也没有名字。两份并起来
-   * 121 个机场。
-   */
   features: GroundFeature[];
-  /**
-   * 署名。**有值就必须显示** —— OSM 的数据按 ODbL 发布，署名是硬要求。
-   *
-   * 由 can-db 按数据决定：只有真返回了 OSM 来源的要素才有值。
-   */
-  attribution?: string;
-  /** 这批线该信到几米。**不是**残差 —— 见 can-db 的 `chart_georef.accuracy_m`。 */
-  accuracyM: number;
-  /** 有几条跑道核对过配准。0 表示没核对上，那时 accuracyM 是个保守下限。 */
-  runways: number;
-  lines: GroundLine[];
+  /** 署名。有要素就有值，画出要素时必须显示（ODbL）。 */
+  attribution: string;
 }
 
 export interface GroundFeature {
-  /** `sector` = 扇区包手工做的；`osm` = OpenStreetMap（ODbL）。 */
-  source: string;
   /** taxiway / parking_position / holding_position / apron / terminal / runway / aerodrome */
   kind: string;
   /** 代号，例如滑行道的 `W9`。多数机位没有。 */
   name?: string;
   widthM?: number;
   /** [纬, 经]。**可能只有一个点** —— 等待位置和一部分机位本来就是点。 */
-  points: [number, number][];
-}
-
-export interface GroundLine {
-  rgb: string;
-  widthM: number;
-  /**
-   * 这条引导线的滑行道编号，从航图上印的标注绑来的。
-   *
-   * **空是常态**：全库 43701 条引导线里 4060 条有编号（83 个机场、526 种）。绑不上就
-   * 不绑 —— can-db 那边三条规则都往「宁可不绑」那侧倒，因为绑错了不会被屏幕出卖：名字
-   * 挂错的线仍然画在对的位置、颜色也对。
-   *
-   * **可信度比 `kind` 低。** `kind` 是颜色，图自己说的；`ref` 是「这个字离这条线最近」，
-   * 是启发式，而真实命中率没被量准。当参考，别当权威。
-   */
-  ref?: string;
-  /**
-   * 航图**把那个编号印在哪儿**。[纬] 和 [经] 各一个字段，缺就是 0。
-   *
-   * **画标注要用它，不要用线的中点。** 只拿名字的话唯一能放的地方是中点，而这些线中位
-   * 130–230 米、90 分位 800–1400 米、最长 4.5 公里 —— 挪到中点实测差 32–41 米（中位），
-   * 90 分位 170–250 米，最大 2.6 公里。
-   */
-  refLat?: number;
-  refLon?: number;
-  /**
-   * `guidance` = 画在地上给航空器循的引导线（跑道中线 + 滑行道中线 + 机坪引导线）。
-   *
-   * **不是「滑行道」**：它没有滑行道名字，也没有把跑道摘出去。判据是颜色，逐个机场拿
-   * 手工数据验过 —— 最吻合的那一类永远是同一个色。位置准到几米要看 `accuracyM`。
-   */
-  kind?: "guidance";
-  /** [纬, 经] */
   points: [number, number][];
 }

@@ -58,7 +58,6 @@
       "route-restrictions": "Route restrictions",
       "enroute-holdings": "En-route holding patterns",
       "ground-features": "Ground features",
-      "ground-lines": "Ground linework",
       "airspaces": "Airspaces",
       "network-positions": "Network positions",
       "network-sectors": "Network sectors"
@@ -298,13 +297,9 @@
     "suspect": "suspect",
     "suspectCount": "{n} procedure points sit over 400 km from the field — most likely a misresolved identifier",
     "mapLabel": "{icao} airport map",
-    "layerGround": "Ground linework",
-    "groundLoading": "Loading ground linework…",
-    "groundNone": "No ground linework for this airport",
-    "groundAccuracy": "Traced from the aerodrome chart, placed to about {n} m",
-    "groundUnchecked": "No runway was available to check the fit — the whole layer may sit some 20 m off",
-    "groundOnlyGuidance": "Guidance lines only",
-    "groundGuidanceHint": "Guidance lines: runway and taxiway centrelines (unnamed)",
+    "layerGround": "Ground features",
+    "groundLoading": "Loading ground features…",
+    "groundNone": "No ground features for this airport",
     "kind": {
       "runway": "Runway",
       "taxiway": "Taxiway",
@@ -315,7 +310,6 @@
       "aerodrome": "Aerodrome"
     },
     "taxiwayList": "Taxiway designators ({n})",
-    "refFromChart": "designator read off the chart",
     "runway": "Runway",
     "opposite": "Opposite",
     "hdg": "Heading",

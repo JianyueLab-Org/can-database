@@ -35,7 +35,7 @@ const OPEN_WITH_ATTRIBUTION: Licence = {
   restricted: false,
   airac: ["2609"],
   notice: "",
-  attributions: ["地面线画部分来自 © OpenStreetMap contributors，ODbL 许可。"],
+  attributions: ["© OpenStreetMap contributors (ODbL)"],
 };
 
 describe("toCSV", () => {
@@ -107,9 +107,7 @@ describe("toCSV", () => {
   test("可再分发且有署名时，署名照印，警示仍然不印", () => {
     const csv = toCSV([], COLUMNS, OPEN_WITH_ATTRIBUTION).replace("﻿", "");
     const lines = csv.split("\r\n");
-    expect(lines).toContain(
-      "# 地面线画部分来自 © OpenStreetMap contributors，ODbL 许可。",
-    );
+    expect(lines).toContain("# © OpenStreetMap contributors (ODbL)");
     expect(lines).toContain("# AIRAC 2609");
     expect(csv).not.toContain("不得再分发");
     expect(lines[lines.findIndex((l) => !l.startsWith("#"))]).toBe(

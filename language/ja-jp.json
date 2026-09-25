@@ -58,7 +58,6 @@
       "route-restrictions": "経路制限",
       "enroute-holdings": "航空路上の待機経路",
       "ground-features": "地上地物",
-      "ground-lines": "地上線画",
       "airspaces": "空域",
       "network-positions": "ネットワーク管制席",
       "network-sectors": "ネットワーク管制セクター"
@@ -298,13 +297,9 @@
     "suspect": "疑わしい",
     "suspectCount": "{n} 点が空港から 400 km 以上離れています —— 識別子の解決ミスの可能性が高いです",
     "mapLabel": "{icao} 空港図",
-    "layerGround": "地上図形",
-    "groundLoading": "地上図形を取得中…",
-    "groundNone": "この空港の地上図形はありません",
-    "groundAccuracy": "空港図から起こしたもので、位置精度は約 {n} m",
-    "groundUnchecked": "滑走路で検証できていないため、全体が 20 m ほどずれている可能性があります",
-    "groundOnlyGuidance": "誘導線のみ",
-    "groundGuidanceHint": "誘導線：滑走路と誘導路の中心線（名称なし）",
+    "layerGround": "地上要素",
+    "groundLoading": "地上要素を取得中…",
+    "groundNone": "この空港の地上要素はありません",
     "kind": {
       "runway": "滑走路",
       "taxiway": "誘導路",
@@ -315,7 +310,6 @@
       "aerodrome": "空港境界"
     },
     "taxiwayList": "誘導路名（{n}）",
-    "refFromChart": "チャートの注記から取得",
     "runway": "滑走路",
     "opposite": "反対側",
     "hdg": "方位",

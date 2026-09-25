@@ -58,7 +58,6 @@
       "route-restrictions": "航路限制",
       "enroute-holdings": "航路待命航線",
       "ground-features": "地面要素",
-      "ground-lines": "地面線圖",
       "airspaces": "空域",
       "network-positions": "網路管制席位",
       "network-sectors": "網路管制扇區"
@@ -298,13 +297,9 @@
     "suspect": "可疑",
     "suspectCount": "{n} 個程序點離本場超過 400 km，很可能是代號解析解錯了",
     "mapLabel": "{icao} 機場圖",
-    "layerGround": "地面線畫",
-    "groundLoading": "正在取地面線畫…",
-    "groundNone": "這個機場沒有地面線畫",
-    "groundAccuracy": "線畫來自航圖，位置準到約 {n} 公尺",
-    "groundUnchecked": "配準沒有跑道可核對，位置可能整體偏二十公尺上下",
-    "groundOnlyGuidance": "只看導引線",
-    "groundGuidanceHint": "導引線：跑道與滑行道中線（不含名稱）",
+    "layerGround": "地面要素",
+    "groundLoading": "正在取地面要素…",
+    "groundNone": "這個機場沒有地面要素",
     "kind": {
       "runway": "跑道",
       "taxiway": "滑行道",
@@ -315,7 +310,6 @@
       "aerodrome": "場界"
     },
     "taxiwayList": "滑行道代號（{n}）",
-    "refFromChart": "編號自航圖標註",
     "runway": "跑道",
     "opposite": "對向跑道",
     "hdg": "航向",

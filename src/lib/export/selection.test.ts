@@ -30,7 +30,6 @@ const optionsFixture: ExportOptions = {
           formats: ["json", "osm"],
           airportScoped: true,
         },
-        { id: "ground-lines", formats: ["csv"], airportScoped: true },
       ],
     },
   ],

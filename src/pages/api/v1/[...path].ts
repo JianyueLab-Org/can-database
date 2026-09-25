@@ -107,7 +107,7 @@ export const ALLOW_PATTERNS: Array<Allowed & { test: RegExp }> = [
     // 于是每一个机场看起来都没有，而库里其实一条不少。
     test: /^aip\/airports\/[A-Za-z0-9]{4}\/ground$/,
     methods: ["GET"],
-    who: "AirportMap.vue —— 地面要素与线画（勾上才取，一个大场一兆多）",
+    who: "AirportMap.vue —— 地面要素（勾上才取）",
   },
   // 以下是 5 级「管理/编辑」的写界面。这一层只转发；级别由 can-db 的 `withWrite` 判。
   // 数据集 id 是 1–10 位数字，表名是小写字母加下划线 —— 和 can-db 登记表里的名字同形。

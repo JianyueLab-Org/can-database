@@ -53,7 +53,6 @@ const keys = [
     "route-restrictions",
     "enroute-holdings",
     "ground-features",
-    "ground-lines",
     "airspaces",
     "network-positions",
     "network-sectors",

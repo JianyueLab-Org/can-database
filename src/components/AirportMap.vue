@@ -18,26 +18,10 @@
  * 把可疑的一段藏起来，看图的人会以为数据是干净的。判据和 can-db 那份记录一致 ——
  * 离机场超过 `SUSPECT_KM` 的腿是可疑的。
  *
- * ## 地面数据有两份，手工那份优先
+ * ## 地面要素按需取
  *
- * 接口一次给两样：`features` 是手工做的地面要素（分好类、带代号、米级，90 个机场），
- * `lines` 是从航图上抠的线画（没语义、5 到 20 米，100 个机场）。两份并起来 121 个机场。
- *
- * 有 `features` 就先画它 —— 它知道自己是什么，还带着滑行道代号。线画留作底衬：那才是
- * 那张航图的画面，而手工那份只描了要紧的东西。
- *
- * ## 地面线画是**按需取**的，而且画的是图上的原色
- *
- * 一个大场的线画是五千多条线、两万多个点，跟机场详情一起拖等于每次打开机场页都多下
- * 一兆多几何 —— 而多数人来这一页是看跑道和频率的。所以它单独一条路由，勾上才取。
- *
- * 颜色用 can-db 存的**图上原色**，不重新配色：那些线没有语义（图上只有颜色和线宽，
- * 没有一个字说哪条是滑行道中线），自己配色等于替它做一个没有依据的分类。原色画出来
- * 就是原图的样子。
- *
- * 唯一的例外是**看不见的那一档**：图上的颜色是配着白纸选的，所以深色底图上纯黑的线、
- * 浅色底图上近白的线都会消失。那种情况只调亮度、保住色相 —— 让线看得见是必要的，把
- * 橙线改成蓝线不是。
+ * 地面要素只有一份：扇区包手工做的那份（OSM 派生，来自 Ground 仓库）。单独一条路由，
+ * 勾上「地面」才取。画出来时署名一直显示（ODbL）。
  */
 import {
   computed,
@@ -50,9 +34,9 @@ import {
 import L from "leaflet";
 import { createTranslator } from "@/lib/i18n";
 import { api } from "@/lib/canDb";
-import { snapToLine, taxiwayLabels } from "@/lib/taxiwayLabels";
+import { taxiwayLabels } from "@/lib/taxiwayLabels";
 import { defaultFeatureLayers } from "@/lib/groundDefaults";
-import type { AirportDetail, GroundLines, Procedure } from "@/lib/canDb";
+import type { AirportDetail, GroundData, Procedure } from "@/lib/canDb";
 import {
   TILES,
   TILE_ATTRIBUTION,
@@ -80,7 +64,6 @@ const tiles = shallowRef<L.TileLayer | null>(null);
 const standLayer = shallowRef<L.LayerGroup | null>(null);
 const runwayLayer = shallowRef<L.LayerGroup | null>(null);
 const procLayer = shallowRef<L.LayerGroup | null>(null);
-const groundLayer = shallowRef<L.LayerGroup | null>(null);
 const featureLayer = shallowRef<L.LayerGroup | null>(null);
 
 const showStands = ref(true);
@@ -88,13 +71,6 @@ const showStands = ref(true);
 const showProc = ref<string>("");
 
 const showGround = ref(false);
-/**
- * 只画引导线。
- *
- * 默认关着：整张线画才是那张图的样子，而引导线是从里面挑出来的一层。要看滑行道走向的
- * 人打开它，图上其余的线（道面边、建筑、注记）就不碍事了。
- */
-const guidanceOnly = ref(false);
 /** 各类要素的画法。跑道最显眼，机位最轻，其余居中。 */
 const FEATURE_STYLE: Record<string, { color: string; weight: number }> = {
   runway: { color: "#e05252", weight: 3 },
@@ -124,9 +100,8 @@ const FEATURE_ORDER = [
  * 人多半是在找滑行道走向。跑道那一层也关着，因为这张图本来就画着跑道（画两遍只会互相
  * 盖住，而且颜色一样）。
  */
-/* 初值按「没有航图」算；数据到手之后 loadGround 会按实际情况重设一次。 */
 const featureOn = ref<Record<string, boolean>>(
-  defaultFeatureLayers(FEATURE_ORDER, false),
+  defaultFeatureLayers(FEATURE_ORDER),
 );
 
 /** 图上有哪些类，各多少条。 */
@@ -179,7 +154,7 @@ function focusTaxiway(points: [number, number][]) {
   m.fitBounds(L.latLngBounds(points as L.LatLngExpression[]).pad(0.5));
 }
 const groundState = ref<"idle" | "loading" | "ready" | "none">("idle");
-const ground = shallowRef<GroundLines | null>(null);
+const ground = shallowRef<GroundData | null>(null);
 
 const base = computed(() => props.airport);
 
@@ -268,7 +243,7 @@ function drawStands() {
 async function loadGround() {
   if (ground.value || groundState.value === "loading") return;
   groundState.value = "loading";
-  const r = await api<GroundLines>(
+  const r = await api<GroundData>(
     `/api/v1/aip/airports/${encodeURIComponent(base.value.icao)}/ground`,
   );
   if (!r.ok) {
@@ -278,56 +253,7 @@ async function loadGround() {
   ground.value = r.data;
   groundState.value = "ready";
 
-  /* **有航图就以航图为准，没有才用 OSM。**
-   *
-   * 两份画的是同一批东西：航图那份是汇编抠的线画（93 个机场，带滑行道编号），OSM 那份是
-   * `ground_feature`（343 个机场 —— `sector` 那一份也是 Overpass 抓的）。两边同时画就是
-   * 同一条滑行道画两遍、颜色还不一样。
-   *
-   * 只关掉航图画得了的（滑行道、机坪）。等待位置、航站楼、机场轮廓航图给不出，关掉是
-   * 白丢。规则和它的理由见 defaultFeatureLayers。
-   *
-   * 这是默认值不是能力 —— 勾回来仍然能两份对着看，而那是判断航图那份准不准的唯一办法。
-   *
-   * 在数据到手之后才定，因为「有没有航图」只有这时候才知道。 */
-  featureOn.value = defaultFeatureLayers(
-    FEATURE_ORDER,
-    r.data.lines.some((l) => l.kind === "guidance"),
-  );
-
-  drawGround();
   drawFeatures();
-}
-
-/**
- * 把和底图撞在一起的那一档亮度拉开，色相不动。
- *
- * 航图的颜色是配着白纸选的：黑线在深色底图上、近白的线在浅色底图上都会整条消失。这里
- * 只在**确实看不见**的时候动手（亮度太低或太高），而且是整体缩放 RGB —— 橙线还是橙线。
- */
-function visible(rgb: string, theme: "dark" | "light"): string {
-  const m = /^#([0-9a-f]{6})$/i.exec(rgb);
-  if (!m) return rgb;
-  const n = parseInt(m[1], 16);
-  let r = (n >> 16) & 255,
-    g = (n >> 8) & 255,
-    b = n & 255;
-  const lum = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
-  const scale =
-    theme === "dark" && lum < 0.3
-      ? (0.55 + lum) / Math.max(lum, 0.02)
-      : theme === "light" && lum > 0.85
-        ? 0.65 / lum
-        : 1;
-  if (scale === 1) return rgb;
-  const clamp = (v: number) =>
-    Math.min(255, Math.max(0, Math.round(v * scale)));
-  // 纯黑乘任何系数还是黑，所以那一档给一个固定的灰。
-  if (lum < 0.02) return theme === "dark" ? "#8c8c8c" : rgb;
-  r = clamp(r);
-  g = clamp(g);
-  b = clamp(b);
-  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, "0")}`;
 }
 
 function drawFeatures() {
@@ -401,82 +327,6 @@ function labelMarker(
       iconAnchor: [0, 0],
     }),
   });
-}
-
-function drawGround() {
-  const layer = groundLayer.value;
-  if (!layer) return;
-  layer.clearLayers();
-  if (!showGround.value || !ground.value) return;
-  const theme = currentTheme();
-  for (const l of ground.value.lines) {
-    if (guidanceOnly.value && l.kind !== "guidance") continue;
-    /* 有编号的线**可点**，其余不可点。
-     *
-     * `interactive` 对整张图开着会拦掉底图的拖拽和别的图层的点击 —— 一个大场两万条
-     * 线，全都可交互等于把地图变成一块什么都点不动的板。只给有话可说的那几千条开。 */
-    const named = (l.ref ?? "").trim();
-    const poly = L.polyline(l.points as L.LatLngExpression[], {
-      color: visible(l.rgb, theme),
-      // 图上的线宽是米，屏幕上要的是像素。按米直接当像素画，缩到全场时整张图会糊成
-      // 一块 —— 所以只用它分粗细，压到 0.5–2 像素之间。
-      weight: Math.min(2, Math.max(0.5, l.widthM / 4)),
-      opacity: 0.75,
-      interactive: Boolean(named),
-    });
-    if (named) {
-      // 提示里写明这是从航图标注绑来的，不是汇编直接给的一个字段 —— 看的人有权知道
-      // 它是推出来的。
-      poly.bindTooltip(
-        escapeHtml(named) + " · " + escapeHtml(String(t("refFromChart"))),
-        {
-          sticky: true,
-        },
-      );
-    }
-    poly.addTo(layer);
-  }
-
-  /* 航图那一份的编号。和上面同一条规则，但数据是另一套：这些是从图上印的标注绑到引导线
-   * 上的（`ref`），全库 4060 条 / 83 个机场 / 526 种。它和地面要素的 `name` 可能不一致 ——
-   * **那正是它有用的地方**：地面要素两份都是 OSM 派生的，而这一份来自汇编，不一致的地方
-   * 值得看一眼。所以两边都标，不合并。 */
-  /* **摆在航图印它的地方，不摆在线的中点。**
-   *
-   * 这些线中位 130–230 米、最长 4.5 公里 —— 摆中点实测把标注挪开 32–41 米（中位），
-   * 90 分位 170–250 米，最大 2.6 公里。线画本身没有偏移（拿 OSM 量过，东/北向中位在
-   * ±3.3 米内），偏的是标注被挪走了。
-   *
-   * 同一个编号可能绑在好几条线上（一条滑行道是几十条被切开的路径），仍然只出一个 ——
-   * 挑印得最靠中间的那个没有意义，挑第一个取决于数组顺序；这里挑**它所在那条线最长**
-   * 的，和地面要素那边同一条规矩。 */
-  const byRef = new Map<string, { lat: number; lon: number; len: number }>();
-  for (const l of ground.value.lines) {
-    const name = (l.ref ?? "").trim();
-    if (l.kind !== "guidance" || !name || !l.refLat || !l.refLon) continue;
-    let len = 0;
-    for (let i = 1; i < l.points.length; i++) {
-      const [aLat, aLon] = l.points[i - 1];
-      const [bLat, bLon] = l.points[i];
-      len += Math.hypot(
-        (bLat - aLat) * 111320,
-        (bLon - aLon) * 111320 * Math.cos((aLat * Math.PI) / 180),
-      );
-    }
-    /* **吸附到它自己那条线上。**
-     *
-     * 航图把编号印在线**旁边**：实测离它命名的那条线中位 9–16 米、最大 30 米（30 是
-     * 绑定阈值）。在这个缩放下那是个看得见的空隙，而平行滑行道间距常常只有几十米 ——
-     * 偏 30 米就能让标注看起来离邻线更近，读的人认不出它在说哪条。
-     *
-     * 库里存的仍然是航图印它的位置（那是事实），摆在哪儿好读是渲染的事。 */
-    const [lat, lon] = snapToLine(l.refLat, l.refLon, l.points);
-    const cur = byRef.get(name);
-    if (!cur || len > cur.len) byRef.set(name, { lat, lon, len });
-  }
-  for (const [name, p] of byRef) {
-    labelMarker(p.lat, p.lon, name, "#7aa7c7").addTo(layer);
-  }
 }
 
 function drawProcedures() {
@@ -579,9 +429,7 @@ onMounted(() => {
   map.value = m;
   applyTiles(currentTheme());
 
-  // 线画在最底下：它是底图，别的都画在它上面。
-  groundLayer.value = L.layerGroup().addTo(m);
-  // 要素画在线画之上：它更准，该压着底衬。
+  // 地面要素在最底下，别的都画在它上面。
   featureLayer.value = L.layerGroup().addTo(m);
   procLayer.value = L.layerGroup().addTo(m);
   standLayer.value = L.layerGroup().addTo(m);
@@ -594,7 +442,6 @@ onMounted(() => {
 
   stopTheme = watchTheme((theme) => {
     applyTiles(theme);
-    drawGround(); // 线的颜色跟着主题走，见 visible()
   });
 });
 
@@ -606,11 +453,9 @@ onBeforeUnmount(() => {
 
 watch(showStands, drawStands);
 watch(showProc, drawProcedures);
-watch(guidanceOnly, drawGround);
 watch(featureOn, drawFeatures, { deep: true });
 watch(showGround, (on) => {
   if (on) void loadGround();
-  drawGround();
   drawFeatures();
 });
 
@@ -737,19 +582,9 @@ const legend = computed(() => {
         >
           {{ t("layerGround") }}
         </button>
-        <button
-          v-if="showGround && ground && ground.lines.length"
-          type="button"
-          class="chip"
-          :aria-pressed="guidanceOnly"
-          :title="String(t('groundGuidanceHint'))"
-          @click="guidanceOnly = !guidanceOnly"
-        >
-          {{ t("groundOnlyGuidance") }}
-        </button>
       </div>
 
-      <!-- 地面要素按类别分层。取到数据才出现 —— 没开「地面线画」之前这一行不存在。 -->
+      <!-- 地面要素按类别分层。取到数据才出现 —— 没开「地面」之前这一行不存在。 -->
       <div
         v-if="showGround && featureKinds.length"
         class="flex flex-wrap items-center gap-1.5"
@@ -803,8 +638,7 @@ const legend = computed(() => {
       </ul>
     </div>
 
-    <!-- 状态行：地面线画的状态与精度、署名、可疑点数。精度不折叠 —— 校对数据的站把误差藏
-         起来，看图的人会以为它准。 -->
+    <!-- 状态行：地面要素的状态、署名、可疑点数。 -->
     <div
       class="flex flex-col gap-1.5 border-t border-subtle px-3 py-2.5 text-xs text-muted"
     >
@@ -833,15 +667,12 @@ const legend = computed(() => {
       <p v-else-if="showGround && groundState === 'none'">
         {{ t("groundNone") }}
       </p>
-      <!-- 署名：ODbL 的硬要求，有就必须显示，不能折叠也不能藏在 tooltip 里。 -->
-      <p v-if="showGround && ground && ground.attribution" class="text-faint">
+      <!-- 署名：ODbL 的硬要求，画出要素时一直显示。 -->
+      <p
+        v-if="showGround && ground && ground.features.length"
+        class="text-faint"
+      >
         {{ ground.attribution }}
-      </p>
-      <p v-else-if="showGround && ground">
-        {{ t("groundAccuracy", { n: ground.accuracyM.toFixed(0) }) }}
-        <template v-if="ground.runways === 0">
-          · {{ t("groundUnchecked") }}
-        </template>
       </p>
 
       <p v-if="suspectCount" class="text-warning">
