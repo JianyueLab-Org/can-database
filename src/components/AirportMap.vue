@@ -33,6 +33,7 @@ import {
 } from "vue";
 import L from "leaflet";
 import { createTranslator } from "@/lib/i18n";
+import { basemapControl } from "@/lib/mapMarkers";
 import { api } from "@/lib/canDb";
 import { taxiwayLabels } from "@/lib/taxiwayLabels";
 import { defaultFeatureLayers } from "@/lib/groundDefaults";
@@ -43,9 +44,9 @@ import {
 } from "@/lib/groundStyle";
 import type { AirportDetail, GroundData, Procedure } from "@/lib/canDb";
 import {
-  TILES,
-  TILE_ATTRIBUTION,
-  TILE_MAX_NATIVE_ZOOM,
+  loadBasemap,
+  saveBasemap,
+  tileSource,
   currentTheme,
   escapeHtml,
   firColor,
@@ -392,14 +393,17 @@ function fitToField() {
   m.fitBounds(L.latLngBounds(pts).pad(0.15));
 }
 
+let basemap = loadBasemap();
+
 function applyTiles(theme: "dark" | "light") {
   const m = map.value;
   if (!m) return;
   tiles.value?.remove();
-  tiles.value = L.tileLayer(TILES[theme], {
-    attribution: TILE_ATTRIBUTION,
+  const source = tileSource(basemap, theme);
+  tiles.value = L.tileLayer(source.url, {
+    attribution: source.attribution,
     maxZoom: 18,
-    maxNativeZoom: TILE_MAX_NATIVE_ZOOM,
+    maxNativeZoom: source.maxNativeZoom,
     pane: "tilePane",
   }).addTo(m);
 }
@@ -411,6 +415,15 @@ onMounted(() => {
   const m = L.map(host.value, { zoomControl: true, maxZoom: 18 });
   map.value = m;
   applyTiles(currentTheme());
+  basemapControl(
+    { canvas: t("basemap.canvas"), satellite: t("basemap.satellite") },
+    basemap,
+    (next) => {
+      basemap = next;
+      saveBasemap(next);
+      applyTiles(currentTheme());
+    },
+  ).addTo(m);
 
   // 地面要素在最底下，别的都画在它上面。
   featureLayer.value = L.layerGroup().addTo(m);

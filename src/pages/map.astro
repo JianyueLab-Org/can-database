@@ -18,7 +18,10 @@ import type { AirportSummary } from "@/lib/canDb";
  */
 const locale = getLocale(Astro.cookies);
 const t = useTranslations(locale, "map");
-const messages = getMessages(locale, "map");
+const messages = {
+  ...getMessages(locale, "map"),
+  basemap: getMessages(locale, "basemap"),
+};
 
 const [airportsResult, firsResult] = await Promise.all([
   callDb<AirportSummary[]>(Astro, "/api/v1/aip/airports"),

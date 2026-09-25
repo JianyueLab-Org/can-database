@@ -31,9 +31,9 @@ import { api } from "@/lib/canDb";
 import { HIDE_NAIP_MIN_ACCESS } from "@/lib/hideNaip";
 import { useQueryState } from "@/composables/useQueryState";
 import {
-  TILES,
-  TILE_ATTRIBUTION,
-  TILE_MAX_NATIVE_ZOOM,
+  loadBasemap,
+  saveBasemap,
+  tileSource,
   ROUTE_COLORS,
   arc,
   currentTheme,
@@ -42,6 +42,7 @@ import {
 import {
   airportMarker,
   applyLabelZoom,
+  basemapControl,
   fixMarker,
   viaMarker,
 } from "@/lib/mapMarkers";
@@ -341,14 +342,17 @@ const tiles = shallowRef<L.TileLayer | null>(null);
 const layer = shallowRef<L.LayerGroup | null>(null);
 let stopTheme: (() => void) | null = null;
 
+let basemap = loadBasemap();
+
 function applyTiles(theme: "dark" | "light") {
   const m = map.value;
   if (!m) return;
   tiles.value?.remove();
-  tiles.value = L.tileLayer(TILES[theme], {
-    attribution: TILE_ATTRIBUTION,
+  const source = tileSource(basemap, theme);
+  tiles.value = L.tileLayer(source.url, {
+    attribution: source.attribution,
     maxZoom: 12,
-    maxNativeZoom: TILE_MAX_NATIVE_ZOOM,
+    maxNativeZoom: source.maxNativeZoom,
     pane: "tilePane",
   }).addTo(m);
 }
@@ -379,6 +383,15 @@ function draw() {
     const m = L.map(host.value, { zoomControl: true, minZoom: 2, maxZoom: 12 });
     map.value = m;
     applyTiles(currentTheme());
+    basemapControl(
+      { canvas: t("basemap.canvas"), satellite: t("basemap.satellite") },
+      basemap,
+      (next) => {
+        basemap = next;
+        saveBasemap(next);
+        applyTiles(currentTheme());
+      },
+    ).addTo(m);
     layer.value = L.layerGroup().addTo(m);
     stopTheme = watchTheme((theme) => {
       applyTiles(theme);

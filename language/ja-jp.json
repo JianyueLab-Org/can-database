@@ -662,5 +662,9 @@
     "discardBody": "離れるとこれらの変更は失われます。",
     "discard": "破棄して離れる",
     "keepEditing": "編集を続ける"
+  },
+  "basemap": {
+    "canvas": "地図",
+    "satellite": "航空写真"
   }
 }

@@ -46,6 +46,63 @@ export const TILE_MAX_NATIVE_ZOOM = 16;
 export const TILE_ATTRIBUTION =
   '&copy; <a href="https://www.esri.com/">Esri</a>, HERE, Garmin, &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 
+/**
+ * 卫星底图。Esri World_Imagery，和上面两张同一家，同样不要 key。
+ *
+ * 实测 ZGGG、ZBAA、ZUUU 三处影像到 **z19** 都是真图，z20 起是一张全球相同的占位图 ——
+ * 和 Canvas 的 z16 是同一种陷阱，所以同样靠 `maxNativeZoom` 截住。
+ *
+ * 航图数据压在影像上不如压在灰底上清楚，所以 Canvas 仍是默认，卫星是成员自己切的。
+ */
+export const SATELLITE_TILES =
+  "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
+
+export const SATELLITE_MAX_NATIVE_ZOOM = 19;
+
+export const SATELLITE_ATTRIBUTION =
+  '&copy; <a href="https://www.esri.com/">Esri</a>, Maxar, Earthstar Geographics';
+
+export type Basemap = "canvas" | "satellite";
+
+/** 一张底图的瓦片参数。四个地图组件都从这里取，不各自拼。 */
+export function tileSource(
+  basemap: Basemap,
+  theme: "dark" | "light",
+): { url: string; maxNativeZoom: number; attribution: string } {
+  return basemap === "satellite"
+    ? {
+        url: SATELLITE_TILES,
+        maxNativeZoom: SATELLITE_MAX_NATIVE_ZOOM,
+        attribution: SATELLITE_ATTRIBUTION,
+      }
+    : {
+        url: TILES[theme],
+        maxNativeZoom: TILE_MAX_NATIVE_ZOOM,
+        attribution: TILE_ATTRIBUTION,
+      };
+}
+
+const BASEMAP_KEY = "can-database.basemap";
+
+/** 成员上次选的底图。四张图共用一份。存储不可用时回到 Canvas。 */
+export function loadBasemap(): Basemap {
+  try {
+    return localStorage.getItem(BASEMAP_KEY) === "satellite"
+      ? "satellite"
+      : "canvas";
+  } catch {
+    return "canvas";
+  }
+}
+
+export function saveBasemap(basemap: Basemap): void {
+  try {
+    localStorage.setItem(BASEMAP_KEY, basemap);
+  } catch {
+    // 存不下就只在这一页生效。
+  }
+}
+
 /** 当前主题。can-ui 的 ThemeScript 把 `.dark` 放在 <html> 上，这里就读那一处。 */
 export function currentTheme(): "dark" | "light" {
   return document.documentElement.classList.contains("dark") ? "dark" : "light";

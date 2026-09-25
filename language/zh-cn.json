@@ -662,5 +662,9 @@
     "discardBody": "离开之后这些改动就没有了。",
     "discard": "放弃并离开",
     "keepEditing": "继续编辑"
+  },
+  "basemap": {
+    "canvas": "地图",
+    "satellite": "卫星"
   }
 }

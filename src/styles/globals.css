@@ -277,3 +277,34 @@
     box-shadow: var(--shadow-popover);
   }
 }
+
+/* ── 底图切换（`mapMarkers.ts` 的 `basemapControl`）──────────────────────
+   **不放进 @layer**：leaflet.css 是不分层的，分层规则无论权重多高都输给它。 */
+.basemap-switch {
+  display: flex;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.5rem;
+  background: var(--surface-raised);
+  font-size: 0.75rem;
+  line-height: 1;
+}
+.basemap-switch a {
+  padding: 0.4rem 0.625rem;
+  color: var(--color-muted);
+  text-decoration: none;
+}
+.basemap-switch a + a {
+  border-left: 1px solid var(--border-subtle);
+}
+.basemap-switch a:hover {
+  color: var(--color-ink);
+}
+.basemap-switch a:focus-visible {
+  outline: none;
+  box-shadow: var(--ring-brand);
+}
+.basemap-switch a[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--color-can) 12%, var(--surface-raised));
+  color: var(--color-ink);
+}

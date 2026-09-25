@@ -24,7 +24,10 @@ import { canManage } from "@/lib/config";
 const icao = (Astro.params.icao ?? "").toUpperCase();
 const locale = getLocale(Astro.cookies);
 const t = useTranslations(locale, "airports");
-const mapMessages = getMessages(locale, "airportMap");
+const mapMessages = {
+  ...getMessages(locale, "airportMap"),
+  basemap: getMessages(locale, "basemap"),
+};
 const procMessages = getMessages(locale, "procedures");
 const standMessages = getMessages(locale, "airportStands");
 

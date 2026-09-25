@@ -1,6 +1,7 @@
 import L from "leaflet";
 
 import {
+  type Basemap,
   escapeHtml,
   FIX_LABEL_MIN_ZOOM,
   TERMINAL_LABEL_MIN_ZOOM,
@@ -135,4 +136,44 @@ export function airportMarker(
       iconAnchor: [0, 0],
     }),
   });
+}
+
+/**
+ * 底图切换：右下角两个按钮，Canvas 和卫星。
+ *
+ * 选中态只走 `aria-pressed`，和 `.chip` 一样。样式在 globals.css 末尾。
+ *
+ * 不用 `L.control.layers`：Canvas 那张跟着主题换瓦片地址，layers 控件抓着的是固定的
+ * 图层实例。这里只报告选了哪个，换瓦片由组件的 `applyTiles` 做。
+ */
+export function basemapControl(
+  labels: Record<Basemap, string>,
+  initial: Basemap,
+  onChange: (basemap: Basemap) => void,
+): L.Control {
+  const control = new L.Control({ position: "bottomright" });
+  control.onAdd = () => {
+    const bar = L.DomUtil.create("div", "basemap-switch");
+    L.DomEvent.disableClickPropagation(bar);
+    const buttons = (["canvas", "satellite"] as const).map((key) => {
+      const button = L.DomUtil.create("a", "", bar) as HTMLAnchorElement;
+      button.href = "#";
+      button.role = "button";
+      button.textContent = labels[key];
+      L.DomEvent.on(button, "click", (event) => {
+        L.DomEvent.preventDefault(event);
+        select(key);
+        onChange(key);
+      });
+      return { key, button };
+    });
+    function select(active: Basemap) {
+      for (const { key, button } of buttons) {
+        button.setAttribute("aria-pressed", String(key === active));
+      }
+    }
+    select(initial);
+    return bar;
+  };
+  return control;
 }

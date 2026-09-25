@@ -36,11 +36,12 @@ import {
 import L from "leaflet";
 import { AlertBox, Dialog, Icon, Spinner } from "@jianyuelab-org/can-ui";
 import { createTranslator } from "@/lib/i18n";
+import { basemapControl } from "@/lib/mapMarkers";
 import { api } from "@/lib/canDb";
 import {
-  TILES,
-  TILE_ATTRIBUTION,
-  TILE_MAX_NATIVE_ZOOM,
+  loadBasemap,
+  saveBasemap,
+  tileSource,
   currentTheme,
   watchTheme,
 } from "@/lib/mapBase";
@@ -318,14 +319,17 @@ function drawDraft() {
   }
 }
 
+let basemap = loadBasemap();
+
 function applyTiles(theme: "dark" | "light") {
   const m = map.value;
   if (!m) return;
   tiles.value?.remove();
-  tiles.value = L.tileLayer(TILES[theme], {
-    attribution: TILE_ATTRIBUTION,
+  const source = tileSource(basemap, theme);
+  tiles.value = L.tileLayer(source.url, {
+    attribution: source.attribution,
     maxZoom: 21,
-    maxNativeZoom: TILE_MAX_NATIVE_ZOOM,
+    maxNativeZoom: source.maxNativeZoom,
     pane: "tilePane",
   }).addTo(m);
 }
@@ -771,6 +775,15 @@ onMounted(() => {
   map.value = m;
   renderer = L.canvas({ padding: 0.5 });
   applyTiles(currentTheme());
+  basemapControl(
+    { canvas: t("basemap.canvas"), satellite: t("basemap.satellite") },
+    basemap,
+    (next) => {
+      basemap = next;
+      saveBasemap(next);
+      applyTiles(currentTheme());
+    },
+  ).addTo(m);
   featureGroup = L.layerGroup().addTo(m);
   selectionGroup = L.layerGroup().addTo(m);
   draftGroup = L.layerGroup().addTo(m);

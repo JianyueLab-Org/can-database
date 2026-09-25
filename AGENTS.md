@@ -229,6 +229,9 @@ can-ui 的 `AppShell` 已经把正文区连内边距一起给了：
 得的 ZGZU 的颜色，点进地图应该还是那一个，两处各写一份配色漂移只是时间问题。机场清单上
 那排色块也取自同一个 `firColor`。
 
+底图有两张：Canvas 灰底（默认）和 Esri World_Imagery 卫星图。右下角的按钮切换，选择存在
+`localStorage` 的 `can-database.basemap`，四张图共用。瓦片参数统一从 `tileSource()` 取。
+
 几条踩过或差点踩到的：
 
 **`leaflet.css` 在 `AppLayout.astro` 里引，而且排在 `globals.css` 前面。** 从岛屿里引

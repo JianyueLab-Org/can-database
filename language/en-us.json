@@ -662,5 +662,9 @@
     "discardBody": "These changes are lost once you leave.",
     "discard": "Discard and leave",
     "keepEditing": "Keep editing"
+  },
+  "basemap": {
+    "canvas": "Map",
+    "satellite": "Satellite"
   }
 }

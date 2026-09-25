@@ -40,15 +40,15 @@ import type {
   SectorOwnership,
 } from "@/lib/canDb";
 import {
-  TILES,
-  TILE_ATTRIBUTION,
-  TILE_MAX_NATIVE_ZOOM,
+  loadBasemap,
+  saveBasemap,
+  tileSource,
   currentTheme,
   escapeHtml,
   firColor,
   watchTheme,
 } from "@/lib/mapBase";
-import { nameMarker, viaMarker } from "@/lib/mapMarkers";
+import { basemapControl, nameMarker, viaMarker } from "@/lib/mapMarkers";
 // 三条会静默出错的规则住在 lib 里，配了测试：三种状态各一种画法（「没解析过」和「没人
 // 管」必须分开）、大的先画小的后画（否则点塔台弹出区调）、圆按半径量。
 import { NM_TO_M, drawOrder, sectorPaint, sectorState } from "@/lib/sectorMap";
@@ -493,14 +493,17 @@ function fitToShown() {
   m.fitBounds(L.latLngBounds(pts).pad(0.1));
 }
 
+let basemap = loadBasemap();
+
 function applyTiles(theme: "dark" | "light") {
   const m = map.value;
   if (!m) return;
   tiles.value?.remove();
-  tiles.value = L.tileLayer(TILES[theme], {
-    attribution: TILE_ATTRIBUTION,
+  const source = tileSource(basemap, theme);
+  tiles.value = L.tileLayer(source.url, {
+    attribution: source.attribution,
     maxZoom: 12,
-    maxNativeZoom: TILE_MAX_NATIVE_ZOOM,
+    maxNativeZoom: source.maxNativeZoom,
     // 底图在最下面。不设的话后加的瓦片会盖住已经画好的航路。
     pane: "tilePane",
   }).addTo(m);
@@ -527,6 +530,15 @@ onMounted(() => {
   });
   map.value = m;
   applyTiles(currentTheme());
+  basemapControl(
+    { canvas: t("basemap.canvas"), satellite: t("basemap.satellite") },
+    basemap,
+    (next) => {
+      basemap = next;
+      saveBasemap(next);
+      applyTiles(currentTheme());
+    },
+  ).addTo(m);
 
   // **扇区最先加，所以画在最下面。** 它是成片的填充，压在航路和航路点上面会把它们盖掉。
   sectorLayer.value = L.layerGroup().addTo(m);
