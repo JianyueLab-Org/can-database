@@ -12,6 +12,7 @@ import { getLocale, getMessages, useTranslations } from "@/lib/i18n";
 import { callDb } from "@/server/canDb";
 import type { AirportDetail } from "@/lib/canDb";
 import { airportExportHref } from "@/lib/export/airportLink";
+import { canManage } from "@/lib/config";
 
 /**
  * 一个机场的全部：跑道、机位、进离场程序。
@@ -32,6 +33,9 @@ const result = await callDb<AirportDetail>(
   `/api/v1/aip/airports/${encodeURIComponent(icao)}`,
 );
 const airport = result.ok ? result.data : null;
+
+/** 地面要素编辑器的入口只给 5 级；编辑页自己也按同一条判。 */
+const canEditGround = canManage(Astro.locals.user?.aipAccess ?? 0);
 
 /**
  * 跑道的两半拼成一行。
@@ -262,7 +266,18 @@ const sections = !airport
           {/* 图排在表格前面：这一页的读者多半是在核对「这个机位是不是在它该在的
               地方」，而那件事看图一眼就知道，看一张 520 行的坐标表要一行行读。 */}
           <section id="map" class="mb-10 scroll-mt-6 lg:scroll-mt-32">
-            <SectionTitle title={t("sectionMap")} />
+            <SectionTitle title={t("sectionMap")}>
+              {canEditGround && (
+                <a
+                  slot="actions"
+                  href={`/airports/${encodeURIComponent(airport.icao)}/ground`}
+                  class="btn btn-secondary h-8 px-2.5 text-xs"
+                >
+                  <Icon name="pencilSquare" class="size-3.5" />
+                  {t("editGround")}
+                </a>
+              )}
+            </SectionTitle>
             <AirportMap
               messages={mapMessages}
               airport={airport}

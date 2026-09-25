@@ -42,9 +42,17 @@ describe("applyHideNaip", () => {
     for (const path of [
       "/api/v1/aip/datasets/7/tables/airport/rows?limit=50",
       "/api/v1/aip/datasets/7/revisions?limit=50",
+      "/api/v1/aip/airports/ZBAA/ground/source",
+      "/api/v1/aip/airports/ZBAA/ground.json",
     ]) {
       expect(applyHideNaip(DB + path, true)).toBe(DB + path);
     }
+  });
+
+  test("still restricts the read-only ground layer", () => {
+    expect(applyHideNaip(`${DB}/api/v1/aip/airports/ZBAA/ground`, true)).toBe(
+      `${DB}/api/v1/aip/airports/ZBAA/ground?unrestricted=1`,
+    );
   });
 });
 

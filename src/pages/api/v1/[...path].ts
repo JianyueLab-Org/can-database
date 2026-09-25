@@ -106,8 +106,19 @@ export const ALLOW_PATTERNS: Array<Allowed & { test: RegExp }> = [
     // 漏了这条的症状很误导 —— 反代回 404，岛屿把它当成「这个机场没有地面数据」，
     // 于是每一个机场看起来都没有，而库里其实一条不少。
     test: /^aip\/airports\/[A-Za-z0-9]{4}\/ground$/,
+    methods: ["GET", "PUT"],
+    who: "AirportMap.vue —— 地面要素（勾上才取）；GroundEditor.vue —— 保存（PUT 整份替换，5 级）",
+  },
+  // 地面要素编辑器（5 级）。两条都是 GET，但 can-db 那边走 `withWrite`。
+  {
+    test: /^aip\/airports\/[A-Za-z0-9]{4}\/ground\/source$/,
     methods: ["GET"],
-    who: "AirportMap.vue —— 地面要素（勾上才取）",
+    who: "GroundEditor.vue —— 读原始精度的要素（404 = 这个机场还没有，从空白开始画）",
+  },
+  {
+    test: /^aip\/airports\/[A-Za-z0-9]{4}\/ground\.json$/,
+    methods: ["GET"],
+    who: "GroundEditor.vue —— 导出 Ground 仓库格式的 <ICAO>.json",
   },
   // 以下是 5 级「管理/编辑」的写界面。这一层只转发；级别由 can-db 的 `withWrite` 判。
   // 数据集 id 是 1–10 位数字，表名是小写字母加下划线 —— 和 can-db 登记表里的名字同形。
@@ -175,8 +186,13 @@ const PASS_THROUGH = [
   "set-cookie",
 ];
 
-export function upstreamTimeout(rest: string): number {
-  return rest === "aip/export" ? 120_000 : 15_000;
+/** 整个机场的地面要素一次替换：大场上千条，比一次普通读慢。 */
+const GROUND_PUT = /^aip\/airports\/[A-Za-z0-9]{4}\/ground$/;
+
+export function upstreamTimeout(rest: string, method = "GET"): number {
+  if (rest === "aip/export") return 120_000;
+  if (method === "PUT" && GROUND_PUT.test(rest)) return 60_000;
+  return 15_000;
 }
 
 export function upstreamTarget(
@@ -232,8 +248,8 @@ const handler: APIRoute = async (context) => {
   // 所以 `UNSAFE` 这个集合不是修饰，它是这条检查能收紧的前提。
   //
   // 走到这里的写操作：`POST auth/signout`（转给 can-api），和 5 级写界面的那几条
-  // （`ALLOW_PATTERNS` 里 `aip/datasets/{id}…` 开头的条目，转给 can-db，级别由它的
-  // `withWrite` 判）。
+  // （`ALLOW_PATTERNS` 里 `aip/datasets/{id}…` 开头的条目和 `PUT aip/airports/{icao}/ground`，
+  // 转给 can-db，级别由它的 `withWrite` 判）。
   if (UNSAFE.has(method)) {
     const sent = context.request.headers.get("origin");
     if (sent !== origin()) {
@@ -289,7 +305,7 @@ const handler: APIRoute = async (context) => {
       ...(method === "GET" || method === "HEAD" ? {} : { duplex: "half" }),
       signal: AbortSignal.any([
         context.request.signal,
-        AbortSignal.timeout(upstreamTimeout(rest)),
+        AbortSignal.timeout(upstreamTimeout(rest, method)),
       ]),
     } as RequestInit);
   } catch (error) {
@@ -311,4 +327,5 @@ const handler: APIRoute = async (context) => {
 export const GET = handler;
 export const POST = handler;
 export const PATCH = handler;
+export const PUT = handler;
 export const DELETE = handler;

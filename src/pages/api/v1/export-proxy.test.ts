@@ -185,6 +185,8 @@ test("archive export uses the dedicated timeout", () => {
   expect(upstreamTimeout("aip/export")).toBe(120_000);
   expect(upstreamTimeout("aip/export/options")).toBe(15_000);
   expect(upstreamTimeout("aip/airports")).toBe(15_000);
+  expect(upstreamTimeout("aip/airports/ZBAA/ground", "PUT")).toBe(60_000);
+  expect(upstreamTimeout("aip/airports/ZBAA/ground")).toBe(15_000);
 });
 
 test("route deadlines still abort upstream when the client stays connected", async () => {

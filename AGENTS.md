@@ -475,7 +475,7 @@ JavaScript。**
 
 ## 写界面：只给 5 级
 
-5 级「管理/编辑」看得到三样东西，别的级别一样都看不到：
+5 级「管理/编辑」看得到四样东西，别的级别一样都看不到：
 
 - **`/datasets` 的「管理」列**（`DatasetActions.vue`）：复制为新一期、生效、停用、修改门槛，
   以及去编辑页和修订记录的链接。复制的周期号预填 `GET /aip/airac` 的 `next`，可以改。
@@ -486,11 +486,18 @@ JavaScript。**
   父列在修改时锁定。
 - **`/datasets/[id]/revisions`**：修订记录，服务端渲染，按 can-db 的 `next` 游标翻页
   （`?before=`），每行可展开列级改动。
+- **`/airports/[icao]/ground`**（`GroundEditor.vue`）：地面要素编辑器。入口是机场详情页「机场图」小节的按钮。
+  - 读 `ground/source`；404 时从空白开始。其他失败不给编辑。
+  - 保存是 `PUT ground`，整份替换。保存空集要确认。400 原样显示。
+  - 保存只进资料库。提示要求导出 `<ICAO>.json` 并提交到 `Ground/<FIR>/airports/`，否则下一次扇区地面导入会覆盖。
+  - 模型、命中判断、撤销栈、校验在 `src/lib/groundEdit.ts`，有测试。校验照 can-db 的规则抄一份，改规则要改两处。
+  - 画法和机场图共用 `src/lib/groundStyle.ts`。
+  - `ground/source` 和 `ground.json` 不带 `unrestricted`（`hideNaip.ts` 的 `EDITOR_TARGET`）。
 
 `/datasets` 顶上的当前周期和下一周期（带生效日）对所有进得来的人显示。
 
 **门槛是 `canManage(aipAccess)`，即 `aipAccess === ACCESS_MANAGE`**（`src/lib/config.ts`）。
-两个页面在 frontmatter 里判，不满足时渲染 404 页；`datasets.astro` 按它决定渲不渲染管理列。
+三个页面在 frontmatter 里判，不满足时渲染 404 页；机场详情页按它决定渲不渲染编辑入口；`datasets.astro` 按它决定渲不渲染管理列。
 侧栏不变：两个新页面都挂在某一期下面，没有全局入口。
 
 **这一层不判写权限。** 写路由在 can-db 走 `withWrite`（5 级），克隆、行编辑、约束校验和修
@@ -500,11 +507,14 @@ JavaScript。**
 
 **反代白名单里的写条目**（`src/pages/api/v1/[...path].ts` 的 `ALLOW_PATTERNS`）：
 
-| 路径                                             | 方法                  | 谁用               |
-| ------------------------------------------------ | --------------------- | ------------------ |
-| `aip/datasets/{id}`                              | PATCH DELETE          | 修改门槛 / 删除    |
-| `aip/datasets/{id}/(activate\|supersede\|clone)` | POST                  | 生效 / 停用 / 复制 |
-| `aip/datasets/{id}/tables/{table}/rows`          | GET POST PATCH DELETE | 数据编辑器         |
+| 路径                                             | 方法                  | 谁用                        |
+| ------------------------------------------------ | --------------------- | --------------------------- |
+| `aip/datasets/{id}`                              | PATCH DELETE          | 修改门槛 / 删除             |
+| `aip/datasets/{id}/(activate\|supersede\|clone)` | POST                  | 生效 / 停用 / 复制          |
+| `aip/datasets/{id}/tables/{table}/rows`          | GET POST PATCH DELETE | 数据编辑器                  |
+| `aip/airports/{icao}/ground`                     | GET PUT               | 机场图 / 地面要素编辑器保存 |
+| `aip/airports/{icao}/ground/source`              | GET                   | 地面要素编辑器读取          |
+| `aip/airports/{icao}/ground.json`                | GET                   | 地面要素编辑器导出          |
 
 `{id}` 是 1–10 位数字，`{table}` 是 `[a-z_]{1,40}`。修订记录、登记表（`aip/tables`）和
 AIRAC 日历（`aip/airac`）由 frontmatter 经 `callDb` 取，**不在白名单上**。写方法照旧先过

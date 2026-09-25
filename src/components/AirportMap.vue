@@ -36,6 +36,11 @@ import { createTranslator } from "@/lib/i18n";
 import { api } from "@/lib/canDb";
 import { taxiwayLabels } from "@/lib/taxiwayLabels";
 import { defaultFeatureLayers } from "@/lib/groundDefaults";
+import {
+  FEATURE_ORDER,
+  FEATURE_STYLE,
+  FEATURE_FALLBACK,
+} from "@/lib/groundStyle";
 import type { AirportDetail, GroundData, Procedure } from "@/lib/canDb";
 import {
   TILES,
@@ -71,28 +76,6 @@ const showStands = ref(true);
 const showProc = ref<string>("");
 
 const showGround = ref(false);
-/** 各类要素的画法。跑道最显眼，机位最轻，其余居中。 */
-const FEATURE_STYLE: Record<string, { color: string; weight: number }> = {
-  runway: { color: "#e05252", weight: 3 },
-  taxiway: { color: "#4c92c1", weight: 1.6 },
-  apron: { color: "#5bbd8a", weight: 1.2 },
-  terminal: { color: "#9a8ac1", weight: 1.2 },
-  holding_position: { color: "#e0a252", weight: 2 },
-  parking_position: { color: "#8a8a8a", weight: 1 },
-  aerodrome: { color: "#8a8a8a", weight: 1 },
-};
-
-/** 类别按这个次序排，不按条数 —— 读的人按重要性找，不按多少找。 */
-const FEATURE_ORDER = [
-  "runway",
-  "taxiway",
-  "holding_position",
-  "parking_position",
-  "apron",
-  "terminal",
-  "aerodrome",
-];
-
 /**
  * 每一类一个开关。
  *
@@ -263,7 +246,7 @@ function drawFeatures() {
   if (!showGround.value || !ground.value) return;
   for (const f of ground.value.features) {
     if (!featureOn.value[f.kind]) continue;
-    const st = FEATURE_STYLE[f.kind] ?? { color: "#8a8a8a", weight: 1 };
+    const st = FEATURE_STYLE[f.kind] ?? FEATURE_FALLBACK;
     const tip =
       escapeHtml(f.name ?? f.kind) + (f.name ? ` · ${escapeHtml(f.kind)}` : "");
     // 单点的要素（等待位置、一部分机位）画成点，不是线 —— 折线要两个点才画得出来。

@@ -26,8 +26,12 @@ export const HIDE_NAIP_COOKIE = "can_hide_naip";
 /** 开关对谁显示：3 级及以上（控制台里是 4、5 级）。3 级以下 can-db 本来就不给 NAIP。 */
 export const HIDE_NAIP_MIN_ACCESS = 3;
 
-/** 数据编辑器那一层的 can-db 路由：行、修订记录、写操作。 */
-const EDITOR_TARGET = /^\/api\/v1\/aip\/datasets\/\d+\//;
+/**
+ * 编辑器那一层的 can-db 路由：数据编辑器的行、修订记录、写操作，以及地面要素编辑器的
+ * `ground/source` 和 `ground.json`（can-db 那边走 `withWrite`，压到 2 级就是 403）。
+ */
+const EDITOR_TARGET =
+  /^\/api\/v1\/aip\/(datasets\/\d+\/|airports\/[A-Za-z0-9]{4}\/ground(\/source|\.json)$)/;
 
 /** 数据编辑器那两页：它们的服务端读取也不带。 */
 const EDITOR_PAGE = /^\/datasets\/\d+\/(edit|revisions)\/?$/;

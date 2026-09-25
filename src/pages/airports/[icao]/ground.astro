@@ -1,0 +1,61 @@
+---
+import AppLayout from "@/layouts/AppLayout.astro";
+import PageHeader from "@/components/PageHeader.astro";
+import GroundEditor from "@/components/GroundEditor.vue";
+import { getLocale, getMessages, useTranslations } from "@/lib/i18n";
+import { callDb } from "@/server/canDb";
+import { canManage } from "@/lib/config";
+import type { AirportDetail } from "@/lib/canDb";
+
+/**
+ * 一个机场的地面要素编辑器 —— 只给 5 级「管理/编辑」。
+ *
+ * 别的级别拿到的是 404 页，和 `/datasets/[id]/edit` 一样。真正的写门槛在 can-db 的
+ * `withWrite`，这里只决定渲不渲染。
+ *
+ * 机场详情只取来定视野（参考点）和提示里的 FIR；要素由岛屿自己经反代取。
+ */
+if (!canManage(Astro.locals.user?.aipAccess ?? 0)) {
+  return Astro.rewrite("/404");
+}
+
+const icao = (Astro.params.icao ?? "").toUpperCase();
+if (!/^[A-Z0-9]{4}$/.test(icao)) return Astro.rewrite("/404");
+
+const result = await callDb<AirportDetail>(
+  Astro,
+  `/api/v1/aip/airports/${encodeURIComponent(icao)}`,
+);
+if (!result.ok || !result.data) return Astro.rewrite("/404");
+const airport = result.data;
+
+const locale = getLocale(Astro.cookies);
+const t = useTranslations(locale, "groundEditor");
+// 类别名和机场图共用一份（`airportMap.kind`），不在编辑器的命名空间里再抄一遍。
+const messages = {
+  ...getMessages(locale, "groundEditor"),
+  kind: getMessages(locale, "airportMap.kind"),
+};
+const backHref = `/airports/${encodeURIComponent(icao)}`;
+---
+
+<AppLayout title={t("title", { icao })}>
+  <div class="mx-auto w-full max-w-6xl">
+    <PageHeader
+      title={t("title", { icao })}
+      description={t("description")}
+      eyebrow={t("eyebrow")}
+      back={{ href: backHref, label: t("back") }}
+    />
+
+    <GroundEditor
+      client:only="vue"
+      messages={messages}
+      icao={airport.icao}
+      fir={airport.fir}
+      lat={airport.lat}
+      lon={airport.lon}
+      backHref={backHref}
+    />
+  </div>
+</AppLayout>
