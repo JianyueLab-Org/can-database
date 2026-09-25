@@ -631,7 +631,7 @@
     "namePlaceholder": "例：W9",
     "width": "幅 (m)",
     "widthPlaceholder": "空欄で未設定",
-    "widthInvalid": "幅は 0 より大きくしてください。",
+    "widthInvalid": "幅は 0 より大きい数にしてください。",
     "points": "{n} 点",
     "zoomTo": "表示",
     "deleteFeature": "要素を削除",

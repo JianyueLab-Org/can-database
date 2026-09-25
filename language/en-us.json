@@ -631,7 +631,7 @@
     "namePlaceholder": "e.g. W9",
     "width": "Width (m)",
     "widthPlaceholder": "Leave empty for none",
-    "widthInvalid": "Width must be greater than 0.",
+    "widthInvalid": "Width must be a number greater than 0.",
     "points": "{n} points",
     "zoomTo": "Zoom to",
     "deleteFeature": "Delete feature",

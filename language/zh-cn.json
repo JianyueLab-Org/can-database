@@ -631,7 +631,7 @@
     "namePlaceholder": "例如 W9",
     "width": "宽度 (m)",
     "widthPlaceholder": "留空表示不设",
-    "widthInvalid": "宽度必须大于 0。",
+    "widthInvalid": "宽度必须是大于 0 的数。",
     "points": "{n} 个点",
     "zoomTo": "定位",
     "deleteFeature": "删除要素",

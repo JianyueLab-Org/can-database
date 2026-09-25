@@ -434,7 +434,9 @@ function onMapClick(e: L.LeafletMouseEvent) {
     select(hitFeature(features.value, project, e.containerPoint, TOLERANCE));
     return;
   }
-  // 绘制：双击会先来两个 click，和上一点几乎重合的那一下不加。
+  // 绘制：双击会先来两个 click。单点要素第一下就画完了，第二下（detail ≥ 2）不再画一个；
+  // 其余类别和上一点几乎重合的那一下不加。
+  if (POINT_KINDS.has(drawKind.value) && e.originalEvent.detail > 1) return;
   const last = draft.value[draft.value.length - 1];
   if (last) {
     const p = project(last);
@@ -613,14 +615,23 @@ function onNameChange(e: Event) {
   if (next) apply(next);
 }
 
+/**
+ * 宽度框。type=number 的框里是「45e」这种不成数的字时 `value` 是空串，和清空一样 ——
+ * 所以先看 `validity.badInput`：不成数就报错、不改，不能当成「不填宽度」存成 null。
+ *
+ * 不收的值留在框里，错误说的就是框里的那个字；框里的字一动、或框按库里的值重建
+ * （换选中、撤销、别的改动），错误就撤掉。所以框绑的是 `defaultValue` 不是 `value`：
+ * Vue 每次重画都会把 `value` 写回去，报错那一下重画就把框里的字换回了库里的值；
+ * `defaultValue` 只在框新建时生效，框靠 `:key` 跟着库里的值重建。
+ */
 function onWidthChange(e: Event) {
   if (selected.value === null) return;
   const input = e.target as HTMLInputElement;
-  const raw = input.value.trim();
-  const value = raw === "" ? null : Number(raw);
-  const next = updateFeature(features.value, selected.value, {
-    width_m: value,
-  });
+  const next = input.validity.badInput
+    ? null
+    : updateFeature(features.value, selected.value, {
+        width_m: input.value.trim() === "" ? null : input.valueAsNumber,
+      });
   if (!next) {
     widthError.value = t("widthInvalid");
     return;
@@ -629,7 +640,11 @@ function onWidthChange(e: Event) {
   apply(next);
 }
 
-watch(selected, () => {
+function onWidthInput() {
+  widthError.value = "";
+}
+
+watch([selected, version], () => {
   widthError.value = "";
 });
 
@@ -1034,9 +1049,10 @@ watch([draft, cursor, drawKind, mode], drawDraft);
               min="0"
               step="any"
               inputmode="decimal"
-              :value="current.width_m ?? ''"
+              :defaultValue="current.width_m ?? ''"
               :placeholder="t('widthPlaceholder')"
               :aria-invalid="widthError ? 'true' : undefined"
+              @input="onWidthInput"
               @change="onWidthChange"
             />
             <p v-if="widthError" class="mt-1 text-xs text-danger" role="alert">

@@ -3,6 +3,7 @@ import {
   EditHistory,
   addFeature,
   canDeleteVertex,
+  closeRing,
   deleteFeature,
   deleteVertex,
   finishDraft,
@@ -206,6 +207,43 @@ describe("编辑操作", () => {
     expect(isClosedRing(poly!)).toBe(true);
     expect(finishDraft("taxiway", [[0, 0]])).toBeNull();
     expect(finishDraft("holding_position", [[0, 0]])?.points).toEqual([[0, 0]]);
+  });
+
+  test("改成面：和画完草稿闭出同样的环，一步撤销", () => {
+    const before = [line];
+    const after = updateFeature(before, 0, { kind: "apron" })!;
+    expect(after[0].points).toEqual(finishDraft("apron", line.points)!.points);
+    expect(isClosedRing(after[0])).toBe(true);
+    expect(line.points).toHaveLength(3);
+
+    const h = new EditHistory(before);
+    h.commit(after);
+    expect(h.undo()).toBe(before);
+  });
+
+  test("面换成另一种面：已经闭合，不再补点", () => {
+    const poly = f("apron", square);
+    const [t] = updateFeature([poly], 0, { kind: "terminal" })!;
+    expect(t.points).toBe(poly.points);
+  });
+
+  test("面改成线：点原样留着，改回面也不多补", () => {
+    const poly = f("apron", square);
+    const [tw] = updateFeature([poly], 0, { kind: "taxiway" })!;
+    expect(tw.points).toBe(poly.points);
+    expect(isClosedRing(tw)).toBe(false);
+    const [back] = updateFeature([tw], 0, { kind: "apron" })!;
+    expect(back.points).toEqual(square);
+  });
+
+  test("闭环：不到 3 个点不补，已闭合的原样返回", () => {
+    const two: LatLon[] = [
+      [0, 0],
+      [0, 1],
+    ];
+    expect(closeRing(two)).toBe(two);
+    expect(closeRing(square)).toBe(square);
+    expect(closeRing(square.slice(0, 4))).toEqual(square);
   });
 });
 

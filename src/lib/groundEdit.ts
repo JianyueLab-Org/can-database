@@ -84,6 +84,19 @@ export function isClosedRing(f: EditFeature): boolean {
   );
 }
 
+/**
+ * 把面的点闭成环：首尾不是同一个点时在尾部补上首点。不到 3 个点时不补 —— 两个点补成
+ * 三个点会凑够面的下限，校验就看不出这是一块没有面积的面了。
+ *
+ * 画完草稿和把类别改成面都走这里，两条路闭出来的环一样。
+ */
+export function closeRing(points: LatLon[]): LatLon[] {
+  if (points.length < 3 || samePoint(points[0], points[points.length - 1])) {
+    return points;
+  }
+  return [...points, points[0]];
+}
+
 /** 要画出把手的顶点下标：闭合环的尾点和首点是同一个，只给一个把手。 */
 export function handleIndices(f: EditFeature): number[] {
   const n = isClosedRing(f) ? f.points.length - 1 : f.points.length;
@@ -345,6 +358,10 @@ export function deleteFeature(
  *
  * 代号两侧的空白收掉，空串存成 null —— 「没有代号」只有一种写法。宽度必须大于 0，否则
  * 返回 null（调用方显示错误、不改）。
+ *
+ * 改成面时把环闭上，和画完草稿一样（`closeRing`），类别和补的点是同一步撤销。面改成线
+ * 时点原样留着：Ground 仓库里本来就有首尾相接的滑行道，去掉那个点就少了一条边，改回面
+ * 也补不回原来的样子。
  */
 export function updateFeature(
   features: EditFeature[],
@@ -357,6 +374,7 @@ export function updateFeature(
   if (patch.kind !== undefined) {
     if (!isKnownKind(patch.kind)) return null;
     next.kind = patch.kind;
+    if (isPolygonKind(next.kind)) next.points = closeRing(f.points);
   }
   if (patch.name !== undefined) {
     const name = patch.name?.trim() ?? "";
@@ -374,7 +392,8 @@ export function updateFeature(
   if (
     next.kind === f.kind &&
     next.name === f.name &&
-    next.width_m === f.width_m
+    next.width_m === f.width_m &&
+    next.points === f.points
   ) {
     return features;
   }
@@ -387,11 +406,9 @@ export function updateFeature(
  * 点数不够这一类的下限时返回 null。
  */
 export function finishDraft(kind: string, draft: LatLon[]): EditFeature | null {
-  const points = draft.map(roundCoord);
-  if (points.length < minPoints(kind)) return null;
-  if (isPolygonKind(kind) && !samePoint(points[0], points[points.length - 1])) {
-    points.push(points[0]);
-  }
+  const rounded = draft.map(roundCoord);
+  if (rounded.length < minPoints(kind)) return null;
+  const points = isPolygonKind(kind) ? closeRing(rounded) : rounded;
   return { kind, name: null, width_m: null, points };
 }
 
