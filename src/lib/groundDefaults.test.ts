@@ -9,6 +9,9 @@ const KINDS = [
   "apron",
   "terminal",
   "aerodrome",
+  "shoulder",
+  "runway_marking",
+  "taxiway_label",
 ];
 
 describe("defaultFeatureLayers", () => {
@@ -19,6 +22,13 @@ describe("defaultFeatureLayers", () => {
     expect(on.holding_position).toBe(true);
     expect(on.terminal).toBe(true);
     expect(on.aerodrome).toBe(true);
+  });
+
+  test("道肩、跑道标志、滑行道标注默认开", () => {
+    const on = defaultFeatureLayers(KINDS);
+    expect(on.shoulder).toBe(true);
+    expect(on.runway_marking).toBe(true);
+    expect(on.taxiway_label).toBe(true);
   });
 
   test("机位和跑道默认关", () => {

@@ -266,6 +266,35 @@ describe("校验", () => {
       { feature: 3, code: "coords" },
     ]);
   });
+
+  test("道肩、跑道标志是面，至少三点", () => {
+    const two: LatLon[] = [
+      [0, 0],
+      [0, 1],
+    ];
+    expect(validate([f("shoulder", two), f("runway_marking", two)])).toEqual([
+      { feature: 0, code: "points" },
+      { feature: 1, code: "points" },
+    ]);
+    expect(
+      validate([f("shoulder", square), f("runway_marking", square)]),
+    ).toEqual([]);
+  });
+
+  test("滑行道标注是一个点，必须有代号", () => {
+    expect(validate([f("taxiway_label", [[0, 0]], "W9")])).toEqual([]);
+    expect(
+      validate([
+        f("taxiway_label", [[0, 0]]),
+        f("taxiway_label", [[0, 0]], "  "),
+        f("taxiway_label", [], "A"),
+      ]),
+    ).toEqual([
+      { feature: 0, code: "name" },
+      { feature: 1, code: "name" },
+      { feature: 2, code: "points" },
+    ]);
+  });
 });
 
 describe("撤销 / 重做", () => {

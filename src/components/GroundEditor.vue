@@ -50,7 +50,13 @@ import {
   currentTheme,
   watchTheme,
 } from "@/lib/mapBase";
-import { FEATURE_FALLBACK, FEATURE_STYLE } from "@/lib/groundStyle";
+import {
+  FEATURE_FALLBACK,
+  FEATURE_STYLE,
+  LABEL_KINDS,
+  drawRank,
+} from "@/lib/groundStyle";
+import { escapeHtml } from "@/lib/mapBase";
 import {
   EditHistory,
   GROUND_KINDS,
@@ -220,10 +226,50 @@ function styleOf(kind: string) {
   return FEATURE_STYLE[kind] ?? FEATURE_FALLBACK;
 }
 
+/**
+ * 每个画序一层 pane，各带一块 canvas。
+ *
+ * `layers` 和 `features` 按下标对应，改一条只换那一层 —— 同一块 canvas 上后加的会压在
+ * 上面，画序就乱了。分 pane 后先后由 pane 的 z-index 定，和加的先后无关。pane 在
+ * overlayPane（400）之下，选中和草稿始终在要素上面。
+ */
+const renderers = new Map<number, { pane: string; canvas: L.Canvas }>();
+
+function paneFor(kind: string): { pane: string; canvas: L.Canvas } {
+  const rank = Math.floor(drawRank(kind));
+  let r = renderers.get(rank);
+  if (!r) {
+    const pane = `ground-${rank}`;
+    const m = map.value!;
+    if (!m.getPane(pane)) m.createPane(pane).style.zIndex = String(300 + rank);
+    r = { pane, canvas: L.canvas({ padding: 0.5, pane }) };
+    renderers.set(rank, r);
+  }
+  return r;
+}
+
 function layerFor(f: EditFeature): L.Layer {
   const st = styleOf(f.kind);
-  const common = { color: st.color, renderer: renderer!, interactive: false };
+  const { pane, canvas } = paneFor(f.kind);
+  const common = { color: st.color, renderer: canvas, interactive: false };
   const pts = f.points as L.LatLngExpression[];
+  // 滑行道标注只画字（和机场图一样）；还没填代号时画一个「?」，免得看不见。
+  if (LABEL_KINDS.has(f.kind) && f.points.length >= 1) {
+    const text = f.name?.trim() || "?";
+    return L.marker(pts[0], {
+      pane,
+      interactive: false,
+      keyboard: false,
+      icon: L.divIcon({
+        className: "can-map-icon",
+        html:
+          `<div class="can-fix" style="--can-fix-color:${st.color}">` +
+          `<span class="can-fix__name can-fix__name--always">${escapeHtml(text)}</span></div>`,
+        iconSize: [0, 0],
+        iconAnchor: [0, 0],
+      }),
+    });
+  }
   if (f.points.length === 1) {
     return L.circleMarker(pts[0], {
       ...common,
@@ -237,7 +283,7 @@ function layerFor(f: EditFeature): L.Layer {
       ...common,
       weight: st.weight,
       opacity: 0.85,
-      fillOpacity: 0.08,
+      fillOpacity: st.fillOpacity ?? 0.08,
     });
   }
   return L.polyline(pts, { ...common, weight: st.weight, opacity: 0.85 });

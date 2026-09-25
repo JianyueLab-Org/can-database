@@ -308,7 +308,10 @@
       "parking_position": "スポット",
       "apron": "エプロン",
       "terminal": "ターミナル",
-      "aerodrome": "空港境界"
+      "aerodrome": "空港境界",
+      "shoulder": "ショルダー",
+      "runway_marking": "滑走路標識",
+      "taxiway_label": "誘導路標示"
     },
     "taxiwayList": "誘導路名（{n}）",
     "runway": "滑走路",
@@ -646,6 +649,7 @@
     "issues": "{n} 件の問題",
     "issue": {
       "points": "点が不足",
+      "name": "名称がありません",
       "kind": "種別が無効",
       "width": "幅が無効",
       "coords": "座標が範囲外"

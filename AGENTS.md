@@ -471,6 +471,10 @@ JavaScript。**
 
 - 数据只有一份：扇区包手工做的地面要素（OSM 派生，来自 Ground 仓库）。
 - 返回 `{ icao, features, attribution }`。`features[]` 是 `{ kind, name?, widthM?, points }`，`points` 可以只有一个点。
+- `kind` 有十种：`taxiway`、`runway`（线，至少 2 点）；`holding_position`、`parking_position`（点）；`apron`、`terminal`、`aerodrome`、`shoulder`（道肩）、`runway_marking`（跑道标志）（面，至少 3 点）；`taxiway_label`（滑行道标注，一个点，`name` 必填）。
+- `shoulder`、`runway_marking` 的 `name`、`widthM` 通常为空。`taxiway_label` 是 OSM 导入里挂不到滑行道线上的代号。
+- 画法和画序在 `src/lib/groundStyle.ts`：`FEATURE_DRAW_ORDER` 定先后（场界 < 机坪 < 道肩 < 航站楼 < 滑行道 < 跑道 < 跑道标志 < 点和字）。道肩、跑道标志画成实心面；`taxiway_label` 只画字，样子和滑行道编号相同。
+- 编辑器按画序分 pane，改一条不会打乱先后。
 - 没有要素时接口回 404，图层显示「没有地面要素」。
 - 单独一条路由，勾上才发请求，取过一次就留着。
 - 画出要素时一直显示 `attribution`（ODbL）。

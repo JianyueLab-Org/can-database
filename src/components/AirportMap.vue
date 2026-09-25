@@ -41,6 +41,8 @@ import {
   FEATURE_ORDER,
   FEATURE_STYLE,
   FEATURE_FALLBACK,
+  LABEL_KINDS,
+  drawRank,
 } from "@/lib/groundStyle";
 import type { AirportDetail, GroundData, Procedure } from "@/lib/canDb";
 import {
@@ -245,9 +247,20 @@ function drawFeatures() {
   if (!layer) return;
   layer.clearLayers();
   if (!showGround.value || !ground.value) return;
-  for (const f of ground.value.features) {
-    if (!featureOn.value[f.kind]) continue;
+  // 按画序排：先加的压在底下（道肩在滑行道下，跑道标志在跑道上）。
+  const ordered = ground.value.features
+    .filter((f) => featureOn.value[f.kind])
+    .sort((a, b) => drawRank(a.kind) - drawRank(b.kind));
+  for (const f of ordered) {
     const st = FEATURE_STYLE[f.kind] ?? FEATURE_FALLBACK;
+    // 滑行道标注只有字：和滑行道编号同一个样子。
+    if (LABEL_KINDS.has(f.kind)) {
+      if (f.name && f.points.length) {
+        const [lat, lon] = f.points[0];
+        labelMarker(lat, lon, f.name, st.color).addTo(layer);
+      }
+      continue;
+    }
     const tip =
       escapeHtml(f.name ?? f.kind) + (f.name ? ` · ${escapeHtml(f.kind)}` : "");
     // 单点的要素（等待位置、一部分机位）画成点，不是线 —— 折线要两个点才画得出来。
@@ -259,6 +272,19 @@ function drawFeatures() {
         fillOpacity: 0.85,
       })
         .bindTooltip(tip, { direction: "top", offset: [0, -4] })
+        .addTo(layer);
+      continue;
+    }
+    // 有填充的面（道肩、跑道标志）画成实心多边形；其余的面照旧只描边。
+    if (st.fillOpacity !== undefined && f.points.length >= 3) {
+      L.polygon(f.points as L.LatLngExpression[], {
+        color: st.color,
+        weight: st.weight,
+        opacity: 0.85,
+        fillColor: st.color,
+        fillOpacity: st.fillOpacity,
+      })
+        .bindTooltip(tip, { sticky: true })
         .addTo(layer);
       continue;
     }

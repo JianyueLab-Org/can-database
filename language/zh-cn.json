@@ -308,7 +308,10 @@
       "parking_position": "机位",
       "apron": "机坪",
       "terminal": "航站楼",
-      "aerodrome": "场界"
+      "aerodrome": "场界",
+      "shoulder": "道肩",
+      "runway_marking": "跑道标志",
+      "taxiway_label": "滑行道标注"
     },
     "taxiwayList": "滑行道代号（{n}）",
     "runway": "跑道",
@@ -646,6 +649,7 @@
     "issues": "{n} 处问题",
     "issue": {
       "points": "点数不够",
+      "name": "缺少代号",
       "kind": "类别无效",
       "width": "宽度无效",
       "coords": "坐标越界"

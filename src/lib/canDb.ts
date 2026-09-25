@@ -562,7 +562,7 @@ export interface GroundData {
 }
 
 export interface GroundFeature {
-  /** taxiway / parking_position / holding_position / apron / terminal / runway / aerodrome */
+  /** taxiway / parking_position / holding_position / apron / terminal / runway / aerodrome / shoulder / runway_marking / taxiway_label */
   kind: string;
   /** 代号，例如滑行道的 `W9`。多数机位没有。 */
   name?: string;

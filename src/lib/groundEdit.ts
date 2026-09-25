@@ -35,8 +35,11 @@ export const GROUND_KINDS = [
   "runway",
   "holding_position",
   "parking_position",
+  "taxiway_label",
   "apron",
+  "shoulder",
   "terminal",
+  "runway_marking",
   "aerodrome",
 ] as const;
 
@@ -47,10 +50,18 @@ export const POLYGON_KINDS: ReadonlySet<string> = new Set([
   "apron",
   "terminal",
   "aerodrome",
+  "shoulder",
+  "runway_marking",
 ]);
 
 /** 单点要素：画一下就完成，不等回车。 */
-export const POINT_KINDS: ReadonlySet<string> = new Set(["holding_position"]);
+export const POINT_KINDS: ReadonlySet<string> = new Set([
+  "holding_position",
+  "taxiway_label",
+]);
+
+/** 必须带非空 `name` 的类别 —— 和 can-db 一致（`a taxiway_label needs a name`）。 */
+export const NAMED_KINDS: ReadonlySet<string> = new Set(["taxiway_label"]);
 
 /** 每一类至少几个点 —— 和 can-db 的校验一致。 */
 export function minPoints(kind: string): number {
@@ -416,7 +427,7 @@ export function finishDraft(kind: string, draft: LatLon[]): EditFeature | null {
    校验：照 can-db `PUT …/ground` 的规则。
 --------------------------------------------------------------------------- */
 
-export type IssueCode = "kind" | "points" | "width" | "coords";
+export type IssueCode = "kind" | "points" | "name" | "width" | "coords";
 
 export interface Issue {
   feature: number;
@@ -427,6 +438,7 @@ export function validateFeature(f: EditFeature): IssueCode[] {
   const out: IssueCode[] = [];
   if (!isKnownKind(f.kind)) out.push("kind");
   if (f.points.length < minPoints(f.kind)) out.push("points");
+  if (NAMED_KINDS.has(f.kind) && !f.name?.trim()) out.push("name");
   if (f.width_m !== null && !(Number.isFinite(f.width_m) && f.width_m > 0)) {
     out.push("width");
   }

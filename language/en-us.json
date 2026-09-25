@@ -308,7 +308,10 @@
       "parking_position": "Stand",
       "apron": "Apron",
       "terminal": "Terminal",
-      "aerodrome": "Aerodrome"
+      "aerodrome": "Aerodrome",
+      "shoulder": "Shoulder",
+      "runway_marking": "Runway marking",
+      "taxiway_label": "Taxiway label"
     },
     "taxiwayList": "Taxiway designators ({n})",
     "runway": "Runway",
@@ -646,6 +649,7 @@
     "issues": "{n} issues",
     "issue": {
       "points": "too few points",
+      "name": "name required",
       "kind": "invalid kind",
       "width": "invalid width",
       "coords": "coordinate out of range"
