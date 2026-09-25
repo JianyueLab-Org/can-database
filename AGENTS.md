@@ -492,6 +492,7 @@ JavaScript。**
 - **`/airports/[icao]/ground`**（`GroundEditor.vue`）：地面要素编辑器。入口是机场详情页「机场图」小节的按钮。
   - 读 `ground/source`；404 时从空白开始。其他失败不给编辑。
   - 保存是 `PUT ground`，整份替换。保存空集要确认。400 原样显示。
+  - 「导入 OSM」选一份 JOSM `.osm` 文件，先 `POST ground/osm?dry_run=1` 预览：按类别的条数、带代号的条数、未导入的元素、找不到要素的标注数。库里已有要素时写明「将覆盖现有 N 条要素」；有未保存的改动时写明会丢弃。确认后 `POST ground/osm?overwrite=1` 整份替换，再重新读取。失败和保存失败显示在同一处。请求在 `src/lib/canDb.ts` 的 `previewGroundOsm` / `importGroundOsm`。
   - 保存只进资料库。提示要求导出 `<ICAO>.json` 并提交到 `Ground/<FIR>/airports/`，否则下一次扇区地面导入会覆盖。
   - 模型、命中判断、撤销栈、校验在 `src/lib/groundEdit.ts`，有测试。校验照 can-db 的规则抄一份，改规则要改两处。
   - 画法和机场图共用 `src/lib/groundStyle.ts`。
@@ -517,7 +518,10 @@ JavaScript。**
 | `aip/datasets/{id}/tables/{table}/rows`          | GET POST PATCH DELETE | 数据编辑器                  |
 | `aip/airports/{icao}/ground`                     | GET PUT               | 机场图 / 地面要素编辑器保存 |
 | `aip/airports/{icao}/ground/source`              | GET                   | 地面要素编辑器读取          |
+| `aip/airports/{icao}/ground/osm`                 | POST                  | 地面要素编辑器导入 OSM      |
 | `aip/airports/{icao}/ground.json`                | GET                   | 地面要素编辑器导出          |
+
+`PUT ground` 和 `POST ground/osm` 的上游超时是 60 秒；请求 body 和 `content-type` 原样转发（OSM 导入是 `application/xml`）。
 
 `{id}` 是 1–10 位数字，`{table}` 是 `[a-z_]{1,40}`。修订记录、登记表（`aip/tables`）和
 AIRAC 日历（`aip/airac`）由 frontmatter 经 `callDb` 取，**不在白名单上**。写方法照旧先过

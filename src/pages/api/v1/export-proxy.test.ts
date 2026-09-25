@@ -181,12 +181,48 @@ test("handler preserves an allowed POST body and content type", async () => {
   }
 });
 
+test("OSM import forwards the XML body, content type and query unchanged", async () => {
+  let target: string | undefined;
+  let forwarded: RequestInit | undefined;
+  const fetchSpy = interceptFetch(async (input, init) => {
+    target = String(input);
+    forwarded = init;
+    return Response.json({ data: { icao: "ZBAA" } });
+  });
+  const xml =
+    '<?xml version="1.0"?>\n<osm version="0.6"><node id="-1" lat="40" lon="116"/></osm>';
+  try {
+    const response = await POST(
+      proxyContext(
+        new Request(
+          "https://console.example/api/v1/aip/airports/ZBAA/ground/osm?dry_run=1",
+          {
+            method: "POST",
+            headers: { origin: origin(), "content-type": "application/xml" },
+            body: xml,
+          },
+        ),
+        "aip/airports/ZBAA/ground/osm",
+      ),
+    );
+    expect(response.status).toBe(200);
+    expect(target).toEndWith("/api/v1/aip/airports/ZBAA/ground/osm?dry_run=1");
+    expect(new Headers(forwarded?.headers).get("content-type")).toBe(
+      "application/xml",
+    );
+    expect(await new Response(forwarded?.body).text()).toBe(xml);
+  } finally {
+    fetchSpy.mockRestore();
+  }
+});
+
 test("archive export uses the dedicated timeout", () => {
   expect(upstreamTimeout("aip/export")).toBe(120_000);
   expect(upstreamTimeout("aip/export/options")).toBe(15_000);
   expect(upstreamTimeout("aip/airports")).toBe(15_000);
   expect(upstreamTimeout("aip/airports/ZBAA/ground", "PUT")).toBe(60_000);
   expect(upstreamTimeout("aip/airports/ZBAA/ground")).toBe(15_000);
+  expect(upstreamTimeout("aip/airports/ZBAA/ground/osm", "POST")).toBe(60_000);
 });
 
 test("route deadlines still abort upstream when the client stays connected", async () => {

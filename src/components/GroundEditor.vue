@@ -37,7 +37,12 @@ import L from "leaflet";
 import { AlertBox, Dialog, Icon, Spinner } from "@jianyuelab-org/can-ui";
 import { createTranslator } from "@/lib/i18n";
 import { basemapControl } from "@/lib/mapMarkers";
-import { api } from "@/lib/canDb";
+import {
+  api,
+  importGroundOsm,
+  previewGroundOsm,
+  type GroundOsmPreview,
+} from "@/lib/canDb";
 import {
   loadBasemap,
   saveBasemap,
@@ -135,6 +140,15 @@ const confirmEmpty = ref(false);
 const confirmDiscard = ref(false);
 let leaving = false;
 
+/* OSM 导入：选文件 → dry_run 预览 → 确认 → overwrite=1 写入 → 重新 load()。 */
+const osmInput = ref<HTMLInputElement | null>(null);
+const osmPreview = shallowRef<GroundOsmPreview | null>(null);
+const osmFile = ref("");
+let osmXml = "";
+const confirmOsm = ref(false);
+const importing = ref(false);
+const importedCount = ref<number | null>(null);
+
 const issues = computed(() => validate(features.value));
 const issuesByFeature = computed(() => {
   const out = new Map<number, string[]>();
@@ -158,6 +172,7 @@ function apply(next: EditFeature[]) {
   features.value = history.current;
   version.value++;
   savedCount.value = null;
+  importedCount.value = null;
   saveError.value = "";
 }
 
@@ -549,7 +564,12 @@ function isTyping(target: EventTarget | null): boolean {
 }
 
 function onKeyDown(e: KeyboardEvent) {
-  if (loadState.value !== "ready" || confirmEmpty.value || confirmDiscard.value)
+  if (
+    loadState.value !== "ready" ||
+    confirmEmpty.value ||
+    confirmDiscard.value ||
+    confirmOsm.value
+  )
     return;
   if (isTyping(e.target)) return;
   const mod = e.metaKey || e.ctrlKey;
@@ -688,6 +708,7 @@ const listRows = computed(() => {
 async function save(confirmed = false) {
   saveError.value = "";
   savedCount.value = null;
+  importedCount.value = null;
   if (issues.value.length) {
     saveError.value = t("saveInvalid", { n: issues.value.length });
     select(issues.value[0].feature, true);
@@ -712,6 +733,72 @@ async function save(confirmed = false) {
   history.markSaved(snapshot);
   version.value++;
   savedCount.value = r.data?.count ?? snapshot.length;
+}
+
+function pickOsm() {
+  osmInput.value?.click();
+}
+
+async function onOsmPicked(e: Event) {
+  const input = e.target as HTMLInputElement;
+  const file = input.files?.[0];
+  // 清掉，否则再选同一个文件不触发 change。
+  input.value = "";
+  if (!file) return;
+  saveError.value = "";
+  savedCount.value = null;
+  importedCount.value = null;
+  importing.value = true;
+  let xml: string;
+  try {
+    xml = await file.text();
+  } catch {
+    importing.value = false;
+    saveError.value = t("osmReadFailed", { name: file.name });
+    return;
+  }
+  const r = await previewGroundOsm(props.icao, xml);
+  importing.value = false;
+  if (!r.ok) {
+    saveError.value = t("osmFailed", { message: r.message });
+    return;
+  }
+  osmXml = xml;
+  osmFile.value = file.name;
+  osmPreview.value = r.data;
+  confirmOsm.value = true;
+}
+
+const osmKinds = computed(() =>
+  Object.entries(osmPreview.value?.stats?.kinds ?? {}).sort(
+    (a, b) => b[1] - a[1],
+  ),
+);
+const osmSkipped = computed(() =>
+  Object.entries(osmPreview.value?.stats?.skipped ?? {}).sort(
+    (a, b) => b[1] - a[1],
+  ),
+);
+
+function cancelOsm() {
+  confirmOsm.value = false;
+  osmPreview.value = null;
+  osmXml = "";
+}
+
+async function confirmImportOsm() {
+  importing.value = true;
+  const r = await importGroundOsm(props.icao, osmXml, true);
+  importing.value = false;
+  if (!r.ok) {
+    confirmOsm.value = false;
+    saveError.value = t("osmFailed", { message: r.message });
+    return;
+  }
+  const count = r.data?.count ?? osmPreview.value?.features?.length ?? 0;
+  cancelOsm();
+  await load();
+  importedCount.value = count;
 }
 
 function leave() {
@@ -905,6 +992,24 @@ watch([draft, cursor, drawKind, mode], drawDraft);
           >
             {{ dirty ? t("unsaved") : t("allSaved") }}
           </span>
+          <input
+            ref="osmInput"
+            type="file"
+            accept=".osm,.xml"
+            class="hidden"
+            @change="onOsmPicked"
+          />
+          <button
+            type="button"
+            class="btn btn-secondary h-8 px-2.5 text-xs"
+            :disabled="loadState !== 'ready' || saving || importing"
+            :title="t('osmImportTitle')"
+            @click="pickOsm"
+          >
+            <Spinner v-if="importing" size="sm" />
+            <Icon v-else name="documentText" class="size-3.5" />
+            {{ importing ? t("osmImporting") : t("osmImport") }}
+          </button>
           <a
             :href="exportHref"
             class="btn btn-secondary h-8 px-2.5 text-xs"
@@ -1006,6 +1111,16 @@ watch([draft, cursor, drawKind, mode], drawDraft);
         :title="t('savedTitle', { n: savedCount })"
         dismissible
         @dismiss="savedCount = null"
+      >
+        {{ t("savedBody", { icao, fir: firLabel }) }}
+      </AlertBox>
+
+      <AlertBox
+        v-if="importedCount !== null"
+        variant="warning"
+        :title="t('osmImportedTitle', { n: importedCount })"
+        dismissible
+        @dismiss="importedCount = null"
       >
         {{ t("savedBody", { icao, fir: firLabel }) }}
       </AlertBox>
@@ -1202,6 +1317,85 @@ watch([draft, cursor, drawKind, mode], drawDraft);
           @click="save(true)"
         >
           {{ saving ? t("saving") : t("confirmEmpty") }}
+        </button>
+      </template>
+    </Dialog>
+
+    <Dialog
+      :open="confirmOsm"
+      :title="t('osmConfirmTitle', { icao })"
+      :description="t('osmConfirmFile', { name: osmFile })"
+      :dismissible="!importing"
+      size="md"
+      @update:open="(v: boolean) => (v ? (confirmOsm = true) : cancelOsm())"
+    >
+      <div v-if="osmPreview" class="flex flex-col gap-3 text-sm">
+        <p>
+          {{
+            t("osmConfirmCount", {
+              n: osmPreview.features?.length ?? 0,
+              named: osmPreview.stats?.named ?? 0,
+            })
+          }}
+        </p>
+        <ul
+          v-if="osmKinds.length"
+          class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs sm:grid-cols-3"
+        >
+          <li
+            v-for="[kind, n] in osmKinds"
+            :key="kind"
+            class="flex justify-between gap-2"
+          >
+            <span class="text-muted">{{ kindLabel(kind) }}</span>
+            <span class="tabular-nums">{{ n }}</span>
+          </li>
+        </ul>
+        <div v-if="osmSkipped.length" class="text-xs">
+          <p class="mb-1 text-muted">{{ t("osmSkipped") }}</p>
+          <ul class="flex flex-wrap gap-x-3 gap-y-1">
+            <li v-for="[key, n] in osmSkipped" :key="key">
+              <code>{{ key }}</code>
+              <span class="tabular-nums text-muted"> × {{ n }}</span>
+            </li>
+          </ul>
+        </div>
+        <p v-if="osmPreview.stats?.unmatched_labels" class="text-xs text-muted">
+          {{ t("osmUnmatched", { n: osmPreview.stats.unmatched_labels }) }}
+        </p>
+        <AlertBox v-if="osmPreview.existing > 0" variant="warning">
+          {{ t("osmOverwrite", { n: osmPreview.existing }) }}
+        </AlertBox>
+        <AlertBox v-if="dirty" variant="warning">
+          {{ t("osmDiscardLocal") }}
+        </AlertBox>
+      </div>
+      <template #footer>
+        <button
+          type="button"
+          class="btn btn-secondary"
+          :disabled="importing"
+          @click="cancelOsm"
+        >
+          {{ t("cancel") }}
+        </button>
+        <button
+          type="button"
+          :class="
+            osmPreview && (osmPreview.existing > 0 || dirty)
+              ? 'btn btn-danger'
+              : 'btn btn-primary'
+          "
+          :disabled="importing || !osmPreview?.features?.length"
+          @click="confirmImportOsm"
+        >
+          {{
+            importing
+              ? t("osmImporting")
+              : osmPreview && osmPreview.existing > 0
+                ? t("osmConfirmOverwrite")
+                : t("osmConfirm")
+          }}
         </button>
       </template>
     </Dialog>

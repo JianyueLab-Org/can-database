@@ -661,7 +661,22 @@
     "discardTitle": "Discard unsaved changes?",
     "discardBody": "These changes are lost once you leave.",
     "discard": "Discard and leave",
-    "keepEditing": "Keep editing"
+    "keepEditing": "Keep editing",
+    "osmImport": "Import OSM",
+    "osmImporting": "Importing…",
+    "osmImportTitle": "Import a JOSM .osm file, replacing all of this airport's ground features",
+    "osmReadFailed": "Could not read {name}.",
+    "osmFailed": "OSM import failed: {message}",
+    "osmConfirmTitle": "Import {icao}'s ground features from OSM?",
+    "osmConfirmFile": "File: {name}",
+    "osmConfirmCount": "{n} features will be imported, {named} of them named.",
+    "osmSkipped": "Elements not imported:",
+    "osmUnmatched": "{n} labels matched no feature and were dropped.",
+    "osmOverwrite": "This overwrites the {n} existing features.",
+    "osmDiscardLocal": "Unsaved changes in the editor will be discarded.",
+    "osmConfirm": "Import",
+    "osmConfirmOverwrite": "Overwrite and import",
+    "osmImportedTitle": "Imported from OSM into the database ({n} features)"
   },
   "basemap": {
     "canvas": "Map",

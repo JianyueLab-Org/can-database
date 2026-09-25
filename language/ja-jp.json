@@ -661,7 +661,22 @@
     "discardTitle": "未保存の変更を破棄しますか？",
     "discardBody": "離れるとこれらの変更は失われます。",
     "discard": "破棄して離れる",
-    "keepEditing": "編集を続ける"
+    "keepEditing": "編集を続ける",
+    "osmImport": "OSM を取り込む",
+    "osmImporting": "取り込み中…",
+    "osmImportTitle": "JOSM の .osm ファイルを取り込み、この空港の地上要素をすべて置き換えます",
+    "osmReadFailed": "{name} を読み込めませんでした。",
+    "osmFailed": "OSM の取り込みに失敗しました：{message}",
+    "osmConfirmTitle": "{icao} の地上要素を OSM から取り込みますか？",
+    "osmConfirmFile": "ファイル：{name}",
+    "osmConfirmCount": "{n} 件の要素を取り込みます（うち名称付き {named} 件）。",
+    "osmSkipped": "取り込まれない要素：",
+    "osmUnmatched": "{n} 件のラベルは対応する要素がなく、破棄されます。",
+    "osmOverwrite": "既存の {n} 件の要素を上書きします。",
+    "osmDiscardLocal": "エディタの未保存の変更は破棄されます。",
+    "osmConfirm": "取り込む",
+    "osmConfirmOverwrite": "上書きして取り込む",
+    "osmImportedTitle": "OSM からデータベースに取り込みました（{n} 件）"
   },
   "basemap": {
     "canvas": "地図",

@@ -116,6 +116,11 @@ export const ALLOW_PATTERNS: Array<Allowed & { test: RegExp }> = [
     who: "GroundEditor.vue —— 读原始精度的要素（404 = 这个机场还没有，从空白开始画）",
   },
   {
+    test: /^aip\/airports\/[A-Za-z0-9]{4}\/ground\/osm$/,
+    methods: ["POST"],
+    who: "GroundEditor.vue —— 导入 OSM（body 是 JOSM .osm XML；?dry_run=1 预览，?overwrite=1 覆盖；5 级）",
+  },
+  {
     test: /^aip\/airports\/[A-Za-z0-9]{4}\/ground\.json$/,
     methods: ["GET"],
     who: "GroundEditor.vue —— 导出 Ground 仓库格式的 <ICAO>.json",
@@ -188,10 +193,13 @@ const PASS_THROUGH = [
 
 /** 整个机场的地面要素一次替换：大场上千条，比一次普通读慢。 */
 const GROUND_PUT = /^aip\/airports\/[A-Za-z0-9]{4}\/ground$/;
+/** OSM 导入：解析几 MB 的 XML，再整份替换。 */
+const GROUND_OSM = /^aip\/airports\/[A-Za-z0-9]{4}\/ground\/osm$/;
 
 export function upstreamTimeout(rest: string, method = "GET"): number {
   if (rest === "aip/export") return 120_000;
   if (method === "PUT" && GROUND_PUT.test(rest)) return 60_000;
+  if (method === "POST" && GROUND_OSM.test(rest)) return 60_000;
   return 15_000;
 }
 
@@ -248,7 +256,8 @@ const handler: APIRoute = async (context) => {
   // 所以 `UNSAFE` 这个集合不是修饰，它是这条检查能收紧的前提。
   //
   // 走到这里的写操作：`POST auth/signout`（转给 can-api），和 5 级写界面的那几条
-  // （`ALLOW_PATTERNS` 里 `aip/datasets/{id}…` 开头的条目和 `PUT aip/airports/{icao}/ground`，
+  // （`ALLOW_PATTERNS` 里 `aip/datasets/{id}…` 开头的条目、`PUT aip/airports/{icao}/ground`
+  // 和 `POST aip/airports/{icao}/ground/osm`，
   // 转给 can-db，级别由它的 `withWrite` 判）。
   if (UNSAFE.has(method)) {
     const sent = context.request.headers.get("origin");

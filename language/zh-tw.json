@@ -661,7 +661,22 @@
     "discardTitle": "放棄未儲存的變更？",
     "discardBody": "離開之後這些變更就沒有了。",
     "discard": "放棄並離開",
-    "keepEditing": "繼續編輯"
+    "keepEditing": "繼續編輯",
+    "osmImport": "匯入 OSM",
+    "osmImporting": "正在匯入…",
+    "osmImportTitle": "從 JOSM 的 .osm 檔案匯入，整份覆蓋這個機場的地面要素",
+    "osmReadFailed": "讀取檔案 {name} 失敗。",
+    "osmFailed": "匯入 OSM 失敗：{message}",
+    "osmConfirmTitle": "從 OSM 匯入 {icao} 的地面要素？",
+    "osmConfirmFile": "檔案：{name}",
+    "osmConfirmCount": "將匯入 {n} 條要素，其中 {named} 條帶代號。",
+    "osmSkipped": "未匯入的元素：",
+    "osmUnmatched": "{n} 個標註找不到可掛的要素，已丟棄。",
+    "osmOverwrite": "將覆蓋現有 {n} 條要素。",
+    "osmDiscardLocal": "編輯器裡未儲存的改動會被丟棄。",
+    "osmConfirm": "匯入",
+    "osmConfirmOverwrite": "覆蓋並匯入",
+    "osmImportedTitle": "已從 OSM 匯入資料庫（{n} 條）"
   },
   "basemap": {
     "canvas": "地圖",

@@ -570,3 +570,76 @@ export interface GroundFeature {
   /** [纬, 经]。**可能只有一个点** —— 等待位置和一部分机位本来就是点。 */
   points: [number, number][];
 }
+
+/** `ground/source` 和 OSM 导入预览里的一条要素。字段名照 can-db 的 `aip.GroundSourceFeature`。 */
+export interface GroundSourceFeature {
+  kind: string;
+  name: string | null;
+  width_m: number | null;
+  /** [纬, 经]。 */
+  points: [number, number][];
+}
+
+/** 一次 OSM 转换的统计。字段名照 can-db 的 `aip.GroundOSMStats`。 */
+export interface GroundOsmStats {
+  /** 每类要素的条数。 */
+  kinds: Record<string, number>;
+  /** 带代号的要素条数。 */
+  named: number;
+  /** 没导入的元素，键是 `style=…` 或 `aeroway=…`。 */
+  skipped: Record<string, number>;
+  /** 找不到要素可挂的标注点。 */
+  unmatched_labels: number;
+}
+
+/** `POST .../ground/osm?dry_run=1` 的返回。 */
+export interface GroundOsmPreview {
+  icao: string;
+  /** 库里现有的要素条数。 */
+  existing: number;
+  features: GroundSourceFeature[];
+  stats: GroundOsmStats;
+}
+
+/** `POST .../ground/osm` 写入后的返回。 */
+export interface GroundOsmResult {
+  icao: string;
+  count: number;
+  stats: GroundOsmStats;
+}
+
+function groundOsmPath(icao: string, query: string): string {
+  const base = `/api/v1/aip/airports/${encodeURIComponent(icao)}/ground/osm`;
+  return query ? `${base}?${query}` : base;
+}
+
+/** 预览一份 JOSM `.osm` 导入的结果，不写库。 */
+export function previewGroundOsm(
+  icao: string,
+  xml: string,
+): Promise<ApiResult<GroundOsmPreview>> {
+  return api<GroundOsmPreview>(groundOsmPath(icao, "dry_run=1"), {
+    method: "POST",
+    headers: { "Content-Type": "application/xml" },
+    body: xml,
+  });
+}
+
+/**
+ * 用一份 JOSM `.osm` 整份替换一个机场的地面要素（5 级）。
+ * 不带 `overwrite` 时库里已有要素会得到 409。
+ */
+export function importGroundOsm(
+  icao: string,
+  xml: string,
+  overwrite: boolean,
+): Promise<ApiResult<GroundOsmResult>> {
+  return api<GroundOsmResult>(
+    groundOsmPath(icao, overwrite ? "overwrite=1" : ""),
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/xml" },
+      body: xml,
+    },
+  );
+}

@@ -115,7 +115,7 @@ describe("白名单自己", () => {
   });
 
   test("精确路径表里没有写方法", () => {
-    /* 写方法只在 `ALLOW_PATTERNS` 里 `aip/datasets/{id}…` 那几条和地面要素的 PUT 上（5 级写界面）。
+    /* 写方法只在 `ALLOW_PATTERNS` 里 `aip/datasets/{id}…` 那几条、地面要素的 PUT 和 OSM 导入的 POST 上（5 级写界面）。
      * 签退那条（POST）不在这张表里，它走 `AUTH_PATHS`、转给 can-api。 */
     const writes = Object.entries(ALLOW_LIST).filter(([, a]) =>
       a.methods.some((m) => m !== "GET"),
@@ -140,11 +140,14 @@ describe("白名单自己", () => {
     const writable = ALLOW_PATTERNS.filter((a) =>
       a.methods.some((m) => m !== "GET"),
     );
-    expect(writable).toHaveLength(4);
+    expect(writable).toHaveLength(5);
   });
 
-  test("地面要素编辑器的三条", () => {
+  test("地面要素编辑器的四条", () => {
     expect(lookup("aip/airports/ZBAA/ground")?.methods).toEqual(["GET", "PUT"]);
+    expect(lookup("aip/airports/ZBAA/ground/osm")?.methods).toEqual(["POST"]);
+    expect(lookup("aip/airports/ZBAA/ground/osm/1")).toBeUndefined();
+    expect(lookup("aip/airports/../ground/osm")).toBeUndefined();
     expect(lookup("aip/airports/ZBAA/ground/source")?.methods).toEqual(["GET"]);
     expect(lookup("aip/airports/ZBAA/ground.json")?.methods).toEqual(["GET"]);
     expect(lookup("aip/airports/ZBAA/groundxjson")).toBeUndefined();
