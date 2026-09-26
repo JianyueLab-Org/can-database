@@ -16,6 +16,7 @@ import {
   Toggle,
   type NavItem,
   type NavSecondary,
+  type SiteOrigins,
   type Workspace,
 } from "@jianyuelab-org/can-ui";
 import { api } from "@/lib/canDb";
@@ -36,6 +37,8 @@ const props = defineProps<{
   canHideNaip?: boolean;
   /** 开关的当前值，服务端从 cookie 读出来的，免得水合对不上。 */
   hideNaip?: boolean;
+  /** AppShell 自己的页脚（SiteFooter compact）也要照这份地址走，和分区切换器同一份 SITE_ORIGINS。 */
+  origins?: SiteOrigins;
 }>();
 
 const t = createTranslator(props.messages ?? {});
