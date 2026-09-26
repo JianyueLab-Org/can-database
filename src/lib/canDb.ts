@@ -42,7 +42,14 @@ export interface ApiFailure {
   column?: string;
 }
 export type ApiResult<T> =
-  { ok: true; data: T; licence: Licence | null } | ApiFailure;
+  | {
+      ok: true;
+      data: T;
+      licence: Licence | null;
+      /** 响应头 `X-Next-Cursor`：还有下一页时的游标（今天只有 `/aip/airports` 给）。 */
+      nextCursor: string | null;
+    }
+  | ApiFailure;
 
 /**
  * 调 can-db。
@@ -93,7 +100,12 @@ export async function api<T = unknown>(
 
   const data = "data" in body ? body.data : body;
   const licence = (body.licence as Licence | undefined) ?? null;
-  return { ok: true, data: data as T, licence };
+  return {
+    ok: true,
+    data: data as T,
+    licence,
+    nextCursor: response.headers.get("x-next-cursor"),
+  };
 }
 
 /* ---------------------------------------------------------------------------
@@ -372,8 +384,17 @@ export interface AirwayMeta {
  */
 export interface AirwaySegment {
   airway: string;
+  /**
+   * **图键，不是代号。** Navigraph 的行是 `ident@region/kind`（`AKAGI@RJ/waypoint`），
+   * 没对上的 NAIP 点是光秃秃的代号。它是 `AirwayGraph.fixes` 的键，也是这一段的身份：
+   * 两个同名的点是两个键。显示用 `fromIdent`/`toIdent`（`lib/viewport.ts` 的
+   * `segmentIdents`）。
+   */
   from: string;
   to: string;
+  /** 显示用的代号。老 can-db 不给，那时 `from`/`to` 本身就是代号。 */
+  fromIdent?: string;
+  toIdent?: string;
   /**
    * `both` | `forward`（只能 from→to）| `backward`（只能 to→from）。
    *
@@ -405,6 +426,7 @@ export interface AirwaySegment {
  * `AirwaySegment` / `AirwayMeta` 三个结构）。
  */
 export interface AirwayGraph {
+  /** 图键 → [lat, lon]。带 `bbox` 时只含和盒子相交的航段（任何高度层）的端点。 */
   fixes: Record<string, [number, number]>;
   /**
    * designator → 这条航路整体的属性。**这个站今天一个字段都没读**，写在这里是因为接口
@@ -548,6 +570,12 @@ export interface Fix {
   lat: number;
   lon: number;
   fir: string | null;
+  /**
+   * ICAO 区域码和点的种类，Navigraph 的行才有，其余是 null。一个 FIR 的清单里同一个代号
+   * 可以出现几次（NAIP 一行、Navigraph 区域里一行），靠这两列分开。老 can-db 不给。
+   */
+  region?: string | null;
+  pointKind?: string | null;
 }
 
 /**

@@ -74,7 +74,8 @@
     "summaryCounts": "{resources} resources, {pairs} files",
     "summaryScoped": "{count} of them limited to the airport scope",
     "licenceTitle": "Licence",
-    "licenceNote": "Every file in the archive carries its own licence (cycle, restriction, redistribution, attribution). Restricted data is for your own use only and must not be redistributed."
+    "licenceNote": "Every file in the archive carries its own licence (cycle, restriction, redistribution, attribution). Restricted data is for your own use only and must not be redistributed.",
+    "airportsTruncated": "{count} more not listed; narrow with search"
   },
   "frame": {
     "signOut": "Sign Out",
@@ -155,7 +156,7 @@
   "airports": {
     "title": "机场",
     "description": "{count} 个机场，来自当前生效的周期。",
-    "search": "Search ICAO, name or FIR…",
+    "search": "ICAO or name starts with…",
     "empty": "没有匹配的机场。",
     "icao": "ICAO",
     "fir": "FIR",
@@ -202,16 +203,25 @@
     "elevFt": "Elev ft",
     "noData": "No airport data was returned.",
     "clearFilters": "Clear filters",
-    "editGround": "Edit ground"
+    "editGround": "Edit ground",
+    "regionFilter": "Region",
+    "regionHint": "ZB",
+    "loadedCount": "{n} airports loaded, more to come",
+    "matchedCount": "{n} airports",
+    "loadMore": "Load more",
+    "loadingMore": "Loading…",
+    "moreHint": "Sorted by ICAO; more follow.",
+    "partialSort": "Sorting covers the loaded rows only; more follow.",
+    "exportAll": "Full export →"
   },
   "map": {
     "title": "Map",
-    "description": "233 airports coloured by FIR; overlay the network's 569 sectors, the airway graph, and — once a FIR is picked — its fixes.",
+    "description": "Airports coloured by FIR, loaded for the view; overlay the network's sectors, the airway graph, and — once a FIR is picked — its fixes.",
     "empty": "No active dataset, so there is nothing to draw.",
     "allFirs": "All",
     "layerAirways": "Airways",
     "layerFixes": "Fixes",
-    "fixesNeedFir": "Pick a FIR first — all 15,278 fixes at once reads as noise.",
+    "fixesNeedFir": "Pick a FIR first — every fix at once reads as noise.",
     "loadingAirways": "Loading airways…",
     "loadingFixes": "Loading fixes…",
     "open": "Open airport",
@@ -238,7 +248,11 @@
     "legendUnresolved": "Faint package fill: not resolved yet — enter online callsigns first",
     "legendOwned": "Owner-coloured fill: covered (coloured by the owning position)",
     "legendUncovered": "Red dashed, no fill: uncovered — nobody on the chain is online",
-    "shownOfTotal": "{n} of {total} airports on the map"
+    "shownOfTotal": "{n} of {total} airports on the map",
+    "loadingAirports": "Loading airports…",
+    "airwaysNeedZoom": "Zoom to level {n} or closer to draw airways.",
+    "airportsNeedZoom": "Zoom to level {n} or closer to draw airports, or pick a FIR.",
+    "airportsCapped": "Too many airports in view; {n} drawn — zoom in to see all."
   },
   "route": {
     "title": "Route planner",
@@ -326,7 +340,7 @@
   },
   "fixes": {
     "title": "航路点",
-    "description": "按 FIR 浏览。**一个代号只在一个 FIR 内唯一** —— 全网有 267 个代号指向不止一个点，所以这里必须先选 FIR。",
+    "description": "Browse by FIR. **Identifiers are not unique** — one identifier can be several points, so pick a FIR first; rows sharing an identifier in a FIR differ by region and kind.",
     "pick": "选一个 FIR",
     "count": "{count} 个航路点",
     "empty": "这个 FIR 没有航路点。",
@@ -342,7 +356,9 @@
     "pickHint": "One identifier can be different points in different FIRs, so pick a FIR above first.",
     "noFirs": "No FIR list was returned.",
     "loadError": "Could not load fixes",
-    "clearSearch": "Clear search"
+    "clearSearch": "Clear search",
+    "region": "Region",
+    "pointKind": "Kind"
   },
   "datasets": {
     "title": "数据集",

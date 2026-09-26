@@ -46,6 +46,14 @@ const shown = computed(() => {
     );
 });
 
+/**
+ * 一次最多列多少个。全库约 1.5 万个机场，全列出来是几万个节点；搜索框收窄，省略的数量
+ * 写在下面。
+ */
+const RENDER_CAP = 300;
+const rendered = computed(() => shown.value.slice(0, RENDER_CAP));
+const hidden = computed(() => shown.value.length - rendered.value.length);
+
 const selectedList = computed(() => [...props.selected].sort());
 
 /** 搜索词筛出来、还没选上的那几个 —— 「全选筛出的」只加不减。 */
@@ -213,7 +221,7 @@ function onSearchKeydown(event: KeyboardEvent) {
       <ul
         class="scroll-shadow-y grid max-h-72 gap-x-3 overflow-y-auto rounded-control border border-subtle p-1.5 sm:grid-cols-2 lg:grid-cols-3"
       >
-        <li v-for="airport in shown" :key="airport.icao">
+        <li v-for="airport in rendered" :key="airport.icao">
           <label
             :for="`export-airport-${airport.icao}`"
             class="flex min-h-8 cursor-pointer items-center gap-2 rounded-control px-2 hover:bg-surface-sunken"
@@ -238,6 +246,9 @@ function onSearchKeydown(event: KeyboardEvent) {
         {{
           t("airportsShown", { shown: shown.length, total: airports.length })
         }}
+        <template v-if="hidden">
+          · {{ t("airportsTruncated", { count: hidden }) }}</template
+        >
       </p>
     </template>
   </fieldset>

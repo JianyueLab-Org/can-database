@@ -26,6 +26,7 @@ import { AlertBox, EmptyState, Skeleton } from "@jianyuelab-org/can-ui";
 import { createTranslator } from "@/lib/i18n";
 import { firColor } from "@/lib/mapBase";
 import { api, type Fix, type Licence } from "@/lib/canDb";
+import { fixRowKey } from "@/lib/viewport";
 import { useQueryState } from "@/composables/useQueryState";
 import ExportButton from "@/components/ExportButton.vue";
 import SearchField from "@/components/ui/SearchField.vue";
@@ -188,14 +189,26 @@ const ready = computed(
           <thead>
             <tr>
               <th>{{ t("ident") }}</th>
+              <th>{{ t("region") }}</th>
+              <th>{{ t("pointKind") }}</th>
               <th class="text-right">{{ t("lat") }}</th>
               <th class="text-right">{{ t("lon") }}</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="f in shown" :key="f.ident + f.lat + f.lon">
+            <!-- 代号不唯一：同一 FIR 里可以有 NAIP 一行和 Navigraph 区域里一行。key 带上区域、
+                 种类和坐标。 -->
+            <tr v-for="f in shown" :key="fixRowKey(f)">
               <td :data-label="t('ident')" class="font-mono font-semibold">
                 {{ f.ident }}
+              </td>
+              <td :data-label="t('region')" class="font-mono text-xs">
+                <span v-if="f.region">{{ f.region }}</span>
+                <span v-else class="text-faint">—</span>
+              </td>
+              <td :data-label="t('pointKind')" class="text-xs text-muted">
+                <span v-if="f.pointKind">{{ f.pointKind }}</span>
+                <span v-else class="text-faint">—</span>
               </td>
               <td :data-label="t('lat')" class="tnum text-right text-muted">
                 {{ f.lat.toFixed(4) }}

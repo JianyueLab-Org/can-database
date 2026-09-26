@@ -74,7 +74,8 @@
     "summaryCounts": "{resources} リソース、{pairs} ファイル",
     "summaryScoped": "うち {count} 件は空港範囲で出力",
     "licenceTitle": "ライセンス",
-    "licenceNote": "アーカイブ内の各ファイルに独自のライセンス情報（サイクル、制限、再配布可否、帰属表示）が含まれます。制限付きデータは本人の利用に限り、再配布できません。"
+    "licenceNote": "アーカイブ内の各ファイルに独自のライセンス情報（サイクル、制限、再配布可否、帰属表示）が含まれます。制限付きデータは本人の利用に限り、再配布できません。",
+    "airportsTruncated": "ほか {count} 件は未表示。検索で絞り込んでください"
   },
   "frame": {
     "signOut": "ログアウト",
@@ -155,7 +156,7 @@
   "airports": {
     "title": "机场",
     "description": "{count} 个机场，来自当前生效的周期。",
-    "search": "ICAO・名称・FIR で検索…",
+    "search": "ICAO・名称の先頭で検索…",
     "empty": "没有匹配的机场。",
     "icao": "ICAO",
     "fir": "FIR",
@@ -202,16 +203,25 @@
     "elevFt": "標高 ft",
     "noData": "空港データを取得できませんでした。",
     "clearFilters": "絞り込みを解除",
-    "editGround": "地上要素を編集"
+    "editGround": "地上要素を編集",
+    "regionFilter": "地域コード",
+    "regionHint": "ZB",
+    "loadedCount": "{n} 空港を読み込み済み（続きあり）",
+    "matchedCount": "{n} 空港",
+    "loadMore": "さらに読み込む",
+    "loadingMore": "読み込み中…",
+    "moreHint": "ICAO 順。続きがあります。",
+    "partialSort": "並べ替えは読み込み済みの行だけが対象です。続きがあります。",
+    "exportAll": "全件エクスポート →"
   },
   "map": {
     "title": "地図",
-    "description": "233 空港を FIR 別に色分け。本ネットワークの 569 セクター、エンルート網、FIR を選ぶとその FIX を重ねられます。",
+    "description": "空港を FIR 別に色分けし、表示範囲ごとに取得。本ネットワークのセクター、エンルート網、FIR を選ぶとその FIX を重ねられます。",
     "empty": "有効なデータセットがないため、描画するものがありません。",
     "allFirs": "すべて",
     "layerAirways": "航空路",
     "layerFixes": "FIX",
-    "fixesNeedFir": "まず FIR を選んでください —— 全 15278 点を一度に描くと読み取れません。",
+    "fixesNeedFir": "まず FIR を選んでください —— 全 FIX を一度に描くと読み取れません。",
     "loadingAirways": "航空路を取得中…",
     "loadingFixes": "FIX を取得中…",
     "open": "空港を開く",
@@ -238,7 +248,11 @@
     "legendUnresolved": "パッケージ色の薄い塗り：未解決 —— 先にオンラインのコールサインを入力",
     "legendOwned": "担当色の塗り：担当あり（担当席で色分け）",
     "legendUncovered": "赤の破線・塗りなし：担当なし —— チェーン上の誰もオンラインではありません",
-    "shownOfTotal": "地図上の空港 {n} / {total}"
+    "shownOfTotal": "地図上の空港 {n} / {total}",
+    "loadingAirports": "空港を取得中…",
+    "airwaysNeedZoom": "航空路はズーム {n} 以上で表示します。",
+    "airportsNeedZoom": "空港はズーム {n} 以上で表示します（または FIR を選択）。",
+    "airportsCapped": "表示範囲の空港が多すぎるため {n} 件のみ表示 —— ズームインしてください。"
   },
   "route": {
     "title": "ルートプランナー",
@@ -326,7 +340,7 @@
   },
   "fixes": {
     "title": "航路点",
-    "description": "按 FIR 浏览。**一个代号只在一个 FIR 内唯一** —— 全网有 267 个代号指向不止一个点，所以这里必须先选 FIR。",
+    "description": "FIR ごとに閲覧。**識別子は一意ではありません** —— 同じ識別子が複数の地点を指すことがあるため、まず FIR を選びます。FIR 内の同名の行は地域コードと種別で区別します。",
     "pick": "选一个 FIR",
     "count": "{count} 个航路点",
     "empty": "这个 FIR 没有航路点。",
@@ -342,7 +356,9 @@
     "pickHint": "同じ識別子でも FIR が違えば別の地点のことがあります。まず上で FIR を選んでください。",
     "noFirs": "FIR 一覧を取得できませんでした。",
     "loadError": "ウェイポイントを読み込めませんでした",
-    "clearSearch": "検索を解除"
+    "clearSearch": "検索を解除",
+    "region": "地域コード",
+    "pointKind": "種別"
   },
   "datasets": {
     "title": "数据集",

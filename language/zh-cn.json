@@ -74,7 +74,8 @@
     "summaryCounts": "{resources} 项资源，{pairs} 个文件",
     "summaryScoped": "其中 {count} 项按机场范围导出",
     "licenceTitle": "许可",
-    "licenceNote": "压缩包里每个文件都带着自己的许可信息（周期、是否受限、可否再分发、署名）。受限资料仅供你本人使用，不得再分发。"
+    "licenceNote": "压缩包里每个文件都带着自己的许可信息（周期、是否受限、可否再分发、署名）。受限资料仅供你本人使用，不得再分发。",
+    "airportsTruncated": "还有 {count} 个没有列出，用搜索框收窄"
   },
   "frame": {
     "signOut": "退出登录",
@@ -155,7 +156,7 @@
   "airports": {
     "title": "机场",
     "description": "{count} 个机场，来自当前生效的周期。",
-    "search": "搜索 ICAO、名称或 FIR…",
+    "search": "搜索 ICAO 或名称开头…",
     "empty": "没有匹配的机场。",
     "icao": "ICAO",
     "fir": "FIR",
@@ -202,16 +203,25 @@
     "elevFt": "标高 ft",
     "noData": "没有取到机场数据。",
     "clearFilters": "清除筛选",
-    "editGround": "编辑地面要素"
+    "editGround": "编辑地面要素",
+    "regionFilter": "区域码",
+    "regionHint": "ZB",
+    "loadedCount": "已载入 {n} 个机场，还有更多",
+    "matchedCount": "{n} 个机场",
+    "loadMore": "载入更多",
+    "loadingMore": "正在载入…",
+    "moreHint": "按 ICAO 排序，后面还有。",
+    "partialSort": "排序只作用于已载入的行，后面还有。",
+    "exportAll": "完整导出 →"
   },
   "map": {
     "title": "地图",
-    "description": "全网 233 个机场按 FIR 着色；可叠加本网划的 569 块扇区、航路网，选中一个 FIR 后可叠加它的航路点。",
+    "description": "机场按 FIR 着色，按视野取；可叠加本网划的扇区、航路网，选中一个 FIR 后可叠加它的航路点。",
     "empty": "还没有生效的数据集，图上没有东西可画。",
     "allFirs": "全部",
     "layerAirways": "航路网",
     "layerFixes": "航路点",
-    "fixesNeedFir": "先选一个 FIR —— 全网 15278 个航路点画上去读不出任何东西。",
+    "fixesNeedFir": "先选一个 FIR —— 全网的航路点画上去读不出任何东西。",
     "loadingAirways": "正在取航路网…",
     "loadingFixes": "正在取航路点…",
     "open": "打开机场",
@@ -238,7 +248,11 @@
     "legendUnresolved": "包色淡填充：还没解析 —— 先输入在线呼号",
     "legendOwned": "归属色填充：有人管（按归属席位上色）",
     "legendUncovered": "红色虚线、不填充：没人管 —— 链上一个都不在线",
-    "shownOfTotal": "图上 {n} / {total} 个机场"
+    "shownOfTotal": "图上 {n} / {total} 个机场",
+    "loadingAirports": "正在取机场…",
+    "airwaysNeedZoom": "放大到 {n} 级以上才画航路网。",
+    "airportsNeedZoom": "放大到 {n} 级以上才画机场，或选一个 FIR。",
+    "airportsCapped": "视野内机场太多，只画了 {n} 个 —— 放大看全。"
   },
   "route": {
     "title": "航路生成器",
@@ -326,7 +340,7 @@
   },
   "fixes": {
     "title": "航路点",
-    "description": "按 FIR 浏览。**一个代号只在一个 FIR 内唯一** —— 全网有 267 个代号指向不止一个点，所以这里必须先选 FIR。",
+    "description": "按 FIR 浏览。**代号不唯一** —— 同一个代号可能是几个点，所以这里必须先选 FIR；FIR 里同名的几行按区域码和种类区分。",
     "pick": "选一个 FIR",
     "count": "{count} 个航路点",
     "empty": "这个 FIR 没有航路点。",
@@ -342,7 +356,9 @@
     "pickHint": "同一个代号在不同 FIR 里可能是不同的点，所以先在上面选一个 FIR。",
     "noFirs": "没有取到 FIR 清单。",
     "loadError": "航路点载入失败",
-    "clearSearch": "清除搜索"
+    "clearSearch": "清除搜索",
+    "region": "区域码",
+    "pointKind": "种类"
   },
   "datasets": {
     "title": "数据集",

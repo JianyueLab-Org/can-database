@@ -5,16 +5,15 @@ import NetworkMap from "@/components/NetworkMap.vue";
 import EmptyState from "@jianyuelab-org/can-ui/components/EmptyState.vue";
 import { getLocale, getMessages, useTranslations } from "@/lib/i18n";
 import { callDb } from "@/server/canDb";
-import type { AirportSummary } from "@/lib/canDb";
+import type { Overview } from "@/lib/canDb";
 
 /**
  * 全网图。
  *
- * 机场清单在服务端取好当 prop 传进去，而不是让岛屿自己再跑一趟：这一页开门见山就是
- * 一张画着 233 个点的图，先渲染一个空框再去取数据，等于把整个首屏押在一次往返上。
- * 航路网和航路点是点开才取的，理由写在岛屿里。
+ * 机场、航路网都由岛屿按视野（或按 FIR）取，见 `NetworkMap.vue` 抬头。这里只取 FIR
+ * 清单和全库机场数（`/aip/overview`，「全部」那一格的数和空库判断）。
  *
- * FIR 清单同样是 can-db 给的（`/aip/firs`），不是从机场里推的 —— 和 /fixes 一致。
+ * FIR 清单是 can-db 给的（`/aip/firs`），不是从机场里推的 —— 和 /fixes 一致。
  */
 const locale = getLocale(Astro.cookies);
 const t = useTranslations(locale, "map");
@@ -23,11 +22,13 @@ const messages = {
   basemap: getMessages(locale, "basemap"),
 };
 
-const [airportsResult, firsResult] = await Promise.all([
-  callDb<AirportSummary[]>(Astro, "/api/v1/aip/airports"),
+const [overviewResult, firsResult] = await Promise.all([
+  callDb<Overview>(Astro, "/api/v1/aip/overview"),
   callDb<string[]>(Astro, "/api/v1/aip/firs"),
 ]);
-const airports = airportsResult.ok ? (airportsResult.data ?? []) : [];
+const total = overviewResult.ok
+  ? (overviewResult.data?.airports ?? null)
+  : null;
 const firs = firsResult.ok ? (firsResult.data ?? []) : [];
 
 // `/map?fir=ZGZU` 是从航路点页链过来的。**在服务端就对着已知 FIR 列表校验**，而不是
@@ -42,14 +43,14 @@ const initialFir =
     <PageHeader title={t("title")} description={t("description")} />
 
     {
-      airports.length === 0 ? (
+      total === 0 ? (
         <div class="card">
           <EmptyState icon="map" title={t("empty")} />
         </div>
       ) : (
         <NetworkMap
           messages={messages}
-          airports={airports}
+          total={total}
           firs={firs}
           initialFir={initialFir}
           client:only="vue"

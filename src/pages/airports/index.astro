@@ -4,7 +4,8 @@ import PageHeader from "@/components/PageHeader.astro";
 import Airports from "@/components/Airports.vue";
 import { getLocale, getMessages, useTranslations } from "@/lib/i18n";
 import { callDb } from "@/server/canDb";
-import type { AirportSummary } from "@/lib/canDb";
+import type { AirportSummary, Overview } from "@/lib/canDb";
+import { AIRPORT_PAGE, REGION_PATTERN, airportsQuery } from "@/lib/viewport";
 
 const locale = getLocale(Astro.cookies);
 const t = useTranslations(locale, "airports");
@@ -20,20 +21,48 @@ const exportDict = {
   export: getMessages(locale, "export"),
 };
 
-const result = await callDb<AirportSummary[]>(Astro, "/api/v1/aip/airports");
+/**
+ * 第一页在这里取，用地址栏上的同一组筛选（岛屿挂载后读到的也是这一组，不会再取一次）。
+ * 不认识的 FIR 和格式不对的区域码当没传。
+ */
+const [firsResult, overviewResult] = await Promise.all([
+  callDb<string[]>(Astro, "/api/v1/aip/firs"),
+  callDb<Overview>(Astro, "/api/v1/aip/overview"),
+]);
+const firs = firsResult.ok ? (firsResult.data ?? []) : [];
+const params = Astro.url.searchParams;
+const requestedFir = params.get("fir") ?? "";
+const requestedRegion = (params.get("region") ?? "").trim().toUpperCase();
+const initialFilters = {
+  q: (params.get("q") ?? "").trim(),
+  fir: firs.includes(requestedFir) ? requestedFir : "",
+  region: REGION_PATTERN.test(requestedRegion) ? requestedRegion : "",
+};
+
+const result = await callDb<AirportSummary[]>(
+  Astro,
+  `/api/v1/aip/airports?${airportsQuery({ ...initialFilters, limit: AIRPORT_PAGE })}`,
+);
 const airports = result.ok ? (result.data ?? []) : [];
+const total = overviewResult.ok
+  ? (overviewResult.data?.airports ?? null)
+  : null;
 ---
 
 <AppLayout title={t("title")}>
   <div class="mx-auto w-full max-w-6xl">
     <PageHeader
       title={t("title")}
-      description={t("description", { count: airports.length })}
+      description={t("description", { count: total ?? airports.length })}
     />
 
     <Airports
       messages={messages}
       airports={airports}
+      nextCursor={result.nextCursor ?? null}
+      total={total}
+      firs={firs}
+      initialFilters={initialFilters}
       licence={result.licence}
       exportMessages={exportDict}
       client:load

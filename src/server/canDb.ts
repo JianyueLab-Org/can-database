@@ -28,6 +28,8 @@ export interface ServerResult<T> {
   data: T | null;
   /** can-db 给的许可说明；老版本 can-db 没有这个字段，那就是 null。 */
   licence: Licence | null;
+  /** 响应头 `X-Next-Cursor`，还有下一页时才有。 */
+  nextCursor?: string | null;
   error?: string;
   message?: string;
 }
@@ -86,5 +88,6 @@ export async function callDb<T = unknown>(
     status: response.status,
     data: (data ?? null) as T | null,
     licence,
+    nextCursor: response.headers.get("x-next-cursor"),
   };
 }

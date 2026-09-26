@@ -285,6 +285,18 @@ test("export response forwards disposition", () => {
   );
 });
 
+test("airport list response forwards the next-page cursor", () => {
+  const headers = passThroughHeaders(
+    new Headers({
+      "content-type": "application/json",
+      "x-next-cursor": "WkJBQQ",
+      "x-internal": "no",
+    }),
+  );
+  expect(headers.get("x-next-cursor")).toBe("WkJBQQ");
+  expect(headers.get("x-internal")).toBeNull();
+});
+
 test("dataset DELETE is forwarded with origin and without unrestricted", async () => {
   let target = "";
   let forwarded: RequestInit | undefined;
