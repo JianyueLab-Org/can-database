@@ -66,7 +66,10 @@ export const ALLOW_LIST: Record<string, Allowed> = {
   "aip/export/options": { methods: ["GET"], who: "Export.vue —— 导出选项" },
   // Export.vue —— ZIP 资料包下载
   "aip/export": { methods: ["GET"], who: "Export.vue —— ZIP 资料包下载" },
-  "aip/airports": { methods: ["GET"], who: "Airports.vue —— 机场清单" },
+  "aip/airports": {
+    methods: ["GET"],
+    who: "Airports.vue —— 机场清单（q/fir/region + limit/cursor 翻页）；NetworkMap.vue —— 视野内（bbox）或某个 FIR 的机场；DatasetExport.vue —— 导出范围",
+  },
   "aip/fixes": {
     methods: ["GET"],
     who: "Fixes.vue —— 按 FIR 浏览航路点；NetworkMap.vue —— 选中 FIR 后的航路点图层",
@@ -77,7 +80,7 @@ export const ALLOW_LIST: Record<string, Allowed> = {
   },
   "aip/airways": {
     methods: ["GET"],
-    who: "NetworkMap.vue —— 航路网图层（点开才取，取一次留着）",
+    who: "NetworkMap.vue —— 航路网图层（按视野 bbox 取）",
   },
   "aip/sectors/network": {
     methods: ["GET"],
@@ -189,6 +192,8 @@ const PASS_THROUGH = [
   "content-disposition",
   "cache-control",
   "set-cookie",
+  // `/aip/airports` 的下一页游标。
+  "x-next-cursor",
 ];
 
 /** 整个机场的地面要素一次替换：大场上千条，比一次普通读慢。 */

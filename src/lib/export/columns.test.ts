@@ -153,6 +153,8 @@ const SAMPLE_ROWS: Record<string, unknown> = {
     lat: 40.0,
     lon: 116.0,
     fir: "ZBAA",
+    region: "ZB",
+    pointKind: "waypoint",
   },
   positions: {
     callsign: "ZBAA_TWR",

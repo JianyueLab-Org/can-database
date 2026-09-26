@@ -125,6 +125,8 @@ export const TABLES: Record<string, TableSpec<any>> = {
       { headerKey: "airports.lat", get: (r) => r.lat },
       { headerKey: "airports.lon", get: (r) => r.lon },
       { headerKey: "airports.fir", get: (r) => r.fir },
+      { headerKey: "fixes.region", get: (r) => r.region ?? null },
+      { headerKey: "fixes.pointKind", get: (r) => r.pointKind ?? null },
     ],
     geometry: { kind: "point", at: (r) => [r.lon, r.lat] },
   },

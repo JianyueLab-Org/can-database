@@ -1,15 +1,22 @@
 <script setup lang="ts">
 /**
- * 全网图：233 个机场，可选叠加航路网和某个 FIR 的航路点。
+ * 全网图：机场，可选叠加航路网和某个 FIR 的航路点。
  *
- * ## 三层数据，三种取法，而这不是不一致
+ * ## 取法：按视野，或按 FIR
  *
- * - **机场**随页面服务端渲染下来（233 条，每条五个字段）。这一层永远要画，先取先画
- *   比开图之后再跑一趟网络快一整个往返。
- * - **航路网**点开才取，因为它是几百 KB 的一整张图 —— 大多数人开这一页只是想看机场
- *   在哪，替他们下一份路网是替他们做了一个他们没做的决定。取一次就留着。
- * - **航路点**按 FIR 取，而且**只在选中某个 FIR 时**才可取。全网 15278 个点画上去是
- *   一团糊，读不出任何东西；限定一个 FIR 之后最多 3914 个（RJJJ），还在能读的范围。
+ * 全库是世界量级（约 1.5 万个机场、9.1 万段航路），不整份取。
+ *
+ * - **机场**：选了 FIR 就取这个 FIR 的全部（翻页取完，按 FIR 缓存）并把视野收过去；没
+ *   选时按视野取（`bbox`，外扩半屏），`AIRPORT_MIN_ZOOM` 级以下不取，一次最多
+ *   `AIRPORT_VIEW_CAP` 个，超出时面板里说出来。
+ * - **航路网**：开关打开、且缩放到 `AIRWAY_MIN_ZOOM` 级以上时按视野取（`bbox`，外扩半
+ *   屏）。视野还在上一次取的盒子里就不重取。`from`/`to` 和 `fixes` 的键是图键
+ *   （`AKAGI@RJ/waypoint`），同名的两个点是两个键；显示用 `fromIdent`/`toIdent`。
+ * - **航路点**按 FIR 取，而且**只在选中某个 FIR 时**才可取。
+ *
+ * 平移缩放停下 300 ms 后才按视野取（`moveend` 防抖）。视野跨 180° 时 bbox 写成
+ * minLon > maxLon（`lib/viewport.ts` 的 `bboxParam`），画的时候把经度挪到视野中心那一侧
+ * （`lonNear`）。
  *
  * ## 它不重建地图
  *
@@ -31,6 +38,7 @@ import { api } from "@/lib/canDb";
 import FilterChips from "@/components/ui/FilterChips.vue";
 import SectorLegend from "@/components/map/SectorLegend.vue";
 import { useQueryState } from "@/composables/useQueryState";
+import { airportsQuery, bboxParam, lonNear } from "@/lib/viewport";
 import type {
   AirportSummary,
   AirwayGraph,
@@ -55,7 +63,8 @@ import { NM_TO_M, drawOrder, sectorPaint, sectorState } from "@/lib/sectorMap";
 
 const props = defineProps<{
   messages: Record<string, unknown>;
-  airports: AirportSummary[];
+  /** 全库机场数（`/aip/overview`）；取不到是 null。 */
+  total: number | null;
   firs: string[];
   /** `/map?fir=…` 带来的初始筛选，已在服务端对着 firs 校验过。 */
   initialFir?: string | null;
@@ -115,8 +124,16 @@ const onlineText = ref("");
 const loading = ref<string | null>(null);
 const failed = ref<string | null>(null);
 
-/** 取过就留着，切 FIR 不该重下一次路网。 */
+/** 最近一次按视野取的航路网，和它覆盖的盒子（外扩过的视野）。 */
 let airwayCache: AirwayGraph | null = null;
+let airwayBox: L.LatLngBounds | null = null;
+let airwaySeq = 0;
+/** 按 FIR 取的机场，取过就留着。 */
+const firAirportCache = new Map<string, AirportSummary[]>();
+/** 按视野取的机场和它覆盖的盒子。 */
+let viewAirports: AirportSummary[] = [];
+let airportBox: L.LatLngBounds | null = null;
+let airportSeq = 0;
 const fixCache = new Map<string, Fix[]>();
 /** 按包缓存。键是包名，全网那份用 `*` —— 空串会和「没选」混淆。 */
 const sectorCache = new Map<string, NetworkSector[]>();
@@ -134,20 +151,12 @@ const sectorCache = new Map<string, NetworkSector[]>();
 const ownership = shallowRef<Map<number, SectorOwnership> | null>(null);
 const resolveNote = ref<string | null>(null);
 
-const shownAirports = computed(() =>
-  activeFir.value
-    ? props.airports.filter((a) => a.fir === activeFir.value)
-    : props.airports,
-);
-
-/** 每个 FIR 有多少机场 —— 筛选条上直接显示，省得点进去才知道是空的。 */
-const firCounts = computed(() => {
-  const counts = new Map<string, number>();
-  for (const a of props.airports) {
-    if (a.fir) counts.set(a.fir, (counts.get(a.fir) ?? 0) + 1);
-  }
-  return counts;
-});
+/** 图上正在画的机场。 */
+const shownAirports = shallowRef<AirportSummary[]>([]);
+/** 视野内机场超过上限，只画了一部分。 */
+const airportsCapped = ref(false);
+/** 当前缩放。决定机场和航路网取不取、面板里的提示出不出。 */
+const zoom = ref(0);
 
 function airportPopup(a: AirportSummary): string {
   const name = a.name
@@ -164,12 +173,21 @@ function airportPopup(a: AirportSummary): string {
   );
 }
 
+/** 机场用 canvas 画：视野里可能有几千个。 */
+const airportRenderer = L.canvas({ padding: 0.5 });
+/** 上一次画机场时视野中心的经度。平移过了半圈才要按新的一侧重画。 */
+let airportRefLon = 0;
+
 function drawAirports() {
   const layer = airportLayer.value;
-  if (!layer) return;
+  const m = map.value;
+  if (!layer || !m) return;
   layer.clearLayers();
+  const refLon = m.getCenter().lng;
+  airportRefLon = refLon;
   for (const a of shownAirports.value) {
-    L.circleMarker([a.lat, a.lon], {
+    L.circleMarker([a.lat, lonNear(a.lon, refLon)], {
+      renderer: airportRenderer,
       radius: 5,
       color: firColor(a.fir),
       weight: 2,
@@ -182,15 +200,128 @@ function drawAirports() {
   }
 }
 
+/** 按 FIR 取机场：翻页取完。 */
+async function fetchFirAirports(fir: string): Promise<AirportSummary[] | null> {
+  const out: AirportSummary[] = [];
+  let cursor: string | null = null;
+  do {
+    const result: Awaited<ReturnType<typeof api<AirportSummary[]>>> = await api<
+      AirportSummary[]
+    >(`/api/v1/aip/airports?${airportsQuery({ fir, limit: 1000, cursor })}`);
+    if (!result.ok) {
+      failed.value = result.message;
+      return null;
+    }
+    out.push(...(result.data ?? []));
+    cursor = result.nextCursor;
+  } while (cursor);
+  return out;
+}
+
+/**
+ * 机场图层。选了 FIR 画这个 FIR 的全部；没选按视野取。`fit` 为真时把视野收到 FIR 上。
+ */
+async function loadAirports(fit = false) {
+  const m = map.value;
+  if (!m) return;
+  const fir = activeFir.value;
+  const seq = ++airportSeq;
+
+  if (fir) {
+    let list = firAirportCache.get(fir);
+    if (!list) {
+      loading.value = String(t("loadingAirports"));
+      const fetched = await fetchFirAirports(fir);
+      loading.value = null;
+      if (!fetched || seq !== airportSeq) return;
+      list = fetched;
+      firAirportCache.set(fir, list);
+    }
+    airportsCapped.value = false;
+    shownAirports.value = list;
+    drawAirports();
+    if (fit) fitToShown();
+    return;
+  }
+
+  if (m.getZoom() < AIRPORT_MIN_ZOOM) {
+    airportBox = null;
+    viewAirports = [];
+    airportsCapped.value = false;
+    shownAirports.value = [];
+    drawAirports();
+    return;
+  }
+  const view = m.getBounds();
+  if (!airportBox || !airportBox.contains(view)) {
+    const box = view.pad(0.5);
+    loading.value = String(t("loadingAirports"));
+    const out: AirportSummary[] = [];
+    let cursor: string | null = null;
+    let capped = false;
+    // 一页 1000，最多取 AIRPORT_VIEW_CAP 个。can-db 按 ICAO 排，超出的那部分说出来。
+    do {
+      const result: Awaited<ReturnType<typeof api<AirportSummary[]>>> =
+        await api<AirportSummary[]>(
+          `/api/v1/aip/airports?${airportsQuery({
+            bbox: bboxParam(boundsOf(box)),
+            limit: 1000,
+            cursor,
+          })}`,
+        );
+      if (seq !== airportSeq) return;
+      if (!result.ok) {
+        loading.value = null;
+        failed.value = result.message;
+        return;
+      }
+      out.push(...(result.data ?? []));
+      cursor = result.nextCursor;
+      if (cursor && out.length >= AIRPORT_VIEW_CAP) {
+        capped = true;
+        break;
+      }
+    } while (cursor);
+    loading.value = null;
+    viewAirports = out;
+    // 截断过的盒子不留：放大之后要重取，才画得全。
+    airportBox = capped ? null : box;
+    airportsCapped.value = capped;
+  }
+  shownAirports.value = viewAirports;
+  drawAirports();
+}
+
+function boundsOf(b: L.LatLngBounds) {
+  return {
+    south: b.getSouth(),
+    west: b.getWest(),
+    north: b.getNorth(),
+    east: b.getEast(),
+  };
+}
+
 async function drawAirways() {
   const layer = airwayLayer.value;
-  if (!layer) return;
-  layer.clearLayers();
-  if (!showAirways.value) return;
+  const m = map.value;
+  if (!layer || !m) return;
+  if (!showAirways.value || m.getZoom() < AIRWAY_MIN_ZOOM) {
+    layer.clearLayers();
+    airwayCache = null;
+    airwayBox = null;
+    syncLabels();
+    return;
+  }
 
-  if (!airwayCache) {
+  const view = m.getBounds();
+  if (!airwayCache || !airwayBox || !airwayBox.contains(view)) {
+    const box = view.pad(0.5);
+    const seq = ++airwaySeq;
     loading.value = String(t("loadingAirways"));
-    const result = await api<AirwayGraph>("/api/v1/aip/airways");
+    const result = await api<AirwayGraph>(
+      `/api/v1/aip/airways?bbox=${encodeURIComponent(bboxParam(boundsOf(box)))}`,
+    );
+    if (seq !== airwaySeq) return;
     loading.value = null;
     if (!result.ok) {
       failed.value = result.message;
@@ -198,9 +329,12 @@ async function drawAirways() {
       return;
     }
     airwayCache = result.data;
+    airwayBox = box;
   }
 
+  layer.clearLayers();
   const { fixes, segments } = airwayCache;
+  const refLon = m.getCenter().lng;
   // 一条 Polyline 装全部 3065 段，而不是 3065 条 Polyline：后者是三千个 SVG 元素，
   // 平移一次浏览器就要重排三千次。Leaflet 的多段线接受「线的数组」，画出来一样。
   //
@@ -209,14 +343,18 @@ async function drawAirways() {
   // 解构直接抛 TypeError，整个图层一条线都没画出来过。见 `lib/canDb.ts` 的
   // `AirwaySegment`。`dir` 和高度带这里不看：单向和双向在图上是同一条线，而按高度层
   // 筛是 can-db 的路由参数，不是这里的一段 JavaScript。
+  //
+  // `from`/`to` 是图键，只用来查 `fixes`。两端经度都挪到视野中心那一侧，跨 180° 的
+  // 一段才不会横穿整张图。
   const lines: L.LatLngExpression[][] = [];
-  for (const { from, to } of segments) {
-    const a = fixes[from];
-    const b = fixes[to];
+  for (const { from, to } of segments ?? []) {
+    const a = fixes?.[from];
+    const b = fixes?.[to];
     if (!a || !b) continue;
+    const aLon = lonNear(a[1], refLon);
     lines.push([
-      [a[0], a[1]],
-      [b[0], b[1]],
+      [a[0], aLon],
+      [b[0], lonNear(b[1], aLon)],
     ]);
   }
   L.polyline(lines, {
@@ -426,6 +564,12 @@ function clearResolve() {
  * 了上限就是有人放大到一个航路枢纽上时突然几百个标签。
  * ---------------------------------------------------------------------- */
 
+/** 没选 FIR 时，机场从这一级开始按视野取。再往外一屏是几个大洲。 */
+const AIRPORT_MIN_ZOOM = 4;
+/** 按视野取机场的上限。 */
+const AIRPORT_VIEW_CAP = 3000;
+/** 航路网从这一级开始按视野取。再往外一屏是几万段。 */
+const AIRWAY_MIN_ZOOM = 5;
 /** 航路点名字从这一级开始画。 */
 const FIX_NAME_ZOOM = 8;
 /** 航路名从这一级开始画 —— 比点早，少而关键。 */
@@ -439,25 +583,28 @@ function syncLabels() {
   if (!m || !layer) return;
   layer.clearLayers();
 
-  const zoom = m.getZoom();
+  const level = m.getZoom();
   const bounds = m.getBounds();
   const color = firColor(activeFir.value);
 
   // 航路名：一条航路在一屏里只标一次，标在它可见的最长一段的中点上。can-radar 在一条
   // 航路上是每段都标的，那里一屏只有一条航路；这里一屏可能有几十条。
-  if (showAirways.value && airwayCache && zoom >= AIRWAY_NAME_ZOOM) {
+  if (showAirways.value && airwayCache && level >= AIRWAY_NAME_ZOOM) {
     const { fixes, segments } = airwayCache;
+    const refLon = m.getCenter().lng;
     const best = new Map<string, { mid: [number, number]; len: number }>();
-    for (const { airway, from, to } of segments) {
-      const a = fixes[from];
-      const b = fixes[to];
+    for (const { airway, from, to } of segments ?? []) {
+      const a = fixes?.[from];
+      const b = fixes?.[to];
       if (!a || !b) continue;
-      if (!bounds.contains([a[0], a[1]]) && !bounds.contains([b[0], b[1]]))
+      const aLon = lonNear(a[1], refLon);
+      const bLon = lonNear(b[1], aLon);
+      if (!bounds.contains([a[0], aLon]) && !bounds.contains([b[0], bLon]))
         continue;
-      const len = Math.hypot(a[0] - b[0], a[1] - b[1]);
+      const len = Math.hypot(a[0] - b[0], aLon - bLon);
       const prev = best.get(airway);
       if (!prev || len > prev.len) {
-        best.set(airway, { mid: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], len });
+        best.set(airway, { mid: [(a[0] + b[0]) / 2, (aLon + bLon) / 2], len });
       }
     }
     let drawn = 0;
@@ -471,18 +618,20 @@ function syncLabels() {
   // 航路点名字。
   const fir = activeFir.value;
   const list = showFixes.value && fir ? fixCache.get(fir) : null;
-  if (list && zoom >= FIX_NAME_ZOOM) {
+  if (list && level >= FIX_NAME_ZOOM) {
     let drawn = 0;
+    const refLon = m.getCenter().lng;
     for (const f of list) {
       if (drawn >= LABEL_CAP) break;
-      if (!bounds.contains([f.lat, f.lon])) continue;
-      nameMarker(f.lat, f.lon, f.ident, color).addTo(layer);
+      const lon = lonNear(f.lon, refLon);
+      if (!bounds.contains([f.lat, lon])) continue;
+      nameMarker(f.lat, lon, f.ident, color).addTo(layer);
       drawn++;
     }
   }
 }
 
-/** 把视野收到当前显示的机场上。没有机场时不动 —— 空 bounds 会把图扔到大西洋。 */
+/** 把视野收到当前显示的机场上（选 FIR 时）。没有机场时不动 —— 空 bounds 会把图扔到大西洋。 */
 function fitToShown() {
   const m = map.value;
   if (!m) return;
@@ -510,6 +659,25 @@ function applyTiles(theme: "dark" | "light") {
 }
 
 let stopTheme: (() => void) | null = null;
+
+const DEFAULT_CENTER: L.LatLngExpression = [34, 112];
+const DEFAULT_ZOOM = 4;
+
+let moveTimer: ReturnType<typeof setTimeout> | undefined;
+
+/** 名字立刻重建；机场（没选 FIR 时）和航路网停下 300 ms 后按视野取。 */
+function onMoveEnd() {
+  const m = map.value;
+  if (!m) return;
+  zoom.value = m.getZoom();
+  if (Math.abs(m.getCenter().lng - airportRefLon) > 90) drawAirports();
+  syncLabels();
+  if (moveTimer !== undefined) clearTimeout(moveTimer);
+  moveTimer = setTimeout(() => {
+    if (!activeFir.value) void loadAirports();
+    void drawAirways();
+  }, 300);
+}
 
 onMounted(() => {
   // 地址栏里的 FIR 不认识就清掉（useQueryState 的 onMounted 先跑，这时已经读进来了）。
@@ -549,27 +717,29 @@ onMounted(() => {
   // 机场最后加，所以画在航路和航路点上面 —— 它们是这张图的主角。
   airportLayer.value = L.layerGroup().addTo(m);
 
-  drawAirports();
-  fitToShown();
+  // 没选 FIR 时的起始视野：本网所在的东亚。选了 FIR，loadAirports 会把视野收过去。
+  m.setView(DEFAULT_CENTER, DEFAULT_ZOOM);
+  zoom.value = m.getZoom();
+  void loadAirports(true);
 
-  // 名字按视野重建，所以平移和缩放都要重来一次 —— 见 syncLabels。
-  m.on("moveend", syncLabels);
-  m.on("zoomend", syncLabels);
+  // 名字按视野重建，所以平移和缩放都要重来一次 —— 见 syncLabels。按视野取数的那两层
+  // 等停下来再取。
+  m.on("moveend", onMoveEnd);
 
   stopTheme = watchTheme(applyTiles);
 });
 
 onBeforeUnmount(() => {
   stopTheme?.();
-  map.value?.off("moveend", syncLabels);
-  map.value?.off("zoomend", syncLabels);
+  if (moveTimer !== undefined) clearTimeout(moveTimer);
+  map.value?.off("moveend", onMoveEnd);
   map.value?.remove();
   map.value = null;
 });
 
 watch(activeFir, () => {
-  drawAirports();
-  fitToShown();
+  airportBox = null;
+  void loadAirports(true);
   void drawFixes();
   // 扇区按包取，所以换 FIR 要重取（缓存按包分开，来回切不会重下）。
   void drawSectors();
@@ -589,7 +759,6 @@ const firChips = computed(() =>
   props.firs.map((fir) => ({
     value: fir,
     label: fir,
-    count: firCounts.value.get(fir) ?? 0,
     color: firColor(fir),
     mono: true,
   })),
@@ -667,7 +836,7 @@ const firChips = computed(() =>
             :model-value="activeFir ?? ''"
             :chips="firChips"
             :all-label="String(t('allFirs'))"
-            :all-count="airports.length"
+            :all-count="total ?? undefined"
             :label="String(t('firTitle'))"
             @update:model-value="pickFir"
           />
@@ -675,7 +844,15 @@ const firChips = computed(() =>
 
         <section class="space-y-3">
           <h3 class="text-eyebrow text-faint">{{ t("layersTitle") }}</h3>
-          <Toggle v-model="showAirways" :label="String(t('layerAirways'))" />
+          <Toggle
+            v-model="showAirways"
+            :label="String(t('layerAirways'))"
+            :description="
+              showAirways && zoom < AIRWAY_MIN_ZOOM
+                ? String(t('airwaysNeedZoom', { n: String(AIRWAY_MIN_ZOOM) }))
+                : undefined
+            "
+          />
           <!-- 不选 FIR 时是禁用的，并且说为什么 —— 而不是按了没反应。 -->
           <Toggle
             v-model="showFixes"
@@ -727,14 +904,16 @@ const firChips = computed(() =>
         </section>
 
         <p class="tnum border-t border-subtle pt-3 text-xs text-faint">
-          {{
-            activeFir
-              ? t("shownOfTotal", {
-                  n: String(shownAirports.length),
-                  total: String(airports.length),
-                })
-              : t("shownCount", { n: String(shownAirports.length) })
-          }}<template v-if="showSectors">
+          <template v-if="!activeFir && zoom < AIRPORT_MIN_ZOOM">{{
+            t("airportsNeedZoom", { n: String(AIRPORT_MIN_ZOOM) })
+          }}</template>
+          <template v-else-if="airportsCapped">{{
+            t("airportsCapped", { n: String(shownAirports.length) })
+          }}</template>
+          <template v-else>{{
+            t("shownCount", { n: String(shownAirports.length) })
+          }}</template
+          ><template v-if="showSectors">
             ·
             {{
               t("sectorsCount", { n: String(shownSectors.length) })

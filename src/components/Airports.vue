@@ -1,29 +1,44 @@
 <script setup lang="ts">
 /**
- * 机场清单：一个即时过滤框 + 一排 FIR 筛选 + 一张可排序的表。
+ * 机场清单：一个搜索框 + FIR 筛子 + 区域码 + 一张可排序的表。
  *
- * 岛屿而不是服务端渲染，因为这一页唯一的操作就是「找那个机场」，而 233 行里翻找不如
- * 敲四个字母。清单整份随页面下来（每条六个字段，比图标精灵图还小），所以过滤是本地
- * 的 —— 每敲一个键往返一次服务器是这一页最容易犯的错。
+ * ## 筛选和翻页在 can-db
  *
- * 搜索词、FIR 和排序都挂在地址栏上（`?q=`、`?fir=`、`?sort=`），刷新、后退、把链接
- * 发给别人都还在原处。搜索框里回车、只剩一个机场时直接打开它。
+ * 全库约 1.5 万个机场，不整份下发。搜索词、FIR、区域码都是 `/aip/airports` 的参数，
+ * 每页 `AIRPORT_PAGE` 条，按 ICAO 排；响应头 `X-Next-Cursor` 在还有下一页时给游标，
+ * 「载入更多」接着取。第一页随页面服务端渲染下来，用的是同一份地址栏参数。
+ *
+ * 搜索是 can-db 的**前缀**匹配（ICAO 或名称开头），敲字防抖 250 ms。
+ *
+ * 搜索词、FIR、区域码和排序都挂在地址栏上（`?q=`、`?fir=`、`?region=`、`?sort=`）。
+ * 搜索框里回车、只剩一个机场时直接打开它。
+ *
+ * ## 排序只排已载入的行
+ *
+ * can-db 只按 ICAO 排。其他列的排序是渲染，作用于已载入的那几页；还有下一页时表下写明。
  *
  * ## 表，不是卡片
  *
  * 这一页是拿来校对的：「哪几个场没有机位」「哪个场标高是空的」是一列一列看出来的，卡片
- * 网格把同一个字段摆在三列不同的位置上，扫不下去。排序只是渲染，留在这里。
+ * 网格把同一个字段摆在三列不同的位置上，扫不下去。
  *
  * ## FIR 的颜色和地图是同一套
  *
- * 色块取自 `@/lib/mapBase` 的 `firColor`，和 /map 上那张图逐字同源。一个成员在清单上
- * 认得的 ZGZU 的颜色，点进地图应该还是那一个 —— 两处各写一份配色，漂移只是时间问题。
+ * 色块取自 `@/lib/mapBase` 的 `firColor`，和 /map 上那张图逐字同源。
  */
-import { computed } from "vue";
-import { EmptyState, Icon } from "@jianyuelab-org/can-ui";
+import {
+  computed,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  shallowRef,
+  watch,
+} from "vue";
+import { AlertBox, EmptyState, Icon, Spinner } from "@jianyuelab-org/can-ui";
 import { createTranslator } from "@/lib/i18n";
 import { firColor } from "@/lib/mapBase";
-import type { AirportSummary, Licence } from "@/lib/canDb";
+import { api, type AirportSummary, type Licence } from "@/lib/canDb";
+import { AIRPORT_PAGE, REGION_PATTERN, airportsQuery } from "@/lib/viewport";
 import { useQueryState } from "@/composables/useQueryState";
 import ExportButton from "@/components/ExportButton.vue";
 import SearchField from "@/components/ui/SearchField.vue";
@@ -32,7 +47,13 @@ import ListToolbar from "@/components/lists/ListToolbar.vue";
 
 const props = defineProps<{
   messages: Record<string, unknown>;
+  /** 第一页，服务端按 `initialFilters` 取好。 */
   airports: AirportSummary[];
+  nextCursor: string | null;
+  /** 全库机场数（`/aip/overview`）；取不到是 null。 */
+  total: number | null;
+  firs: string[];
+  initialFilters: { q: string; fir: string; region: string };
   licence: Licence | null;
   exportMessages: Record<string, unknown>;
 }>();
@@ -41,8 +62,99 @@ const t = createTranslator(props.messages);
 const query = useQueryState("q");
 /** '' = 不限 FIR。 */
 const activeFir = useQueryState("fir");
+/** '' = 不限区域码。格式不对的值不发给 can-db。 */
+const region = useQueryState("region");
 /** 排序键，前缀 `-` 表示降序。 */
 const sort = useQueryState("sort", "icao");
+
+const rows = shallowRef<AirportSummary[]>(props.airports);
+const cursor = ref<string | null>(props.nextCursor);
+const loading = ref(false);
+const loadingMore = ref(false);
+const error = ref("");
+
+const normalizedRegion = computed(() => {
+  const r = region.value.trim().toUpperCase();
+  return REGION_PATTERN.test(r) ? r : "";
+});
+
+function filtersKey(q: string, fir: string, reg: string) {
+  return JSON.stringify([q.trim(), fir, reg]);
+}
+const currentKey = computed(() =>
+  filtersKey(query.value, activeFir.value, normalizedRegion.value),
+);
+/** 当前 `rows` 对应的筛选。服务端第一页就是 initialFilters 那一组。 */
+let loadedKey = filtersKey(
+  props.initialFilters.q,
+  props.initialFilters.fir,
+  props.initialFilters.region,
+);
+/** 最近一次请求的序号 —— 先发后到的那份不能盖掉后发的。 */
+let latest = 0;
+let debounce: ReturnType<typeof setTimeout> | undefined;
+
+function filterParams() {
+  return {
+    q: query.value,
+    fir: activeFir.value,
+    region: normalizedRegion.value,
+    limit: AIRPORT_PAGE,
+  };
+}
+
+async function reload() {
+  const key = currentKey.value;
+  if (key === loadedKey) return;
+  const seq = ++latest;
+  loading.value = true;
+  error.value = "";
+  const result = await api<AirportSummary[]>(
+    `/api/v1/aip/airports?${airportsQuery(filterParams())}`,
+  );
+  if (seq !== latest) return;
+  loading.value = false;
+  if (!result.ok) {
+    error.value = result.message;
+    return;
+  }
+  loadedKey = key;
+  rows.value = result.data ?? [];
+  cursor.value = result.nextCursor;
+}
+
+async function loadMore() {
+  if (!cursor.value || loadingMore.value) return;
+  const seq = latest;
+  loadingMore.value = true;
+  const result = await api<AirportSummary[]>(
+    `/api/v1/aip/airports?${airportsQuery({ ...filterParams(), cursor: cursor.value })}`,
+  );
+  loadingMore.value = false;
+  // 这期间换过筛选，这一页属于旧的那一组。
+  if (seq !== latest) return;
+  if (!result.ok) {
+    error.value = result.message;
+    return;
+  }
+  rows.value = [...rows.value, ...(result.data ?? [])];
+  cursor.value = result.nextCursor;
+}
+
+watch(currentKey, () => {
+  if (debounce !== undefined) clearTimeout(debounce);
+  debounce = setTimeout(() => void reload(), 250);
+});
+
+onMounted(() => {
+  // 地址栏里不认识的 FIR 清掉 —— 和服务端「不认识就当没传」是同一条。
+  if (activeFir.value && !props.firs.includes(activeFir.value)) {
+    activeFir.value = "";
+  }
+});
+onBeforeUnmount(() => {
+  if (debounce !== undefined) clearTimeout(debounce);
+});
 
 type SortKey = "icao" | "fir" | "elev" | "stands";
 const SORT_KEYS: SortKey[] = ["icao", "fir", "elev", "stands"];
@@ -70,41 +182,20 @@ function ariaSort(key: SortKey) {
   return s.desc ? "descending" : "ascending";
 }
 
-/** FIR 及其机场数，按机场数降序 —— 大的在前，找起来快。 */
-const firChips = computed(() => {
-  const counts = new Map<string, number>();
-  for (const a of props.airports) {
-    if (a.fir) counts.set(a.fir, (counts.get(a.fir) ?? 0) + 1);
-  }
-  return [...counts.entries()]
-    .sort((x, y) => y[1] - x[1])
-    .map(([fir, n]) => ({
-      value: fir,
-      label: fir,
-      count: n,
-      color: firColor(fir),
-      mono: true,
-    }));
-});
-
-const filtered = computed(() => {
-  const needle = query.value.trim().toUpperCase();
-  return props.airports.filter((a) => {
-    if (activeFir.value && a.fir !== activeFir.value) return false;
-    if (!needle) return true;
-    return (
-      a.icao.includes(needle) ||
-      (a.fir ?? "").includes(needle) ||
-      (a.name ?? "").toUpperCase().includes(needle)
-    );
-  });
-});
+const firChips = computed(() =>
+  props.firs.map((fir) => ({
+    value: fir,
+    label: fir,
+    color: firColor(fir),
+    mono: true,
+  })),
+);
 
 /** 空值（没有标高）不论升降都排在最后 —— 它们是要单独去看的那一批，不该夹在中间。 */
 const shown = computed(() => {
   const { key, desc } = sortState.value;
   const dir = desc ? -1 : 1;
-  return [...filtered.value].sort((a, b) => {
+  return [...rows.value].sort((a, b) => {
     let cmp = 0;
     if (key === "elev" || key === "stands") {
       const x = a[key];
@@ -120,17 +211,24 @@ const shown = computed(() => {
   });
 });
 
-const filtering = computed(() => !!query.value.trim() || !!activeFir.value);
+const filtering = computed(
+  () => !!query.value.trim() || !!activeFir.value || !!region.value,
+);
+/** 其他列的排序只排了已载入的行，而后面还有。 */
+const partialSort = computed(
+  () => !!cursor.value && sortState.value.key !== "icao",
+);
 
 function clearFilters() {
   query.value = "";
   activeFir.value = "";
+  region.value = "";
 }
 
 /** 回车：只剩一个就直接打开。 */
 function openSingle() {
-  if (shown.value.length === 1) {
-    window.location.href = `/airports/${shown.value[0].icao}`;
+  if (rows.value.length === 1 && !cursor.value) {
+    window.location.href = `/airports/${rows.value[0].icao}`;
   }
 }
 
@@ -181,35 +279,62 @@ function openRow(event: MouseEvent, icao: string) {
         <a :href="mapHref" class="link text-sm whitespace-nowrap"
           >{{ t("onMap") }} →</a
         >
-        <!-- 导出跟随筛选，不跟随排序：排序是这一屏怎么看，不是数据。 -->
+        <!-- 导出跟随筛选，不跟随排序：排序是这一屏怎么看，不是数据。还有下一页时这里只有
+             一部分，不给按钮，指向导出页。 -->
         <ExportButton
+          v-if="!cursor"
           resource="airports"
           :scope="activeFir || null"
-          :rows="filtered"
+          :rows="rows"
           :licence="licence"
           :messages="exportMessages"
         />
+        <a v-else href="/export" class="link text-sm whitespace-nowrap">{{
+          t("exportAll")
+        }}</a>
       </template>
       <template #filters>
-        <FilterChips
-          v-model="activeFir"
-          :chips="firChips"
-          :label="t('firFilter')"
-          :all-label="t('allFirs')"
-          :all-count="airports.length"
-        />
+        <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <FilterChips
+            v-model="activeFir"
+            :chips="firChips"
+            :label="t('firFilter')"
+            :all-label="t('allFirs')"
+            :all-count="total ?? undefined"
+          />
+          <label class="flex items-center gap-2 text-xs text-muted">
+            {{ t("regionFilter") }}
+            <input
+              v-model="region"
+              type="text"
+              class="input h-8 w-16 font-mono text-xs uppercase"
+              maxlength="2"
+              autocomplete="off"
+              spellcheck="false"
+              :placeholder="t('regionHint')"
+              :aria-invalid="!!region && !normalizedRegion"
+            />
+          </label>
+        </div>
       </template>
       <template #count>
-        {{
-          t("shownCount", {
-            n: String(filtered.length),
-            total: String(airports.length),
-          })
-        }}
+        <span>{{
+          cursor
+            ? t("loadedCount", { n: String(rows.length) })
+            : filtering || total === null
+              ? t("matchedCount", { n: String(rows.length) })
+              : t("shownCount", {
+                  n: String(rows.length),
+                  total: String(total),
+                })
+        }}</span>
+        <Spinner v-if="loading" size="sm" />
       </template>
     </ListToolbar>
 
-    <div v-if="!airports.length" class="card">
+    <AlertBox v-if="error" variant="danger" class="mb-4">{{ error }}</AlertBox>
+
+    <div v-if="!rows.length && !filtering" class="card">
       <EmptyState :title="t('noData')" icon="buildingOffice" compact />
     </div>
 
@@ -306,6 +431,24 @@ function openRow(event: MouseEvent, icao: string) {
           </tr>
         </tbody>
       </table>
+    </div>
+
+    <!-- 还有下一页要说出来：一个悄悄截断的列表会让人以为剩下的不存在。 -->
+    <div
+      v-if="cursor && shown.length"
+      class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2"
+    >
+      <button
+        type="button"
+        class="btn btn-secondary"
+        :disabled="loadingMore"
+        @click="loadMore"
+      >
+        {{ loadingMore ? t("loadingMore") : t("loadMore") }}
+      </button>
+      <p class="text-xs text-faint">
+        {{ partialSort ? t("partialSort") : t("moreHint") }}
+      </p>
     </div>
   </div>
 </template>

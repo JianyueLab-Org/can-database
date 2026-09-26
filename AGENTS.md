@@ -278,6 +278,23 @@ SID 的首点落在几百到一千多公里外。这个站是拿来校对数据�
 据。can-db 为此在 plan 上直接给了 `fromLat/fromLon`、`toLat/toLon`（`RoutePlan`），
 `RoutePlanner.vue` 的 `draw()` 用它起头。
 
+## 世界量级：按视野取，按页取
+
+全库约 1.5 万个机场、9.1 万段航路。整份取的只剩导出页和 `/route` 的代号集合。
+
+- `/map` 的机场：选了 FIR 取这个 FIR 的全部；没选按视野 `bbox` 取，4 级以下不取，一次最多
+  3000 个，截断时面板里写明。航路网 5 级以上按视野 `bbox` 取。视野在上次取的盒子（外扩半
+  屏）里不重取。`moveend` 防抖 300 ms。
+- `/airports`：`q`/`fir`/`region` 交给 can-db，每页 200 条，`X-Next-Cursor` 翻页（「载入更
+  多」）。`q` 是前缀匹配。排序只排已载入的行，还有下一页时表下写明；这时不给导出按钮，指
+  向 `/export`。
+- 反代放行 `x-next-cursor` 头（`PASS_THROUGH`），`api()` 和 `callDb()` 都返回 `nextCursor`。
+- 航段的 `from`/`to` 是图键（`AKAGI@RJ/waypoint`），是 `fixes` 的键；显示用
+  `fromIdent`/`toIdent`（`lib/viewport.ts` 的 `segmentIdents`）。两个同名的点是两个键。
+- 跨 180°：bbox 写成 minLon > maxLon（`bboxParam`），画的时候经度挪到视野中心那一侧（`lonNear`）。
+- `/fixes` 的表有区域码和种类两列：一个 FIR 的清单里同一代号可以有几行。行 key 是 `fixRowKey`。
+- 导出页的机场范围只列前 300 个，其余写明，靠搜索框收窄。
+
 ## 全网图的扇区图层：三种状态，不是两种
 
 `/map` 上第四个图层画的是**我们实际划的**那 569 块扇区（can-db 的 `network_sector`，来自
@@ -397,7 +414,7 @@ EuroScope 靠标识把扇区归属解析回呼号。一行一个呼号，只有�
 
 | 页面               | 查询参数                        |
 | ------------------ | ------------------------------- |
-| `/airports`        | `q` `fir` `sort`                |
+| `/airports`        | `q` `fir` `region` `sort`       |
 | `/fixes`           | `fir` `q`                       |
 | `/positions`       | `q` `fir`（归属包） `facility`  |
 | `/airports/<icao>` | `stand` `proc` `kind` `rwy`     |
