@@ -13,7 +13,10 @@ import type { IconName, NavItem, NavSecondary } from "@jianyuelab-org/can-ui";
 // happy-dom document. Loading the whole component tree here tore that
 // document down from under the other file — `visibleSites` alone needs none
 // of it.
-import { visibleSites } from "@jianyuelab-org/can-ui/sites";
+import {
+  visibleSites,
+  WORKSPACE_SITE_KEYS,
+} from "@jianyuelab-org/can-ui/sites";
 
 /**
  * 侧栏的八页。
@@ -78,17 +81,22 @@ export function buildSecondary(
 ): NavSecondary {
   return {
     label: t("nav.quickAccess"),
+    // 分区切换器（`buildWorkspaces`，见文件顶注）已经画着管制员中心和考试中
+    // 心，这里要把 WORKSPACE_SITE_KEYS 排掉，不然这两个站在切换器和这份常用
+    // 链接里各出现一次。
     items: visibleSites({
       locale: opts.locale,
       current: "database",
       rating: opts.rating,
       signedIn: opts.signedIn,
       excludeCurrent: true,
-    }).map((site) => ({
-      name: site.name,
-      href: site.href,
-      icon: site.icon,
-    })),
+    })
+      .filter((site) => !WORKSPACE_SITE_KEYS.includes(site.key))
+      .map((site) => ({
+        name: site.name,
+        href: site.href,
+        icon: site.icon,
+      })),
   };
 }
 
