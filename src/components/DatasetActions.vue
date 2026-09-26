@@ -17,7 +17,13 @@
  * 列出删除，但灰掉并写明原因：can-db 对它回 409，先停用才能删。
  */
 import { computed, ref } from "vue";
-import { AlertBox, Dialog, Icon, Popover } from "@jianyuelab-org/can-ui";
+import {
+  AlertBox,
+  Dialog,
+  Icon,
+  type IconName,
+  Popover,
+} from "@jianyuelab-org/can-ui";
 import { createTranslator } from "@/lib/i18n";
 import { api, type AiracCalendar, type Dataset } from "@/lib/canDb";
 
@@ -155,7 +161,7 @@ const STATE_BADGE: Record<string, string> = {
 interface MenuItem {
   action: Action;
   label: string;
-  icon: string;
+  icon: IconName;
   danger?: boolean;
   /** 列出但不能点；值是写在菜单项下面的原因。 */
   disabledReason?: string;
@@ -169,7 +175,7 @@ const items = computed<MenuItem[]>(() => [
         {
           action: "activate" as const,
           label: t("activate"),
-          icon: "checkCircle",
+          icon: "checkCircle" as const,
         },
       ]
     : []),
@@ -179,7 +185,7 @@ const items = computed<MenuItem[]>(() => [
         {
           action: "supersede" as const,
           label: t("supersede"),
-          icon: "xCircle",
+          icon: "xCircle" as const,
           danger: true,
         },
       ]

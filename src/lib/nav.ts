@@ -1,25 +1,30 @@
 /**
  * 侧栏是一份数据，不是每个页面各自拼的一串链接。
  *
- * 和 can-portal / can-controller 的同名文件同一个形状，也同一个理由：一部分链接
- * 是跨站的绝对地址，而那些地址来自环境变量，`src/lib/config.ts` 在模块顶层读
- * `process.env` —— 任何被岛屿 import 的模块这么做都会在浏览器里炸成
- * `process is not defined`。所以链接在 Astro 侧拼好，作为 props 进岛屿。
+ * 和 can-portal / can-controller 的同名文件同一个形状：在 Astro 侧拼好，作为
+ * props 进岛屿。分区切换器不在这里 —— 它是 can-ui 的 `buildWorkspaces`，四个
+ * AppShell 站一份，见 `layouts/AppLayout.astro`。
  */
 import type { Translator } from "@/lib/i18n";
-import type { NavItem, NavSecondary, Workspace } from "@jianyuelab-org/can-ui";
-import { webUrl } from "@/lib/config";
+import type { IconName, NavItem, NavSecondary } from "@jianyuelab-org/can-ui";
+// Deep import, not the barrel: the barrel re-exports every Vue component in
+// the package, and this file is imported by a bun:test file
+// (`export/messages.test.ts`) that shares a process with `export/page.test.ts`'s
+// happy-dom document. Loading the whole component tree here tore that
+// document down from under the other file — `visibleSites` alone needs none
+// of it.
+import { visibleSites } from "@jianyuelab-org/can-ui/sites";
 
 /**
  * 侧栏的八页。
  *
- * `/` 带斜杠是给 `SidebarNav.isCurrentPath()` 看的：以斜杠结尾的条目只精确匹配，
- * 否则「总览」会在每一个子页面上都亮着。
+ * `/` 带斜杠是给 `isCurrentPath()` 看的：以斜杠结尾的条目只精确匹配，否则「总
+ * 览」会在每一个子页面上都亮着。
  *
  * 航路在这里，是因为它读的是这批数据 —— 但**规划本身在 can-db**（`/aip/route`），
  * 这一页只是个入口。理由和总览那两个统计一样，见本文件顶上和 AGENTS.md。
  */
-const PAGES: Array<{ key: string; href: string; icon: string }> = [
+const PAGES: Array<{ key: string; href: string; icon: IconName }> = [
   { key: "nav.overview", href: "/", icon: "home" },
   { key: "nav.airports", href: "/airports", icon: "mapPin" },
   { key: "nav.map", href: "/map", icon: "map" },
@@ -60,54 +65,31 @@ export function buildNavigation(t: Translator, _access: number): NavItem[] {
   }));
 }
 
-/** 轨底的跨站链接。 */
-export function buildSecondary(t: Translator): NavSecondary {
+/**
+ * 轨底的跨站链接。
+ *
+ * 从前这里手抄着门户、主站、文档三条；现在来自 can-ui 的 `visibleSites`，九个站
+ * 一份，站名的四种语言也在那边，门户和资料库按评级决定露不露 —— 那是画菜单的
+ * 依据，不是权限。
+ */
+export function buildSecondary(
+  t: Translator,
+  opts: { locale: string; rating?: number; signedIn: boolean },
+): NavSecondary {
   return {
     label: t("nav.quickAccess"),
-    items: [
-      {
-        name: t("nav.portal"),
-        href: "https://portal.ceruleanavi.net",
-        icon: "shieldCheck",
-      },
-      { name: t("nav.main"), href: webUrl("/"), icon: "globeAlt" },
-      {
-        name: t("nav.docs"),
-        href: "https://docs.ceruleanavi.net",
-        icon: "bookOpen",
-      },
-    ],
+    items: visibleSites({
+      locale: opts.locale,
+      current: "database",
+      rating: opts.rating,
+      signedIn: opts.signedIn,
+      excludeCurrent: true,
+    }).map((site) => ({
+      name: site.name,
+      href: site.href,
+      icon: site.icon,
+    })),
   };
-}
-
-/**
- * 顶上的分区切换器。
- *
- * 和 can-portal 一样，**不给资料库开一格**：切换器是每个成员都看得见的网络外壳，
- * 多一格等于告诉全网这里有一个他们进不去的地方。这个站的人是从别处被告知才来
- * 的，他们不需要一个入口，需要的是一条出去的路。
- */
-export function buildWorkspaces(t: Translator): Workspace[] {
-  return [
-    {
-      key: "pilots",
-      name: t("workspace.pilots"),
-      href: webUrl("/pilots/"),
-      icon: "paperAirplane",
-    },
-    {
-      key: "controllers",
-      name: t("workspace.controllers"),
-      href: "https://controller.ceruleanavi.net",
-      icon: "signal",
-    },
-    {
-      key: "exams",
-      name: t("workspace.exams"),
-      href: "https://exam.ceruleanavi.net",
-      icon: "academicCap",
-    },
-  ];
 }
 
 // 写门槛是 config.ts 的 `canManage`；侧栏不用它。
