@@ -1,8 +1,10 @@
 ---
 import AppLayout from "@/layouts/AppLayout.astro";
 import Icon from "@jianyuelab-org/can-ui/components/Icon.vue";
+import { siteUrl } from "@jianyuelab-org/can-ui/sites";
 import { getLocale, useTranslations } from "@/lib/i18n";
 import { webUrl } from "@/lib/config";
+import { SITE_ORIGINS } from "@/lib/nav";
 
 /**
  * 登录了，但 ADM 还没开权限。
@@ -55,7 +57,15 @@ const user = Astro.locals.user;
           <Icon name="globeAlt" class="size-4" />
           {tNav("main")}
         </a>
-        <a href="https://portal.ceruleanavi.net" class="btn btn-secondary">
+        {
+          /* 走 can-ui 的 siteUrl 而不是手写的 https://portal.ceruleanavi.net：
+            虽然这个仓库没有 CAN_PORTAL_ORIGIN 可覆盖，但至少不再另开一份和
+            can-ui `sites.ts` 不同步的硬编码。 */
+        }
+        <a
+          href={siteUrl("portal", undefined, SITE_ORIGINS)}
+          class="btn btn-secondary"
+        >
           <Icon name="shieldCheck" class="size-4" />
           {tNav("portal")}
         </a>

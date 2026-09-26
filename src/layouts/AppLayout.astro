@@ -11,7 +11,7 @@ import ThemeScript from "@jianyuelab-org/can-ui/components/ThemeScript.astro";
 import AppFrame from "@/components/AppFrame.vue";
 import { getLocale, getMessages, useTranslations } from "@/lib/i18n";
 import { buildWorkspaces } from "@jianyuelab-org/can-ui";
-import { buildNavigation, buildSecondary } from "@/lib/nav";
+import { buildNavigation, buildSecondary, SITE_ORIGINS } from "@/lib/nav";
 import { HIDE_NAIP_MIN_ACCESS, hideNaipFromCookie } from "@/lib/hideNaip";
 
 interface Props {
@@ -36,10 +36,14 @@ const secondary = buildSecondary(t, {
  * 分区切换器，来自 can-ui。**不给资料库开一格**：切换器是每个成员都看得见的网
  * 络外壳，多一格等于告诉全网这里有一个他们进不去的地方。这个站的人是从别处被
  * 告知才来的，他们需要的是一条出去的路。
+ *
+ * `origins` 和 `buildSecondary` 用的是同一份 `SITE_ORIGINS`（`lib/nav.ts`），让
+ * 「飞行员」那一格在开发/预发环境里落到本环境自己的主站，而不是永远指向线上。
  */
 const workspaces = buildWorkspaces(t, {
   current: "database",
   rating: user?.rating,
+  origins: SITE_ORIGINS,
 });
 const pathname = Astro.url.pathname;
 const canHideNaip = (user?.aipAccess ?? 0) >= HIDE_NAIP_MIN_ACCESS;

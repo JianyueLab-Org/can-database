@@ -16,7 +16,19 @@ import type { IconName, NavItem, NavSecondary } from "@jianyuelab-org/can-ui";
 import {
   visibleSites,
   WORKSPACE_SITE_KEYS,
+  type SiteOrigins,
 } from "@jianyuelab-org/can-ui/sites";
+import { CAN_WEB_ORIGIN } from "@/lib/config";
+
+/**
+ * 传给 `visibleSites`/`buildWorkspaces`/`siteUrl` 的 dev/staging 覆盖。这个仓库
+ * 的 `config.ts` 只读得到 `CAN_WEB_ORIGIN`，所以只覆盖这一个：本地和 staging 上
+ * 轨底常用链接、分区切换器、`denied.astro` 里指向主站的那一条会落在本环境自己
+ * 的主站，而不是永远指向线上。生产环境这个变量本来就是线上地址，行为不变。
+ */
+export const SITE_ORIGINS: SiteOrigins = {
+  web: CAN_WEB_ORIGIN,
+};
 
 /**
  * 侧栏的八页。
@@ -90,6 +102,7 @@ export function buildSecondary(
       rating: opts.rating,
       signedIn: opts.signedIn,
       excludeCurrent: true,
+      origins: SITE_ORIGINS,
     })
       .filter((site) => !WORKSPACE_SITE_KEYS.includes(site.key))
       .map((site) => ({
