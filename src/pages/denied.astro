@@ -59,8 +59,7 @@ const user = Astro.locals.user;
         </a>
         {
           /* 走 can-ui 的 siteUrl 而不是手写的 https://portal.ceruleanavi.net：
-            虽然这个仓库没有 CAN_PORTAL_ORIGIN 可覆盖，但至少不再另开一份和
-            can-ui `sites.ts` 不同步的硬编码。 */
+            本环境的 CAN_PORTAL_ORIGIN 经 SITE_ORIGINS 生效，生产上仍是线上门户。 */
         }
         <a
           href={siteUrl("portal", undefined, SITE_ORIGINS)}

@@ -63,6 +63,9 @@ spec:
             # 未登录时送去主站的登录页。
             - name: CAN_WEB_ORIGIN
               value: https://ceruleanavi.net
+            # 教员与管理门户。「没有权限」页的按钮和轨底链接指向它。
+            - name: CAN_PORTAL_ORIGIN
+              value: https://portal.ceruleanavi.net
             # 写操作的 Origin 比对它。必须显式配置：隧道后面从 Host 推出来的是
             # http://，浏览器发的是 https://，推导值永远对不上。
             - name: PUBLIC_ORIGIN

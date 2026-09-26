@@ -14,6 +14,7 @@ declare global {
 interface ImportMetaEnv {
   readonly PUBLIC_CAN_API_ORIGIN?: string;
   readonly PUBLIC_CAN_WEB_ORIGIN?: string;
+  readonly PUBLIC_CAN_PORTAL_ORIGIN?: string;
   readonly PUBLIC_ORIGIN?: string;
 }
 
