@@ -8,7 +8,7 @@
 import "leaflet/dist/leaflet.css";
 import "@/styles/globals.css";
 import ThemeScript from "@jianyuelab-org/can-ui/components/ThemeScript.astro";
-import AppFrame from "@/components/AppFrame.vue";
+import Frame from "@/components/Frame.vue";
 import { getLocale, getMessages, useTranslations } from "@/lib/i18n";
 import { buildWorkspaces } from "@jianyuelab-org/can-ui";
 import { buildNavigation, buildSecondary, SITE_ORIGINS } from "@/lib/nav";
@@ -16,10 +16,8 @@ import { HIDE_NAIP_MIN_ACCESS, hideNaipFromCookie } from "@/lib/hideNaip";
 
 interface Props {
   title?: string;
-  /** Chrome-less pages (the access-denied screen) pass false. */
-  shell?: boolean;
 }
-const { title, shell = true } = Astro.props;
+const { title } = Astro.props;
 
 const locale = getLocale(Astro.cookies);
 const frameMessages = getMessages(locale, "frame");
@@ -45,7 +43,12 @@ const workspaces = buildWorkspaces(t, {
   rating: user?.rating,
   origins: SITE_ORIGINS,
 });
-const pathname = Astro.url.pathname;
+/** 账户菜单显示名字和 `#CID`；CID 是会话里的 `username`。 */
+const frameUser = user
+  ? { name: user.name, id: user.username, rating: user.rating }
+  : null;
+/** 被拒的请求由中间件改写到 `/denied`；侧栏按成员请求的地址高亮。 */
+const pathname = Astro.originPathname;
 const canHideNaip = (user?.aipAccess ?? 0) >= HIDE_NAIP_MIN_ACCESS;
 const hideNaip = hideNaipFromCookie(Astro.request.headers.get("cookie"));
 const pageTitle = title
@@ -69,28 +72,20 @@ const pageTitle = title
     <ThemeScript />
   </head>
   <body>
-    {
-      shell ? (
-        <AppFrame
-          navigation={navigation}
-          secondary={secondary}
-          workspaces={workspaces}
-          activeWorkspace="controllers"
-          pathname={pathname}
-          messages={frameMessages}
-          userName={user?.name ?? ""}
-          userId={user?.username ?? ""}
-          locale={locale}
-          canHideNaip={canHideNaip}
-          hideNaip={hideNaip}
-          origins={SITE_ORIGINS}
-          client:load
-        >
-          <slot />
-        </AppFrame>
-      ) : (
-        <slot />
-      )
-    }
+    <Frame
+      locale={locale}
+      pathname={pathname}
+      nav={navigation}
+      secondary={secondary}
+      workspaces={workspaces}
+      user={frameUser}
+      canHideNaip={canHideNaip}
+      hideNaip={hideNaip}
+      messages={frameMessages}
+      origins={SITE_ORIGINS}
+      client:load
+    >
+      <slot />
+    </Frame>
   </body>
 </html>

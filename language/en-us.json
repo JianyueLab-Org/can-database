@@ -95,7 +95,32 @@
     "closeSidebar": "Close navigation",
     "openSidebar": "Open navigation",
     "hideNaip": "Hide NAIP data",
-    "hideNaipHint": "On by default. Shows only tier 1–2 data across the whole console, leaving out NAIP. Applies to this browser only."
+    "hideNaipHint": "On by default. Shows only tier 1–2 data across the whole console, leaving out NAIP. Applies to this browser only.",
+    "signIn": "Sign In",
+    "signingOut": "Signing out…",
+    "signOutFailed": "Sign-out failed. Try again.",
+    "close": "Close",
+    "dismiss": "Dismiss",
+    "sidebar": "Sidebar",
+    "openUserMenu": "Open user menu",
+    "openMenu": "Open menu",
+    "siteNavigation": "Site navigation",
+    "theme": {
+      "label": "Appearance",
+      "light": "Light",
+      "dark": "Dark",
+      "system": "Follow system"
+    },
+    "language": {
+      "label": "Select language"
+    },
+    "noAccess": {
+      "title": "You do not have access to this page",
+      "rating": "This page needs rating {required} or above.",
+      "permission": "This page needs the {name} permission.",
+      "signedInAs": "Signed in as {name} (#{id}).",
+      "reachable": "Sites you can use"
+    }
   },
   "nav": {
     "export": "Export",
@@ -110,11 +135,10 @@
   },
   "title": "航行资料库",
   "denied": {
-    "title": "No database access yet",
     "body": "Access to the aeronautical database is granted person by person by an administrator (ADM). It is separate from your controller rating — a rating does not grant access here.",
     "how": "Ask an ADM to grant you access; they do it from the roster in the instructor and management portal.",
-    "signedInAs": "Signed in as {name} ({id})",
-    "nextStep": "Next step"
+    "nextStep": "Next step",
+    "permission": "database access"
   },
   "overview": {
     "title": "Overview",

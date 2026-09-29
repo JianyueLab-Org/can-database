@@ -17,12 +17,13 @@
     "format:check": "prettier --check .",
     "typecheck": "astro check && node ./scripts/typecheck-vue.mjs",
     "lint": "bun run format:check && bun run typecheck && bun run test",
-    "test": "bun test"
+    "test": "bun test",
+    "check:pages": "can-ui-check-pages database"
   },
   "dependencies": {
     "@astrojs/node": "^11.0.0",
     "@astrojs/vue": "^7.0.0",
-    "@jianyuelab-org/can-ui": "^0.4.2",
+    "@jianyuelab-org/can-ui": "27.1.0",
     "@tailwindcss/vite": "^4.3.3",
     "astro": "^7.2.2",
     "leaflet": "^1.9.4",

@@ -3,7 +3,7 @@
  *
  * 和 can-portal / can-controller 的同名文件同一个形状：在 Astro 侧拼好，作为
  * props 进岛屿。分区切换器不在这里 —— 它是 can-ui 的 `buildWorkspaces`，四个
- * AppShell 站一份，见 `layouts/AppLayout.astro`。
+ * CanFrame 站一份，见 `layouts/AppLayout.astro`。
  */
 import type { Translator } from "@/lib/i18n";
 import type { IconName, NavItem, NavSecondary } from "@jianyuelab-org/can-ui";
@@ -21,10 +21,10 @@ import {
 import { CAN_PORTAL_ORIGIN, CAN_WEB_ORIGIN } from "@/lib/config";
 
 /**
- * 传给 `visibleSites`/`buildWorkspaces`/`siteUrl` 的 dev/staging 覆盖。覆盖主站和
- * 门户两个：本地和 staging 上轨底常用链接、分区切换器、页脚、`denied.astro` 那颗
- * 门户按钮会落在本环境自己的主站和门户，而不是永远指向线上。生产环境这两个变量
- * 本来就是线上地址，行为不变。
+ * 传给 `visibleSites`/`buildWorkspaces` 和外壳的 dev/staging 覆盖。覆盖主站和门户
+ * 两个：本地和 staging 上轨底常用链接、分区切换器、页脚、`denied.astro` 列出的站会
+ * 落在本环境自己的主站和门户，而不是永远指向线上。生产环境这两个变量本来就是线上
+ * 地址，行为不变。
  */
 export const SITE_ORIGINS: SiteOrigins = {
   web: CAN_WEB_ORIGIN,

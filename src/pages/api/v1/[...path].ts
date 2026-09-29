@@ -164,7 +164,7 @@ export function lookup(path: string): Allowed | undefined {
  * 会填错的形状 —— 而填错的后果是把一个带着会话 cookie 的请求送到错误的服务上。
  */
 export const AUTH_PATHS: Record<string, Allowed> = {
-  "auth/signout": { methods: ["POST"], who: "AppShell 退出登录" },
+  "auth/signout": { methods: ["POST"], who: "CanFrame 退出登录" },
 };
 
 /**

@@ -95,7 +95,32 @@
     "closeSidebar": "ナビゲーションを閉じる",
     "openSidebar": "ナビゲーションを開く",
     "hideNaip": "NAIP データを隠す",
-    "hideNaipHint": "既定でオン。コンソール全体でレベル 1〜2 のデータのみを表示し、NAIP を除外します。このブラウザにのみ適用されます。"
+    "hideNaipHint": "既定でオン。コンソール全体でレベル 1〜2 のデータのみを表示し、NAIP を除外します。このブラウザにのみ適用されます。",
+    "signIn": "ログイン",
+    "signingOut": "ログアウト中…",
+    "signOutFailed": "ログアウトに失敗しました。もう一度お試しください。",
+    "close": "閉じる",
+    "dismiss": "通知を閉じる",
+    "sidebar": "サイドバー",
+    "openUserMenu": "ユーザーメニューを開く",
+    "openMenu": "メニューを開く",
+    "siteNavigation": "サイト内ナビゲーション",
+    "theme": {
+      "label": "外観",
+      "light": "ライト",
+      "dark": "ダーク",
+      "system": "システムに合わせる"
+    },
+    "language": {
+      "label": "言語を選択"
+    },
+    "noAccess": {
+      "title": "このページへのアクセス権がありません",
+      "rating": "このページには評価 {required} 以上が必要です。",
+      "permission": "このページには「{name}」の権限が必要です。",
+      "signedInAs": "ログイン中：{name}（#{id}）",
+      "reachable": "利用できるサイト"
+    }
   },
   "nav": {
     "export": "エクスポート",
@@ -110,11 +135,10 @@
   },
   "title": "航行资料库",
   "denied": {
-    "title": "データベースへのアクセス権がありません",
     "body": "航空データベースへのアクセス権は管理者（ADM）が個別に付与します。管制評価とは別のもので、評価があってもここへのアクセス権にはなりません。",
     "how": "ADM に付与を依頼してください。教官・管理ポータルの名簿から操作します。",
-    "signedInAs": "ログイン中：{name}（{id}）",
-    "nextStep": "次の手順"
+    "nextStep": "次の手順",
+    "permission": "データベースへのアクセス"
   },
   "overview": {
     "title": "概要",
