@@ -1,6 +1,7 @@
 import { defineMiddleware } from "astro:middleware";
 import { resolveSession } from "@/server/canApi";
-import { canUseConsole, signInUrl } from "@/lib/config";
+import { signInUrl } from "@/lib/config";
+import { consoleNoAccess, DENIED_PATH } from "@/lib/access";
 
 /**
  * 每个请求先问一次 can-api「你是谁、有没有资料库权限」。
@@ -61,21 +62,20 @@ export const onRequest = defineMiddleware(async (context, next) => {
     return withSecurityHeaders(context.redirect(signInUrl(context.url)));
   }
 
-  // 登录了但没被授权的人，**不重定向** —— 送去 /denied，一张说明该找谁的页面。
+  // 登录了但没被授权的人：在请求的地址上渲染 can-ui 的 `NoAccess`，403，地址栏
+  // 不变。`next(DENIED_PATH)` 是改写，不是跳转：中间件不再跑一遍，`locals` 带到
+  // `src/pages/denied.astro`。那一页把「找一位 ADM」放在 `next-steps` 里 —— 点开
+  // 这个站的人几乎一定是**被告知**这里有东西要看的，他需要的是这一句。
   //
-  // 这和 can-portal 的做法不同（那边把不够格的人送回主站的飞行员面板），而区别是
-  // 有理由的：一个点开 /instr/roster 的普通飞行员多半是点错了，送他回自己的地方
-  // 是对的；而一个点开 database.ceruleanavi.net 的人几乎一定是**被告知**这里有东
-  // 西要看的，把他弹走只会让他再点一次。他需要的是一句「找 ADM 开权限」。
-  if (!canUseConsole(user.aipAccess) && pathname !== "/denied") {
-    return withSecurityHeaders(context.redirect("/denied"));
+  // 页面是服务端渲染的，机场清单在 HTML 里就是明文；改写意味着被拒的请求从不
+  // 执行原页面的 frontmatter，一次 can-db 读取都不发。
+  const reason = consoleNoAccess(user.aipAccess);
+  if (reason) {
+    context.locals.noAccess = reason;
+    return withSecurityHeaders(await next(DENIED_PATH));
   }
 
-  // 反过来：已经有权限的人不该停在那张页面上。
-  if (canUseConsole(user.aipAccess) && pathname === "/denied") {
-    return withSecurityHeaders(context.redirect("/"));
-  }
-
+  // 有权限的人直接打开 `/denied`：那一页自己送他回 `/`。
   return withSecurityHeaders(await next());
 });
 

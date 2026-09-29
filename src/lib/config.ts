@@ -49,8 +49,8 @@ export const CAN_WEB_ORIGIN =
   "https://ceruleanavi.net";
 
 /**
- * can-portal 的 origin。`denied.astro` 那颗「去教员与管理门户」的按钮和轨底的
- * 门户链接指向它。
+ * can-portal 的 origin。轨底的门户链接、分区切换器和 `denied.astro` 里 `NoAccess`
+ * 列出的站指向它（经 `SITE_ORIGINS`）。
  *
  * 单独一个变量而不是从 `CAN_WEB_ORIGIN` 推：两个站在 staging 上不一定挨着，
  * can-controller 的 `config.ts` 也是这么分的。

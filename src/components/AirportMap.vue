@@ -554,7 +554,7 @@ const legend = computed(() => {
 
 <template>
   <!-- `isolate`：Leaflet 的图层和控件带 400–1000 的 z-index，不圈起来会压到页面上
-       吸顶的小节导航和 AppShell 的顶栏上面。 -->
+       吸顶的小节导航和 CanFrame 的顶栏上面。 -->
   <div class="card isolate overflow-hidden">
     <!-- 所有开关集中在图的上沿一条工具栏里。选中态一律走 `.chip` 的 aria-pressed。 -->
     <div

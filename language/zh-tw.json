@@ -95,7 +95,32 @@
     "closeSidebar": "關閉導覽",
     "openSidebar": "開啟導覽",
     "hideNaip": "隱藏 NAIP 資料",
-    "hideNaipHint": "預設開啟。整個控制台只顯示 1–2 級的資料，不顯示 NAIP。只影響你自己的瀏覽器。"
+    "hideNaipHint": "預設開啟。整個控制台只顯示 1–2 級的資料，不顯示 NAIP。只影響你自己的瀏覽器。",
+    "signIn": "登入",
+    "signingOut": "正在登出…",
+    "signOutFailed": "登出失敗，請重試。",
+    "close": "關閉",
+    "dismiss": "關閉提示",
+    "sidebar": "側欄",
+    "openUserMenu": "開啟使用者選單",
+    "openMenu": "開啟選單",
+    "siteNavigation": "站內導覽",
+    "theme": {
+      "label": "外觀",
+      "light": "淺色",
+      "dark": "深色",
+      "system": "跟隨系統"
+    },
+    "language": {
+      "label": "選擇語言"
+    },
+    "noAccess": {
+      "title": "你沒有此頁的存取權限",
+      "rating": "此頁需要 {required} 級或以上的評級。",
+      "permission": "此頁需要「{name}」權限。",
+      "signedInAs": "目前登入：{name}（#{id}）",
+      "reachable": "你可以使用的站點"
+    }
   },
   "nav": {
     "export": "匯出",
@@ -110,11 +135,10 @@
   },
   "title": "航行资料库",
   "denied": {
-    "title": "還沒有資料庫權限",
     "body": "航行資料庫的存取權限由管理員（ADM）逐人授予，和管制評級是兩回事 —— 有評級不等於有這裡的權限。",
     "how": "聯絡一位 ADM 為你開通；他們在教員與管理入口的名冊上操作。",
-    "signedInAs": "目前登入：{name}（{id}）",
-    "nextStep": "下一步"
+    "nextStep": "下一步",
+    "permission": "資料庫存取"
   },
   "overview": {
     "title": "總覽",

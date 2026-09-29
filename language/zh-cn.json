@@ -95,7 +95,32 @@
     "closeSidebar": "关闭导航",
     "openSidebar": "打开导航",
     "hideNaip": "隐藏 NAIP 数据",
-    "hideNaipHint": "默认开启。整个控制台只显示 1–2 级的数据，不显示 NAIP。只影响你自己的浏览器。"
+    "hideNaipHint": "默认开启。整个控制台只显示 1–2 级的数据，不显示 NAIP。只影响你自己的浏览器。",
+    "signIn": "登录",
+    "signingOut": "正在退出…",
+    "signOutFailed": "退出失败，请重试。",
+    "close": "关闭",
+    "dismiss": "关闭提示",
+    "sidebar": "侧栏",
+    "openUserMenu": "打开用户菜单",
+    "openMenu": "打开菜单",
+    "siteNavigation": "站内导航",
+    "theme": {
+      "label": "外观",
+      "light": "浅色",
+      "dark": "深色",
+      "system": "跟随系统"
+    },
+    "language": {
+      "label": "选择语言"
+    },
+    "noAccess": {
+      "title": "你没有这一页的访问权限",
+      "rating": "这一页需要 {required} 级或以上的评级。",
+      "permission": "这一页需要「{name}」权限。",
+      "signedInAs": "当前登录：{name}（#{id}）",
+      "reachable": "你可以使用的站点"
+    }
   },
   "nav": {
     "export": "导出",
@@ -110,11 +135,10 @@
   },
   "title": "航行资料库",
   "denied": {
-    "title": "还没有资料库权限",
     "body": "航行资料库的访问权限由管理员（ADM）逐人授予，和管制评级是两回事 —— 有评级不等于有这里的权限。",
     "how": "联系一位 ADM 为你开通；他们在教员与管理门户的花名册上操作。",
-    "signedInAs": "当前登录：{name}（{id}）",
-    "nextStep": "下一步"
+    "nextStep": "下一步",
+    "permission": "资料库访问"
   },
   "overview": {
     "title": "总览",

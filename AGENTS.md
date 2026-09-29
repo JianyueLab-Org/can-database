@@ -127,9 +127,9 @@ can-db 现给的。
 
 改回私有 = CI 立刻不能部署。
 
-## 页面的外框：内边距是 AppShell 给的，页面只定宽
+## 页面的外框：内边距是 CanFrame 给的，页面只定宽
 
-can-ui 的 `AppShell` 已经把正文区连内边距一起给了：
+can-ui 的 `CanFrame` 已经把正文区连内边距一起给了：
 
 ```
 <main class="flex-1 py-8 lg:py-10">
@@ -140,7 +140,7 @@ can-ui 的 `AppShell` 已经把正文区连内边距一起给了：
 所以**页面自己那一层只写 `mx-auto w-full max-w-*`，一个 `px-` 或 `py-` 都不要加**。
 
 这条是补上的，因为原来八个页面每个都又套了一层
-`mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 lg:px-8` —— 和 AppShell 的那一层逐字相
+`mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 lg:px-8` —— 和 CanFrame 的那一层逐字相
 同，于是**左右内边距和上下留白都是加倍的**：桌面上下 2.5 + 2 = 4.5rem，左右 2 + 2 =
 4rem，而**手机上左右各 1rem 加 1rem，375px 的屏幕正文只剩 311px**。这个站装的是宽表
 和地图，那 32px 是白扔的。它不是审美问题，是量得出来的。
@@ -153,10 +153,11 @@ can-ui 的 `AppShell` 已经把正文区连内边距一起给了：
 | `max-w-5xl` | 读一条记录、填一个表单 | `/`、`/airports/<icao>`、`/route`                        |
 
 原来这两档是混着用的，而且看不出规律 —— 两个清单页一个 5xl 一个 6xl，`/positions`
-那张最宽的表反而是窄的那一档。**不要再引入第三档**：7xl 是 AppShell 的上限（写了等于
+那张最宽的表反而是窄的那一档。**不要再引入第三档**：7xl 是 CanFrame 的上限（写了等于
 没写），更窄的话这些表会先撑不开。
 
-`/denied` 和 `/404` 不在这张表里：它们自己居中，`denied` 走的还是 `shell={false}`。
+`/denied` 和 `/404` 不在这张表里。`/denied` 是 can-ui 的 `NoAccess`：中间件用
+`next("/denied")` 改写过去，HTTP 403，地址栏不变；直接打开它会被送回 `/`。
 
 ## 三个排版组件，页面不要再拼类串
 
