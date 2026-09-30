@@ -165,7 +165,31 @@ export function lookup(path: string): Allowed | undefined {
  */
 export const AUTH_PATHS: Record<string, Allowed> = {
   "auth/signout": { methods: ["POST"], who: "CanFrame 退出登录" },
+  // 通知铃（`Frame.vue` 的 `notifications`）。标记一条已读在 `AUTH_PATTERNS`。
+  notifications: { methods: ["GET"], who: "CanFrame 通知铃：列表" },
+  "notifications/unread": { methods: ["GET"], who: "CanFrame 通知铃：未读数" },
+  "notifications/read-all": {
+    methods: ["POST"],
+    who: "CanFrame 通知铃：全部已读",
+  },
 };
+
+/** 走 can-api、带一个 id 的那几条。 */
+export const AUTH_PATTERNS: Array<Allowed & { test: RegExp }> = [
+  {
+    test: /^notifications\/(member|broadcast)\/[0-9]{1,20}$/,
+    methods: ["PATCH"],
+    who: "CanFrame 通知铃：标记一条已读",
+  },
+];
+
+/**
+ * 这条路径转给 can-api 吗。精确表只认自己的键（`Object.hasOwn`），再查模式。
+ */
+export function canApiEntry(path: string): Allowed | undefined {
+  const exact = Object.hasOwn(AUTH_PATHS, path) ? AUTH_PATHS[path] : undefined;
+  return exact ?? AUTH_PATTERNS.find((entry) => entry.test.test(path));
+}
 
 /**
  * 一条路径到底放不放行 —— **handler 和测试用同一个函数**。
@@ -176,7 +200,7 @@ export const AUTH_PATHS: Record<string, Allowed> = {
  * 表加进来的那天它会安静地继续绿。
  */
 export function allowed(path: string): Allowed | undefined {
-  return AUTH_PATHS[path] ?? lookup(path);
+  return canApiEntry(path) ?? lookup(path);
 }
 
 const UNSAFE = new Set(["POST", "PATCH", "PUT", "DELETE"]);
@@ -227,7 +251,7 @@ export function passThroughHeaders(upstreamHeaders: Headers): Headers {
 
 const handler: APIRoute = async (context) => {
   const rest = context.params.path ?? "";
-  const authEntry = AUTH_PATHS[rest];
+  const authEntry = canApiEntry(rest);
   const entry = allowed(rest);
 
   if (!entry) {
@@ -260,7 +284,8 @@ const handler: APIRoute = async (context) => {
   // 源 GET 通常**不**带 Origin，要是这道检查也套在它们头上，整站每一次取数都是 403。
   // 所以 `UNSAFE` 这个集合不是修饰，它是这条检查能收紧的前提。
   //
-  // 走到这里的写操作：`POST auth/signout`（转给 can-api），和 5 级写界面的那几条
+  // 走到这里的写操作：`POST auth/signout` 和通知铃的 `POST notifications/read-all`、
+  // `PATCH notifications/{member|broadcast}/{id}`（转给 can-api），和 5 级写界面的那几条
   // （`ALLOW_PATTERNS` 里 `aip/datasets/{id}…` 开头的条目、`PUT aip/airports/{icao}/ground`
   // 和 `POST aip/airports/{icao}/ground/osm`，
   // 转给 can-db，级别由它的 `withWrite` 判）。

@@ -84,6 +84,10 @@ can-db 一个进程。
 
 服务端渲染的页面不走这条，走 `src/server/canDb.ts`（它转发 cookie）。
 
+转给 **can-api** 而不是 can-db 的条目在 `AUTH_PATHS` / `AUTH_PATTERNS`，由 `canApiEntry()`
+判：`auth/signout`，和通知铃（`Frame.vue` 的 `notifications`）的 `notifications`、
+`notifications/unread`、`notifications/read-all`、`notifications/{member|broadcast}/{id}`。
+
 **漏一条的症状是一片空白，不是一个错误。** 反代答 404，而 `api()` 刻意不抛异常，于是岛
 屿把失败当成「这一层没有数据」—— 屏幕上是一张没有扇区的地图、一个没有地面要素的机场，
 看起来像库里就没有。扇区图层是上线之后才发现漏了 `aip/sectors/*` 的。
