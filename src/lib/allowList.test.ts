@@ -5,6 +5,7 @@ import {
   ALLOW_LIST,
   ALLOW_PATTERNS,
   allowed,
+  canApiEntry,
   lookup,
 } from "../pages/api/v1/[...path]";
 
@@ -87,8 +88,8 @@ describe("反代白名单", () => {
   });
 
   test("每一条都在白名单上", () => {
-    // 走 handler 用的那个 `allowed`，而不是只查 can-db 那张表 —— 签退走的是
-    // `AUTH_PATHS`（转给 can-api），只查 `lookup` 会把它误报成漏放行。
+    // 走 handler 用的那个 `allowed`，而不是只查 can-db 那张表 —— 签退和通知铃走的是
+    // `canApiEntry`（转给 can-api），只查 `lookup` 会把它们误报成漏放行。
     const missing = [...found].filter(([path]) => !allowed(path));
     expect(
       missing.map(([path, files]) => `${path}  ←  ${files.join(", ")}`),
@@ -165,5 +166,47 @@ describe("白名单自己", () => {
   test("路径里带 .. 的过不去", () => {
     expect(lookup("aip/airports/../../datasets")).toBeUndefined();
     expect(lookup("aip/sectors/network/../datasets")).toBeUndefined();
+  });
+});
+
+describe("通知铃：转给 can-api，不转给 can-db", () => {
+  const BELL: Array<[string, string[]]> = [
+    ["notifications", ["GET"]],
+    ["notifications/unread", ["GET"]],
+    ["notifications/read-all", ["POST"]],
+    ["notifications/member/1", ["PATCH"]],
+    ["notifications/broadcast/12345678901234567890", ["PATCH"]],
+  ];
+
+  test("五条都走 can-api 那一侧，方法对得上", () => {
+    for (const [path, methods] of BELL) {
+      expect(canApiEntry(path)?.methods).toEqual(methods);
+      expect(canApiEntry(path)?.who).toContain("通知铃");
+      expect(allowed(path)?.methods).toEqual(methods);
+      // can-db 那张表里没有它们：一条落进 can-db 的通知请求是转错了上游。
+      expect(lookup(path)).toBeUndefined();
+    }
+  });
+
+  test("签退仍然走 can-api", () => {
+    expect(canApiEntry("auth/signout")?.methods).toEqual(["POST"]);
+  });
+
+  test.each([
+    "notifications/member",
+    "notifications/member/abc",
+    "notifications/member/1/read",
+    "notifications/other/1",
+    "notifications/broadcast/123456789012345678901",
+    "notifications/unread/x",
+    "notifications/../aip/datasets",
+  ])("%s 不在名单上", (path) => {
+    expect(canApiEntry(path)).toBeUndefined();
+    expect(allowed(path)).toBeUndefined();
+  });
+
+  test("继承来的键不算 can-api 的条目", () => {
+    expect(canApiEntry("toString")).toBeUndefined();
+    expect(canApiEntry("__proto__")).toBeUndefined();
   });
 });
