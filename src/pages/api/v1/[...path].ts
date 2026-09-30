@@ -328,7 +328,7 @@ const handler: APIRoute = async (context) => {
   // 指向 CSRF，不指向这里少了一行。
   //
   // 带过去的就是上面刚验过的那一个（不匹配的早已 403 返回），也正是 can-db 的
-  // `ALLOWED_ORIGINS` 里那一个。**只给 can-db 带** —— can-api 那条走的是签退，它
+  // `ALLOWED_ORIGINS` 里那一个。**只给 can-db 带** —— can-api 那几条（签退、通知铃）不带，它
   // 的 CORS 名单是另一份，往上塞一个它没预期的头不属于这次改动。
   if (UNSAFE.has(method) && !authEntry) headers.set("origin", origin());
 
