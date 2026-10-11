@@ -12,7 +12,7 @@ import { CAN_API_ORIGIN } from "@/lib/config";
 
 const TIMEOUT_MS = 5_000;
 
-/** 请求所属的成员，没登录是 null。 */
+/** The authenticated member returned by can-api. */
 export interface SessionUser {
   username: string;
   name: string;
@@ -25,44 +25,66 @@ export interface SessionUser {
   aipAccess: number;
 }
 
-/**
- * 向 can-api 解出调用者。
- *
- * `/api/v1/auth/session` 在没人登录时回的是 200 + `user: null`，不是 401 ——
- * 「没登录」在公开页面上是预期状态而不是错误。所以这里对「没登录」和「调用失败」
- * 都返回 null。
- *
- * 失败和登出不可区分是**安全的那个方向**：can-api 不可达时这个站把每个人都当成
- * 匿名访客，于是什么都不显示 —— 对一个放着有许可限制的资料的控制台，失败必须朝
- * 关闭的方向倒。
- *
- * `aipAccess` 每个请求重新读一次（can-api 那边也不信任 token 里的副本），所以
- * ADM 撤销权限会在这个人**下一次翻页**时生效，而不是等 30 天的 token 过期。
- */
+export type SessionOutcome =
+  | { kind: "authenticated"; user: SessionUser }
+  | { kind: "signed-out" }
+  | { kind: "unavailable" };
+
+/** Resolve permissions on every request. Failures do not imply signed-out. */
 export async function resolveSession(
   context: Pick<APIContext, "request">,
-): Promise<SessionUser | null> {
+): Promise<SessionOutcome> {
   const cookie = context.request.headers.get("cookie");
-  if (!cookie) return null;
+  if (!cookie) return { kind: "signed-out" };
 
-  let response: Response;
   try {
-    response = await fetch(`${CAN_API_ORIGIN}/api/v1/auth/session`, {
+    const response = await fetch(`${CAN_API_ORIGIN}/api/v1/auth/session`, {
       headers: { cookie },
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
-  } catch (error) {
-    console.error("can-api unreachable:", error);
-    return null;
+
+    // An authoritative 401 is signed-out regardless of its error body.
+    if (response.status === 401) return { kind: "signed-out" };
+    if (response.status !== 200) return { kind: "unavailable" };
+
+    const body: unknown = await response.json();
+    if (
+      !isRecord(body) ||
+      (Object.hasOwn(body, "status") && body.status !== 200)
+    ) {
+      return { kind: "unavailable" };
+    }
+    // Preserve both the documented top-level reply and the existing envelope.
+    const data = Object.hasOwn(body, "data") ? body.data : body;
+    if (!isRecord(data) || !Object.hasOwn(data, "user")) {
+      return { kind: "unavailable" };
+    }
+    if (data.user === null) return { kind: "signed-out" };
+    if (!isSessionUser(data.user)) return { kind: "unavailable" };
+    return { kind: "authenticated", user: data.user };
+  } catch {
+    // Transport, timeout, body-read, and JSON failures remain fail-closed.
+    return { kind: "unavailable" };
   }
+}
 
-  if (!response.ok) return null;
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
 
-  const body = (await response.json().catch(() => ({}))) as Record<
-    string,
-    unknown
-  >;
-  const data = ("data" in body ? body.data : body) as
-    { user?: SessionUser | null } | undefined;
-  return data?.user ?? null;
+function isSessionUser(value: unknown): value is SessionUser {
+  return (
+    isRecord(value) &&
+    typeof value.username === "string" &&
+    value.username.length > 0 &&
+    typeof value.name === "string" &&
+    typeof value.email === "string" &&
+    typeof value.rating === "number" &&
+    Number.isInteger(value.rating) &&
+    value.rating >= 0 &&
+    typeof value.aipAccess === "number" &&
+    Number.isInteger(value.aipAccess) &&
+    value.aipAccess >= 0 &&
+    value.aipAccess <= 5
+  );
 }
