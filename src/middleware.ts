@@ -55,10 +55,23 @@ export const onRequest = defineMiddleware(async (context, next) => {
     return withSecurityHeaders(await next());
   }
 
-  const user = await resolveSession(context);
+  const session = await resolveSession(context);
+  const user = session.kind === "authenticated" ? session.user : null;
   context.locals.user = user;
 
-  if (!user) {
+  if (session.kind === "unavailable") {
+    return withSecurityHeaders(
+      new Response("Session verification is unavailable. Please try again.", {
+        status: 503,
+        headers: {
+          "Content-Type": "text/plain; charset=utf-8",
+          "Cache-Control": "private, no-store",
+        },
+      }),
+    );
+  }
+
+  if (session.kind === "signed-out") {
     return withSecurityHeaders(context.redirect(signInUrl(context.url)));
   }
 
@@ -69,7 +82,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
   //
   // 页面是服务端渲染的，机场清单在 HTML 里就是明文；改写意味着被拒的请求从不
   // 执行原页面的 frontmatter，一次 can-db 读取都不发。
-  const reason = consoleNoAccess(user.aipAccess);
+  const reason = consoleNoAccess(session.user.aipAccess);
   if (reason) {
     context.locals.noAccess = reason;
     return withSecurityHeaders(await next(DENIED_PATH));
