@@ -34,6 +34,11 @@ metadata:
   namespace: can-database
 spec:
   replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
   selector:
     matchLabels:
       app: can-database
@@ -72,6 +77,10 @@ spec:
               value: https://database.ceruleanavi.net
           # /healthz 不碰 can-db，也不碰 can-api —— 一个上游抖一下就把这边整个 Pod
           # 滚掉的探针，治不好它探测的那个毛病。
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sleep", "10"]
           readinessProbe:
             httpGet:
               path: /healthz
