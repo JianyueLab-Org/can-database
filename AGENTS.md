@@ -136,37 +136,13 @@ can-db 现给的。
 侧栏是总览加三个分组，数据（机场、航路点、席位）、工具（地图、航路）、维护（数据集、导出）。
 侧栏由 `src/lib/nav.ts` 里的 `buildNavigation(t)` 生成，不按档分页。
 
-## 页面的外框：内边距是 CanFrame 给的，页面只定宽
+## 页面的外框：内边距和宽度都是 CanFrame 给的
 
-can-ui 的 `CanFrame` 已经把正文区连内边距一起给了：
+整站全宽。`CanFrame` 的 `layout="tool"` 给正文区左右内边距 `px-4 sm:px-6 lg:px-8`，没有最大宽度。
 
-```
-<main class="flex-1 py-8 lg:py-10">
-  <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8"><slot /></div>
-</main>
-```
+页面自己那一层只写 `w-full`。不写 `mx-auto`、`max-w-*`、`px-`。
 
-所以**页面自己那一层只写 `mx-auto w-full max-w-*`，一个 `px-` 或 `py-` 都不要加**。
-
-这条是补上的，因为原来八个页面每个都又套了一层
-`mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 lg:px-8` —— 和 CanFrame 的那一层逐字相
-同，于是**左右内边距和上下留白都是加倍的**：桌面上下 2.5 + 2 = 4.5rem，左右 2 + 2 =
-4rem，而**手机上左右各 1rem 加 1rem，375px 的屏幕正文只剩 311px**。这个站装的是宽表
-和地图，那 32px 是白扔的。它不是审美问题，是量得出来的。
-
-**宽度两档，按页面装什么分：**
-
-| 档          | 给谁                   | 现在是谁                                                 |
-| ----------- | ---------------------- | -------------------------------------------------------- |
-| `max-w-6xl` | 清单、宽表、整幅的图   | `/airports`、`/positions`、`/fixes`、`/datasets`、`/map` |
-| `max-w-5xl` | 读一条记录、填一个表单 | `/`、`/airports/<icao>`、`/route`                        |
-
-原来这两档是混着用的，而且看不出规律 —— 两个清单页一个 5xl 一个 6xl，`/positions`
-那张最宽的表反而是窄的那一档。**不要再引入第三档**：7xl 是 CanFrame 的上限（写了等于
-没写），更窄的话这些表会先撑不开。
-
-`/denied` 和 `/404` 不在这张表里。`/denied` 是 can-ui 的 `NoAccess`：中间件用
-`next("/denied")` 改写过去，HTTP 403，地址栏不变；直接打开它会被送回 `/`。
+`/denied` 和 `/404` 不在此列。`/denied` 是 can-ui 的 `NoAccess`：中间件用 `next("/denied")` 改写过去，HTTP 403，地址栏不变；直接打开它会被送回 `/`。`/404` 是 can-ui 的 `NotFound`，加一个机场清单链接。
 
 ## 三个排版组件，页面不要再拼类串
 
@@ -175,8 +151,7 @@ can-ui 的 `CanFrame` 已经把正文区连内边距一起给了：
 - **`PageHeader.astro`** —— 每一页都从它开始。字号用 can-ui 的 `.text-title-1`
   （`clamp()`，字距行高跟着字号走），**不要再手写 `text-2xl … sm:text-3xl`**：那是在
   两个断点上各钉一个值，中间那段视口宽度得不到照顾。说明保留 `max-w-2xl`（这也是没
-  有直接用 can-ui 那个 `PageHeader.vue` 的原因 —— 它不设上限，而这个站正文列宽到
-  6xl，`fixes` 那句 65 字的说明会铺满整行）。`title` 插槽给机场详情页的等宽 ICAO，
+  有直接用 can-ui 那个 `PageHeader.vue` 的原因 —— 它不设上限，而这个站正文列是全宽，`fixes` 那句 65 字的说明会铺满整行）。`title` 插槽给机场详情页的等宽 ICAO，
   `actions` 插槽给右对齐的分类标签。
 - **`SectionTitle.astro`** —— 小节标题 + 条数 + 可选说明。字号是 `.text-title-3`，
   **比原来的 `text-sm` 全大写重一档**：原来它和表头同号同色，于是小节标题在屏幕上并
