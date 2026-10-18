@@ -92,7 +92,7 @@ describe("nav dictionary", () => {
         "datasets.yes",
         "datasets.no",
       ],
-      "ja-jp": ["airports.noElev"],
+      "ja-jp": [],
     };
     for (const locale of ["zh-tw", "ja-jp"]) {
       for (const key of keys.filter((k) => !shared[locale].includes(k))) {
