@@ -134,7 +134,7 @@ can-db 现给的。
 ## 侧栏：总览加三个分组
 
 侧栏是总览加三个分组，数据（机场、航路点、席位）、工具（地图、航路）、维护（数据集、导出）。
-数据在 `src/lib/nav.ts` 的 `buildNavigation(t)`，不按档分页。
+侧栏由 `src/lib/nav.ts` 里的 `buildNavigation(t)` 生成，不按档分页。
 外壳不带分区切换器和常用链接，`Frame.vue` 没有 `secondary`、`workspaces` 两个 prop。
 
 ## 页面的外框：内边距是 CanFrame 给的，页面只定宽

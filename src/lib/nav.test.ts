@@ -44,7 +44,9 @@ describe("nav dictionary", () => {
 
   test("zh-tw and ja-jp are not the zh-cn strings", () => {
     for (const locale of ["zh-tw", "ja-jp"]) {
-      expect(read(locale).overview).not.toBe(read("zh-cn").overview);
+      for (const key of ["overview", "airports", "fixes", "datasets"]) {
+        expect(read(locale)[key]).not.toBe(read("zh-cn")[key]);
+      }
     }
   });
 });

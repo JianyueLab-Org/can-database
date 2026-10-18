@@ -31,7 +31,7 @@ export const SITE_ORIGINS: SiteOrigins = {
  * 览」会在每一个子页面上都亮着。
  *
  * 航路在这里，是因为它读的是这批数据 —— 但**规划本身在 can-db**（`/aip/route`），
- * 这一页只是个入口。理由和总览那两个统计一样，见本文件顶上和 AGENTS.md。
+ * 这一页只是个入口。理由和总览那两个统计一样，见 AGENTS.md。
  */
 const OVERVIEW = { key: "nav.overview", href: "/", icon: "home" } as const;
 

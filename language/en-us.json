@@ -131,7 +131,6 @@
       "maintenance": "Maintenance"
     }
   },
-  "title": "航行资料库",
   "denied": {
     "body": "Access to the aeronautical database is granted person by person by an administrator (ADM). It is separate from your controller rating — a rating does not grant access here.",
     "how": "Ask an ADM to grant you access; they do it from the roster in the instructor and management portal.",
