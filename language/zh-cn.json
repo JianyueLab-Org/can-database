@@ -86,12 +86,6 @@
       "hint": "搜索"
     },
     "skipToContent": "跳到主要内容",
-    "workspace": {
-      "label": "工作区",
-      "pilots": "飞行员",
-      "controllers": "管制员",
-      "exams": "考试中心"
-    },
     "closeSidebar": "关闭导航",
     "openSidebar": "打开导航",
     "hideNaip": "隐藏 NAIP 数据",
@@ -123,15 +117,19 @@
     }
   },
   "nav": {
-    "export": "导出",
     "overview": "总览",
     "airports": "机场",
     "fixes": "航路点",
-    "datasets": "数据集",
-    "quickAccess": "快速访问",
+    "positions": "席位",
     "map": "地图",
     "route": "航路",
-    "positions": "席位"
+    "datasets": "数据集",
+    "export": "导出",
+    "groups": {
+      "data": "数据",
+      "tools": "工具",
+      "maintenance": "维护"
+    }
   },
   "title": "航行资料库",
   "denied": {
@@ -460,12 +458,6 @@
     "description": "你访问的页面不存在，或者已经被移动到了别处。",
     "home": "返回首页",
     "airports": "查找机场"
-  },
-  "workspace": {
-    "label": "工作区",
-    "pilots": "飞行员",
-    "controllers": "管制员",
-    "exams": "考试中心"
   },
   "procedures": {
     "search": "搜索程序",

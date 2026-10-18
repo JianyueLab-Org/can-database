@@ -86,12 +86,6 @@
       "hint": "検索"
     },
     "skipToContent": "本文へスキップ",
-    "workspace": {
-      "label": "ワークスペース",
-      "pilots": "パイロット",
-      "controllers": "管制員",
-      "exams": "試験センター"
-    },
     "closeSidebar": "ナビゲーションを閉じる",
     "openSidebar": "ナビゲーションを開く",
     "hideNaip": "NAIP データを隠す",
@@ -123,15 +117,19 @@
     }
   },
   "nav": {
-    "export": "エクスポート",
-    "overview": "总览",
-    "airports": "机场",
-    "fixes": "航路点",
-    "datasets": "数据集",
-    "quickAccess": "快速访问",
+    "overview": "概要",
+    "airports": "空港",
+    "fixes": "フィックス",
+    "positions": "席",
     "map": "地図",
     "route": "ルート",
-    "positions": "席"
+    "datasets": "データセット",
+    "export": "エクスポート",
+    "groups": {
+      "data": "データ",
+      "tools": "ツール",
+      "maintenance": "メンテナンス"
+    }
   },
   "title": "航行资料库",
   "denied": {
@@ -460,12 +458,6 @@
     "description": "お探しのページは存在しないか、前回のご訪問以降に移動された可能性があります。",
     "home": "ホームへ戻る",
     "airports": "空港を探す"
-  },
-  "workspace": {
-    "label": "ワークスペース",
-    "pilots": "パイロット",
-    "controllers": "管制員",
-    "exams": "試験センター"
   },
   "procedures": {
     "search": "方式を検索",

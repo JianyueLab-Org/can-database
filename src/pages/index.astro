@@ -34,8 +34,8 @@ const totalAirports = overview?.airports ?? 0;
 
 // 工具入口取自侧栏那一份（`lib/nav.ts`），名字和图标因此和侧栏一字不差；这里只补
 // 一句用途。总览自己不列。
-const tools = buildNavigation(tRoot, Astro.locals.user?.aipAccess ?? 0)
-  .filter((item) => item.href !== "/")
+const tools = buildNavigation(tRoot)
+  .flatMap((item) => item.children ?? [])
   .map((item) => ({
     ...item,
     purpose: t(`tools.${(item.href ?? "").slice(1)}`),

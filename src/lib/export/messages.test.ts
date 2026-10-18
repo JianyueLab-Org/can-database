@@ -87,7 +87,9 @@ describe("export page locale contract", () => {
       expect(t("nav.export")).not.toBe("nav.export");
       for (const access of [2, 4]) {
         expect(
-          buildNavigation(t, access).filter((item) => item.href === "/export"),
+          buildNavigation(t)
+            .flatMap((item) => item.children ?? [])
+            .filter((item) => item.href === "/export"),
         ).toEqual([
           { name: t("nav.export"), href: "/export", icon: "arrowDownTray" },
         ]);

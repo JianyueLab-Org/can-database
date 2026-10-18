@@ -86,12 +86,6 @@
       "hint": "搜尋"
     },
     "skipToContent": "跳至主要內容",
-    "workspace": {
-      "label": "工作區",
-      "pilots": "飛行員",
-      "controllers": "管制員",
-      "exams": "考試中心"
-    },
     "closeSidebar": "關閉導覽",
     "openSidebar": "開啟導覽",
     "hideNaip": "隱藏 NAIP 資料",
@@ -123,15 +117,19 @@
     }
   },
   "nav": {
-    "export": "匯出",
-    "overview": "总览",
-    "airports": "机场",
-    "fixes": "航路点",
-    "datasets": "数据集",
-    "quickAccess": "快速访问",
+    "overview": "總覽",
+    "airports": "機場",
+    "fixes": "航路點",
+    "positions": "席位",
     "map": "地圖",
     "route": "航路",
-    "positions": "席位"
+    "datasets": "資料集",
+    "export": "匯出",
+    "groups": {
+      "data": "資料",
+      "tools": "工具",
+      "maintenance": "維護"
+    }
   },
   "title": "航行资料库",
   "denied": {
@@ -460,12 +458,6 @@
     "description": "你造訪的頁面不存在，或者已經被移動到了別處。",
     "home": "返回首頁",
     "airports": "查找機場"
-  },
-  "workspace": {
-    "label": "工作區",
-    "pilots": "飛行員",
-    "controllers": "管制員",
-    "exams": "考試中心"
   },
   "procedures": {
     "search": "搜尋程序",

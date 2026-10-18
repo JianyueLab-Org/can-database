@@ -86,12 +86,6 @@
       "hint": "Search"
     },
     "skipToContent": "Skip to main content",
-    "workspace": {
-      "label": "Workspace",
-      "pilots": "Pilots",
-      "controllers": "ATC",
-      "exams": "Exams"
-    },
     "closeSidebar": "Close navigation",
     "openSidebar": "Open navigation",
     "hideNaip": "Hide NAIP data",
@@ -123,15 +117,19 @@
     }
   },
   "nav": {
-    "export": "Export",
-    "overview": "总览",
-    "airports": "机场",
-    "fixes": "航路点",
-    "datasets": "数据集",
-    "quickAccess": "快速访问",
+    "overview": "Overview",
+    "airports": "Airports",
+    "fixes": "Fixes",
+    "positions": "Positions",
     "map": "Map",
     "route": "Route",
-    "positions": "Positions"
+    "datasets": "Datasets",
+    "export": "Export",
+    "groups": {
+      "data": "Data",
+      "tools": "Tools",
+      "maintenance": "Maintenance"
+    }
   },
   "title": "航行资料库",
   "denied": {
@@ -460,12 +458,6 @@
     "description": "The page you asked for does not exist, or it may have moved since you last flew here.",
     "home": "Back to home",
     "airports": "Find an airport"
-  },
-  "workspace": {
-    "label": "Workspace",
-    "pilots": "Pilots",
-    "controllers": "ATC",
-    "exams": "Exams"
   },
   "procedures": {
     "search": "Search procedures",
