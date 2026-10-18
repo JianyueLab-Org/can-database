@@ -20,9 +20,7 @@ import {
   Toggle,
   type FrameUser,
   type NavItem,
-  type NavSecondary,
   type SiteOrigins,
-  type Workspace,
 } from "@jianyuelab-org/can-ui";
 import { writeHideNaip } from "@/lib/hideNaip";
 import { createTranslator } from "@/lib/i18n";
@@ -31,8 +29,6 @@ const props = defineProps<{
   locale: string;
   pathname: string;
   nav: NavItem[];
-  secondary?: NavSecondary;
-  workspaces?: Workspace[];
   user: FrameUser | null;
   /** 「隐藏 NAIP 数据」开关出不出：成员 aipAccess ≥ 3。 */
   canHideNaip: boolean;
@@ -64,9 +60,6 @@ function setHideNaip(on: boolean) {
     :locale="locale"
     :pathname="pathname"
     :nav="nav"
-    :secondary="secondary"
-    :workspaces="workspaces"
-    active-workspace="controllers"
     :user="user"
     notifications
     :messages="messages"

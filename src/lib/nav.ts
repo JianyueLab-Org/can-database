@@ -2,29 +2,22 @@
  * 侧栏是一份数据，不是每个页面各自拼的一串链接。
  *
  * 和 can-portal / can-controller 的同名文件同一个形状：在 Astro 侧拼好，作为
- * props 进岛屿。分区切换器不在这里 —— 它是 can-ui 的 `buildWorkspaces`，四个
- * CanFrame 站一份，见 `layouts/AppLayout.astro`。
+ * props 进岛屿。
  */
 import type { Translator } from "@/lib/i18n";
-import type { IconName, NavItem, NavSecondary } from "@jianyuelab-org/can-ui";
+import type { IconName, NavItem } from "@jianyuelab-org/can-ui";
 // Deep import, not the barrel: the barrel re-exports every Vue component in
 // the package, and this file is imported by a bun:test file
 // (`export/messages.test.ts`) that shares a process with `export/page.test.ts`'s
 // happy-dom document. Loading the whole component tree here tore that
-// document down from under the other file — `visibleSites` alone needs none
-// of it.
-import {
-  visibleSites,
-  WORKSPACE_SITE_KEYS,
-  type SiteOrigins,
-} from "@jianyuelab-org/can-ui/sites";
+// document down from under the other file.
+import type { SiteOrigins } from "@jianyuelab-org/can-ui/sites";
 import { CAN_PORTAL_ORIGIN, CAN_WEB_ORIGIN } from "@/lib/config";
 
 /**
- * 传给 `visibleSites`/`buildWorkspaces` 和外壳的 dev/staging 覆盖。覆盖主站和门户
- * 两个：本地和 staging 上轨底常用链接、分区切换器、页脚、`denied.astro` 列出的站会
- * 落在本环境自己的主站和门户，而不是永远指向线上。生产环境这两个变量本来就是线上
- * 地址，行为不变。
+ * 传给外壳的 dev/staging 覆盖。覆盖主站和门户两个：本地和 staging 上页脚、
+ * `denied.astro` 列出的站会落在本环境自己的主站和门户，而不是永远指向线上。
+ * 生产环境这两个变量本来就是线上地址，行为不变。
  */
 export const SITE_ORIGINS: SiteOrigins = {
   web: CAN_WEB_ORIGIN,
@@ -32,23 +25,46 @@ export const SITE_ORIGINS: SiteOrigins = {
 };
 
 /**
- * 侧栏的八页。
+ * 侧栏：总览加三个分组（数据、工具、维护）。
  *
  * `/` 带斜杠是给 `isCurrentPath()` 看的：以斜杠结尾的条目只精确匹配，否则「总
  * 览」会在每一个子页面上都亮着。
  *
  * 航路在这里，是因为它读的是这批数据 —— 但**规划本身在 can-db**（`/aip/route`），
- * 这一页只是个入口。理由和总览那两个统计一样，见本文件顶上和 AGENTS.md。
+ * 这一页只是个入口。理由和总览那两个统计一样，见 AGENTS.md。
  */
-const PAGES: Array<{ key: string; href: string; icon: IconName }> = [
-  { key: "nav.overview", href: "/", icon: "home" },
-  { key: "nav.airports", href: "/airports", icon: "mapPin" },
-  { key: "nav.map", href: "/map", icon: "map" },
-  { key: "nav.route", href: "/route", icon: "paperAirplane" },
-  { key: "nav.positions", href: "/positions", icon: "speakerWave" },
-  { key: "nav.fixes", href: "/fixes", icon: "signal" },
-  { key: "nav.datasets", href: "/datasets", icon: "documentText" },
-  { key: "nav.export", href: "/export", icon: "arrowDownTray" },
+const OVERVIEW = { key: "nav.overview", href: "/", icon: "home" } as const;
+
+const GROUPS: Array<{
+  key: string;
+  icon: IconName;
+  pages: Array<{ key: string; href: string; icon: IconName }>;
+}> = [
+  {
+    key: "nav.groups.data",
+    icon: "mapPin",
+    pages: [
+      { key: "nav.airports", href: "/airports", icon: "mapPin" },
+      { key: "nav.fixes", href: "/fixes", icon: "signal" },
+      { key: "nav.positions", href: "/positions", icon: "speakerWave" },
+    ],
+  },
+  {
+    key: "nav.groups.tools",
+    icon: "map",
+    pages: [
+      { key: "nav.map", href: "/map", icon: "map" },
+      { key: "nav.route", href: "/route", icon: "paperAirplane" },
+    ],
+  },
+  {
+    key: "nav.groups.maintenance",
+    icon: "documentText",
+    pages: [
+      { key: "nav.datasets", href: "/datasets", icon: "documentText" },
+      { key: "nav.export", href: "/export", icon: "arrowDownTray" },
+    ],
+  },
 ];
 
 /**
@@ -73,45 +89,19 @@ const PAGES: Array<{ key: string; href: string; icon: IconName }> = [
  * **不要加指向不存在功能的入口。** 一个点下去只有占位的入口，会被当成坏掉的页
  * 面，而不是还没做的页面。can-efb 的四个占位页把这条写得很清楚。
  */
-export function buildNavigation(t: Translator, _access: number): NavItem[] {
-  return PAGES.map((entry) => ({
-    name: t(entry.key),
-    href: entry.href,
-    icon: entry.icon,
-  }));
-}
-
-/**
- * 轨底的跨站链接。
- *
- * 从前这里手抄着门户、主站、文档三条；现在来自 can-ui 的 `visibleSites`，九个站
- * 一份，站名的四种语言也在那边，门户和资料库按评级决定露不露 —— 那是画菜单的
- * 依据，不是权限。
- */
-export function buildSecondary(
-  t: Translator,
-  opts: { locale: string; rating?: number; signedIn: boolean },
-): NavSecondary {
-  return {
-    label: t("nav.quickAccess"),
-    // 分区切换器（`buildWorkspaces`，见文件顶注）已经画着管制员中心和考试中
-    // 心，这里要把 WORKSPACE_SITE_KEYS 排掉，不然这两个站在切换器和这份常用
-    // 链接里各出现一次。
-    items: visibleSites({
-      locale: opts.locale,
-      current: "database",
-      rating: opts.rating,
-      signedIn: opts.signedIn,
-      excludeCurrent: true,
-      origins: SITE_ORIGINS,
-    })
-      .filter((site) => !WORKSPACE_SITE_KEYS.includes(site.key))
-      .map((site) => ({
-        name: site.name,
-        href: site.href,
-        icon: site.icon,
+export function buildNavigation(t: Translator): NavItem[] {
+  return [
+    { name: t(OVERVIEW.key), href: OVERVIEW.href, icon: OVERVIEW.icon },
+    ...GROUPS.map((group) => ({
+      name: t(group.key),
+      icon: group.icon,
+      children: group.pages.map((page) => ({
+        name: t(page.key),
+        href: page.href,
+        icon: page.icon,
       })),
-  };
+    })),
+  ];
 }
 
 // 写门槛是 config.ts 的 `canManage`；侧栏不用它。
