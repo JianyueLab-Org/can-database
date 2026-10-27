@@ -253,6 +253,43 @@
     line-height: 1;
   }
 
+  /* ── 表格，宽屏 ─────────────────────────────────────────────────────────
+     can-ui 的 `.data-table` 只管 640px 以下（每行折成一张卡片）；宽屏的样子在它的
+     `DataTable.vue` 组件里，写在类串上。这里的表是手写的 `<table class="data-table">`，
+     宽屏照那个组件的 dense 档补上：表头一条下沉底色、字号同 `.text-eyebrow`，单元格
+     有内边距，行间一道细线。对齐靠单元格上的 `text-right`（工具类层压过这里）。
+
+     **表头不转大写。** 这里的表头带单位（`长 (m)`、`标高 ft`、`速度 (kt)`），转了
+     米就成了 `M`。手机上那一份标签同理，见文件末尾。 */
+  @media (min-width: 640px) {
+    .data-table th {
+      padding: 0.5rem 0.75rem;
+      background: var(--surface-sunken);
+      color: var(--color-muted);
+      font-size: 0.6875rem;
+      font-weight: 600;
+      letter-spacing: var(--tracking-eyebrow);
+      line-height: 1.2;
+      text-align: start;
+      white-space: nowrap;
+    }
+    .data-table th:first-child {
+      border-start-start-radius: var(--radius-control);
+      border-end-start-radius: var(--radius-control);
+    }
+    .data-table th:last-child {
+      border-start-end-radius: var(--radius-control);
+      border-end-end-radius: var(--radius-control);
+    }
+    .data-table td {
+      padding: 0.5rem 0.75rem;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .data-table tbody tr:last-child > td {
+      border-bottom: 0;
+    }
+  }
+
   /* ── 可点的表格行 ───────────────────────────────────────────────────────
      整行可点由岛屿里的 click 处理（见 `Airports.vue` 的 `openRow`），这里只管样式。
      不用「第一个链接的 `::after` 盖满整行」：那要 `<tr>` 当定位容器，有的 WebKit 不
@@ -307,4 +344,13 @@
 .basemap-switch a[aria-pressed="true"] {
   background: color-mix(in srgb, var(--color-can) 12%, var(--surface-raised));
   color: var(--color-ink);
+}
+
+/* ── 表格，手机上的单元格标签 ────────────────────────────────────────────
+   can-ui 在 640px 以下把 `data-label` 转大写印在每格前面；这里的标签带单位，`(m)`
+   转成 `(M)` 就错了。**不放进 @layer**：can-ui 那条不分层。 */
+@media (max-width: 639px) {
+  .data-table tbody td::before {
+    text-transform: none;
+  }
 }

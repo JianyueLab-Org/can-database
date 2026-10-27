@@ -93,7 +93,8 @@ function onSearchKeydown(event: KeyboardEvent) {
 
 <template>
   <fieldset class="card min-w-0 space-y-3 p-4">
-    <legend class="text-title-3 px-2 text-ink">{{ t("airportScope") }}</legend>
+    <!-- 上面的步骤标题已经印着同一句；legend 留给读屏，这一组控件仍然有名字。 -->
+    <legend class="sr-only">{{ t("airportScope") }}</legend>
     <p class="text-sm text-muted">{{ t("airportScopeHint") }}</p>
 
     <div class="flex flex-wrap items-center gap-2">
@@ -219,7 +220,7 @@ function onSearchKeydown(event: KeyboardEvent) {
     </p>
     <template v-else>
       <ul
-        class="scroll-shadow-y grid max-h-72 gap-x-3 overflow-y-auto rounded-control border border-subtle p-1.5 sm:grid-cols-2 lg:grid-cols-3"
+        class="scroll-shadow-y grid max-h-72 grid-cols-1 gap-x-3 overflow-y-auto rounded-control border border-subtle p-1.5 sm:grid-cols-2 lg:grid-cols-3"
       >
         <li v-for="airport in rendered" :key="airport.icao">
           <label

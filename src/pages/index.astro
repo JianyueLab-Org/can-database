@@ -83,7 +83,9 @@ const tools = buildNavigation(tRoot)
               value={totalAirports}
               icon="mapPin"
             />
+            {/* 手机上两列放三块，第三块单独一行占满，不留半格空。 */}
             <StatCard
+              class="col-span-2 sm:col-span-1"
               label={t("datasets")}
               value={datasets}
               icon="squares2x2"

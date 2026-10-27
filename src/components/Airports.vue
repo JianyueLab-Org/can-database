@@ -348,7 +348,11 @@ function openRow(event: MouseEvent, icao: string) {
       </EmptyState>
     </div>
 
-    <div v-else class="scroll-shadow-x overflow-x-auto">
+    <div
+      v-else
+      class="scroll-shadow-x overflow-x-auto"
+      style="--scroll-shadow-bg: var(--surface)"
+    >
       <table class="data-table w-full text-sm">
         <thead>
           <tr>

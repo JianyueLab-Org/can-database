@@ -221,7 +221,7 @@
     "searchLabel": "搜索机场",
     "firFilter": "按 FIR 筛选",
     "allFirs": "全部",
-    "elevFt": "标高 ft",
+    "elevFt": "标高 (ft)",
     "noData": "没有取到机场数据。",
     "clearFilters": "清除筛选",
     "editGround": "编辑地面要素",
