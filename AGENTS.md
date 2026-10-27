@@ -344,8 +344,15 @@ ZSPD 有 **122 条程序、1479 条腿**。原来是三栏静态卡片、每条�
 影 —— **不能滚就一道阴影都不出现**，这正是 mask 做不到的。
 
 **盖片颜色必须和容器背景一致**，默认 `--surface-raised`（这些表大多在 `.card` 里），不在卡
-片里的用 `style="--scroll-shadow-bg: var(--surface)"` 覆盖。暗色主题下这两个差一档，蒙错
-比不蒙还显眼。
+片里的用 `style="--scroll-shadow-bg: var(--surface)"` 覆盖，在 `bg-surface-sunken` 面板里的
+用 `var(--surface-sunken)`。暗色主题下这几档差得出来，蒙错比不蒙还显眼。
+
+**滚动容器里有 `sr-only` 时容器要 `relative`。** `sr-only` 是绝对定位，容器不是定位祖先时它
+逃出裁切，整页在手机上横向撑宽（导出页的格式矩阵踩过）。
+
+**`.data-table` 宽屏的样子在 `globals.css`。** can-ui 只给 640px 以下的卡片布局，宽屏样式在它
+的 `DataTable.vue` 类串上；手写的 `<table class="data-table">` 由 `globals.css` 补表头底色、
+单元格内边距和行线。表头和手机标签都不转大写：表头带单位（`长 (m)`），单位写成 `(单位)`。
 
 ## 跑道是一张表，不是两张
 

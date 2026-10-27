@@ -221,7 +221,7 @@
     "searchLabel": "空港を検索",
     "firFilter": "FIR で絞り込み",
     "allFirs": "すべて",
-    "elevFt": "標高 ft",
+    "elevFt": "標高 (ft)",
     "noData": "空港データを取得できませんでした。",
     "clearFilters": "絞り込みを解除",
     "editGround": "地上要素を編集",

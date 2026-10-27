@@ -184,7 +184,10 @@ const ready = computed(
     </div>
 
     <template v-else>
-      <div class="scroll-shadow-x overflow-x-auto">
+      <div
+        class="scroll-shadow-x overflow-x-auto"
+        style="--scroll-shadow-bg: var(--surface)"
+      >
         <table class="data-table w-full text-sm">
           <thead>
             <tr>

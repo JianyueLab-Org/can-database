@@ -353,7 +353,7 @@ onBeforeUnmount(() => {
             tabindex="0"
             :aria-labelledby="`export-group-${group.id}`"
             aria-describedby="export-scroll-hint"
-            class="scroll-shadow-x overflow-x-auto focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-can"
+            class="scroll-shadow-x relative overflow-x-auto focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-can"
           >
             <table
               class="export-matrix w-full min-w-[40rem] border-collapse text-left text-sm [&_td]:px-3 [&_td]:py-2 [&_th]:px-3 [&_th]:py-2 [&_tbody_tr]:border-t [&_tbody_tr]:border-subtle"

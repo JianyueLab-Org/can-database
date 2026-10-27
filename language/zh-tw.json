@@ -221,7 +221,7 @@
     "searchLabel": "搜尋機場",
     "firFilter": "按 FIR 篩選",
     "allFirs": "全部",
-    "elevFt": "標高 ft",
+    "elevFt": "標高 (ft)",
     "noData": "沒有取得機場資料。",
     "clearFilters": "清除篩選",
     "editGround": "編輯地面要素",

@@ -99,7 +99,7 @@ const filtered = computed(() => {
       !p.callsign.toUpperCase().includes(needle) &&
       !(p.radioName ?? "").toUpperCase().includes(needle) &&
       !(p.identifier ?? "").toUpperCase().includes(needle) &&
-      !String(p.freqMhz ?? "").includes(needle)
+      !(p.freqMhz === null ? "" : formatFreq(p.freqMhz)).includes(needle)
     ) {
       return false;
     }
@@ -139,12 +139,22 @@ function toggle(callsign: string) {
   open.value = next;
 }
 
+/** 频率一律印三位小数（`118.500`）—— 机上和扇区包里都是这么写的，列也对得齐。 */
+function formatFreq(mhz: number): string {
+  return mhz.toFixed(3);
+}
+
 /** 一个呼号下的频率：一个就直接印，多个印「N 个频率」—— 那是分扇区的区调。 */
-function freqSummary(list: NetworkPosition[]): string {
-  const freqs = [...new Set(list.map((p) => p.freqMhz).filter(Boolean))];
-  if (freqs.length === 0) return "—";
-  if (freqs.length === 1) return String(freqs[0]);
-  return String(t("nFreqs", { n: String(freqs.length) }));
+function freqSummary(list: NetworkPosition[]): { text: string; freq: boolean } {
+  const freqs = [
+    ...new Set(list.map((p) => p.freqMhz).filter((f) => f !== null)),
+  ];
+  if (freqs.length === 0) return { text: "—", freq: false };
+  if (freqs.length === 1) return { text: formatFreq(freqs[0]), freq: true };
+  return {
+    text: String(t("nFreqs", { n: String(freqs.length) })),
+    freq: false,
+  };
 }
 
 /** 一个呼号下的归属包。几乎总是一个；不止一个就都印出来，不挑。 */
@@ -264,9 +274,13 @@ function panelId(callsign: string) {
           </span>
 
           <span class="flex shrink-0 flex-col items-end">
-            <span class="tnum font-mono text-base font-semibold text-ink">{{
-              freqSummary(g.list)
-            }}</span>
+            <span
+              class="tnum font-semibold text-ink"
+              :class="
+                freqSummary(g.list).freq ? 'font-mono text-base' : 'text-sm'
+              "
+              >{{ freqSummary(g.list).text }}</span
+            >
             <span
               class="flex items-center gap-1.5 text-xs whitespace-nowrap text-faint"
             >
@@ -290,6 +304,7 @@ function panelId(callsign: string) {
           v-if="open.has(g.callsign) && g.list.length > 1"
           :id="panelId(g.callsign)"
           class="scroll-shadow-x overflow-x-auto border-t border-subtle bg-surface-sunken px-3 py-2 sm:px-4"
+          style="--scroll-shadow-bg: var(--surface-sunken)"
         >
           <table class="data-table w-full text-sm">
             <thead>
@@ -306,7 +321,7 @@ function panelId(callsign: string) {
                   {{ p.identifier ?? "—" }}
                 </td>
                 <td :data-label="t('freq')" class="tnum font-mono">
-                  {{ p.freqMhz ?? "—" }}
+                  {{ p.freqMhz === null ? "—" : formatFreq(p.freqMhz) }}
                 </td>
                 <td :data-label="t('squawk')" class="tnum font-mono text-xs">
                   {{ p.squawkStart ? `${p.squawkStart}–${p.squawkEnd}` : "—" }}

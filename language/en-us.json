@@ -221,7 +221,7 @@
     "searchLabel": "Search airports",
     "firFilter": "Filter by FIR",
     "allFirs": "All",
-    "elevFt": "Elev ft",
+    "elevFt": "Elev (ft)",
     "noData": "No airport data was returned.",
     "clearFilters": "Clear filters",
     "editGround": "Edit ground",
