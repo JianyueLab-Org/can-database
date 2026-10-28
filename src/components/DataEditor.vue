@@ -796,7 +796,7 @@ async function submit() {
                               <button
                                 type="button"
                                 role="menuitem"
-                                class="flex w-full items-center justify-between gap-2 rounded-control px-2.5 py-1.5 text-left font-mono text-sm text-ink transition-colors hover:bg-surface-raised focus-visible:bg-surface-raised focus-visible:outline-none"
+                                class="flex w-full items-center justify-between gap-2 rounded-control px-2.5 py-1.5 text-left font-mono text-sm text-ink transition-colors hover:bg-surface-sunken focus-visible:bg-surface-sunken focus-visible:outline-none"
                                 @click="
                                   close();
                                   go(rel.table, rel.filter);
