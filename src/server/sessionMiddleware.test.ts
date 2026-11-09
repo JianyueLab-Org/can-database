@@ -273,7 +273,7 @@ describe("database session middleware", () => {
     expect(upstreamCalls).toBe(2);
   });
 
-  test.each(["/api/v1/aip/airports", "/healthz"])(
+  test.each(["/api/v1/aip/airports", "/healthz", "/health"])(
     "unguarded %s retains its existing behavior",
     async (path) => {
       stub(() => {
