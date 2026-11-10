@@ -545,6 +545,11 @@ Origin 检查，再把 `origin` 头带给 can-db。
 
 ## 本地开发
 
+`.dockerignore` 从构建上下文排除所有层级的 `.env*`、本地依赖、构建产物、Git 元数据和
+`navdata/`（包括 `data/navdata/`）。`.npmrc`、源码、静态资源、词典和 `scripts/` 保留，
+包括构建末尾运行的 `check-ssr-browser-only.mjs`。运行配置由容器环境变量提供，
+包令牌使用 BuildKit 的 `github_token` secret。
+
 ```bash
 bun install
 bun run dev            # :4329
