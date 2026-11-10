@@ -9,9 +9,9 @@ FROM oven/bun:1 AS build
 WORKDIR /app
 
 # Manifest first so the dependency layer survives a source change.
-# .npmrc comes along because can-ui lives on GitHub Packages, whose npm registry
-# demands a token even for a public package.
-COPY package.json bun.lock .npmrc ./
+# Host .npmrc files are excluded; generate registry config with a literal token placeholder.
+COPY package.json bun.lock ./
+RUN printf '%s\n' '@jianyuelab-org:registry=https://npm.pkg.github.com' '//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}' > .npmrc
 # The token arrives as a BuildKit secret, never --build-arg: the latter is
 # readable from `docker history` on a pushed image.
 RUN --mount=type=secret,id=github_token \
@@ -22,8 +22,9 @@ COPY . .
 RUN bun run build
 
 RUN --mount=type=secret,id=github_token \
+    rm -rf node_modules && \
     GITHUB_TOKEN="$(cat /run/secrets/github_token)" \
-    rm -rf node_modules && bun install --frozen-lockfile --production
+    bun install --frozen-lockfile --production
 
 FROM node:22-alpine AS runtime
 WORKDIR /app
