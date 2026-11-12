@@ -207,14 +207,12 @@ const UNSAFE = new Set(["POST", "PATCH", "PUT", "DELETE"]);
 /**
  * 逐字转发的响应头。
  *
- * `set-cookie` **必须**在里面：退出登录是 can-api 用一个 Set-Cookie 清掉会话
- * 的，漏掉它成员就永远登不出去 —— 按钮有反应、页面跳转、然后他还是登录着。
+ * `set-cookie` 单独逐条追加，保留多个 cookie 和 Expires 中的逗号。
  */
 const PASS_THROUGH = [
   "content-type",
   "content-disposition",
   "cache-control",
-  "set-cookie",
   // `/aip/airports` 的下一页游标。
   "x-next-cursor",
 ];
@@ -244,6 +242,9 @@ export function passThroughHeaders(upstreamHeaders: Headers): Headers {
   for (const name of PASS_THROUGH) {
     const value = upstreamHeaders.get(name);
     if (value) out.set(name, value);
+  }
+  for (const cookie of upstreamHeaders.getSetCookie()) {
+    out.append("set-cookie", cookie);
   }
   return out;
 }
