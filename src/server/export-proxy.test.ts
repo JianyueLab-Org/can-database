@@ -7,7 +7,7 @@ import {
   passThroughHeaders,
   upstreamTarget,
   upstreamTimeout,
-} from "./[...path]";
+} from "../pages/api/v1/[...path]";
 import { origin } from "@/lib/config";
 
 function proxyContext(request: Request, path = "aip/export") {
