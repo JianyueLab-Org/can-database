@@ -148,9 +148,8 @@ export const ALLOW_PATTERNS: Array<Allowed & { test: RegExp }> = [
 ];
 
 export function lookup(path: string): Allowed | undefined {
-  return (
-    ALLOW_LIST[path] ?? ALLOW_PATTERNS.find((entry) => entry.test.test(path))
-  );
+  const exact = Object.hasOwn(ALLOW_LIST, path) ? ALLOW_LIST[path] : undefined;
+  return exact ?? ALLOW_PATTERNS.find((entry) => entry.test.test(path));
 }
 
 /**

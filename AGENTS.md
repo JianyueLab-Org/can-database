@@ -82,6 +82,10 @@ can-db 一个进程。
 等于把 can-db 整个 API 挂到公网上。每一条都写着谁在用它 —— 要加页面就要加条目，而
 且要顺手写清楚「谁在用」，否则以后没人敢删任何一条。
 
+两张精确路径表都只认 `Object.hasOwn` 的自有键，再查模式。`toString`、`constructor`、
+`__proto__`、`hasOwnProperty` 按未知路径返回 404，不请求上游。
+`src/server/proxyAllowList.test.ts` 检查这条边界、有效精确路径和模式路径、方法与 Origin 限制。
+
 服务端渲染的页面不走这条，走 `src/server/canDb.ts`（它转发 cookie）。
 
 转给 **can-api** 而不是 can-db 的条目在 `AUTH_PATHS` / `AUTH_PATTERNS`，由 `canApiEntry()`
